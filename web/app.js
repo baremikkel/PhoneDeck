@@ -71,7 +71,8 @@ function bars(ctx, w, h, data, color) {
 
 function drawCharts(s) {
   const hist = s.hw?.history || {};
-  $$("canvas[data-chart]").forEach((c) => {
+  // only the core charts – extensions draw their own canvases
+  $$('canvas[data-chart="cpu"], canvas[data-chart="gpu"], canvas[data-chart="ram"], canvas[data-chart="net"]').forEach((c) => {
     const [ctx, w, h] = prep(c);
     if (!ctx) return;
     switch (c.dataset.chart) {
@@ -579,6 +580,8 @@ function applyUi(next) {
     pager.append(el);  // re-order
     el.hidden = next.hidden.includes(name);
   }
+  // pages from newly added extensions (not in the saved order yet) go last
+  $$(".page").filter((p) => !next.pages.includes(p.id.slice(2))).forEach((p) => pager.append(p));
   pages = $$(".page").filter((p) => !p.hidden);
   buildDots();
   document.documentElement.style.setProperty("--deck-cols", next.deck_cols || 5);

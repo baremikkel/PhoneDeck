@@ -1,0 +1,10 @@
+{
+  "id": "hello",
+  "name": "Hej-eksempel",
+  "description": "Et minimalt eksempel på en udvidelse: en side, en indstilling og lidt Python. Har ingen kategori, så den havner under 'Andet'.",
+  "page": {"title": "Hej"},
+  "widgets": [{"type": "hello", "name": "Hilsen", "icon": "star"}],
+  "settings": [
+    {"key": "greeting", "label": "Hilsen", "type": "text", "default": "Hej fra en udvidelse!"}
+  ]
+}

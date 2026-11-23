@@ -1,0 +1,3 @@
+#p-hello { grid-template-columns: 1fr; }
+.hello-card { align-items: flex-start; justify-content: center; gap: 12px; --accent: var(--gh); }
+.hello-card .big { font-size: 38px; white-space: normal; }

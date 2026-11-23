@@ -41,8 +41,10 @@ def _track(t: dict | None) -> dict | None:
 
 
 class Spotify:
-    def __init__(self, settings, port: int):
-        self.settings = settings
+    def __init__(self, client_id, port: int, stopped):
+        self.client_id = client_id  # callable -> str (extension setting)
+        self.stopped = stopped
+        # the old address is kept so Spotify apps set up before extensions keep working
         self.redirect_uri = f"http://127.0.0.1:{port}/spotify/callback"
         self._lock = threading.Lock()
         self._pending: dict[str, str] = {}  # state -> code_verifier
@@ -58,7 +60,7 @@ class Spotify:
 
     # ---------- login (PKCE) ----------
     def login_url(self) -> str:
-        cid = self.settings.get("spotify", "client_id")
+        cid = self.client_id()
         if not cid:
             raise ValueError("Indtast dit Spotify Client ID først")
         verifier = secrets.token_urlsafe(64)
@@ -79,7 +81,7 @@ class Spotify:
             raise ValueError("Ugyldigt eller udløbet login – prøv igen")
         tok = _post_form("https://accounts.spotify.com/api/token", {
             "grant_type": "authorization_code", "code": code, "redirect_uri": self.redirect_uri,
-            "client_id": self.settings.get("spotify", "client_id"), "code_verifier": verifier,
+            "client_id": self.client_id(), "code_verifier": verifier,
         })
         self._save_token(tok)
         self._wake.set()
@@ -111,7 +113,7 @@ class Spotify:
         if time.time() >= tok.get("expires_at", 0):
             new = _post_form("https://accounts.spotify.com/api/token", {
                 "grant_type": "refresh_token", "refresh_token": tok.get("refresh_token", ""),
-                "client_id": self.settings.get("spotify", "client_id"),
+                "client_id": self.client_id(),
             })
             self._save_token(new)
         return self.token["access_token"]
@@ -121,7 +123,7 @@ class Spotify:
         self._wake.set()
 
     def _loop(self) -> None:
-        while True:
+        while not self.stopped.is_set():
             if self.token:
                 try:
                     access = self._access_token()
@@ -150,5 +152,5 @@ class Spotify:
     def state(self) -> dict:
         with self._lock:
             d = dict(self.data)
-        d["configured"] = bool(self.settings.get("spotify", "client_id"))
+        d["configured"] = bool(self.client_id())
         return d

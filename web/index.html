@@ -80,102 +80,6 @@
       </div>
     </section>
 
-    <!-- ============ 3. MUSIK ============ -->
-    <section class="page" id="p-music" data-title="Musik">
-      <button class="card next-bar" data-queue-open>
-        <img data-next-art alt="" hidden>
-        <span class="next-txt"><small data-b="q.lbl">Næste</small><span data-b="q.next">–</span></span>
-        <i class="ic" data-icon="queue"></i>
-      </button>
-      <div class="card media big-media">
-        <canvas class="viz" data-viz hidden></canvas>
-        <div class="art"><img data-art alt=""><div class="noart">♪</div></div>
-        <div class="info">
-          <div class="sub" data-b="m.player"></div>
-          <div class="title" data-b="m.title">Intet afspilles</div>
-          <div class="artist" data-b="m.artist"></div>
-          <div class="album sub" data-b="m.album"></div>
-          <div class="progress"><i data-w="m.progress"></i></div>
-          <div class="times"><span data-b="m.pos"></span><span data-b="m.len"></span></div>
-          <div class="controls">
-            <button data-action="media.previous" aria-label="Forrige"><i class="ic" data-icon="prev"></i></button>
-            <button data-action="media.playpause" class="primary" aria-label="Afspil/pause"><i class="ic" data-icon="play" data-ib="m.play"></i></button>
-            <button data-action="media.next" aria-label="Næste"><i class="ic" data-icon="next"></i></button>
-          </div>
-          <div class="volume">
-            <button data-action="volume.down" aria-label="Lavere"><i class="ic" data-icon="minus"></i></button>
-            <div class="bar"><i data-w="vol.pct"></i></div>
-            <button data-action="volume.up" aria-label="Højere"><i class="ic" data-icon="plus"></i></button>
-            <button data-action="volume.mute" class="vol" data-b="vol.txt" data-on="vol.muted">–</button>
-            <button data-viz-toggle aria-label="Visualizer til/fra" title="Visualizer"><i class="ic" data-icon="viz"></i></button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ 4. CLAUDE ============ -->
-    <section class="page" id="p-claude" data-title="Claude" style="--accent: var(--claude)">
-      <div class="card c-main">
-        <header><span class="label">Claude Code · 5-timers vindue</span></header>
-        <div class="donut-row">
-          <div class="donut" data-donut-wrap title="Tryk for at sætte grænser">
-            <canvas data-donut></canvas>
-            <div class="donut-center"><b data-b="c.left">–</b><small data-b="c.leftlbl">tilbage</small></div>
-          </div>
-          <div class="donut-info">
-            <div class="big"><span data-b="c.block">–</span><small data-b="c.blockof">tokens</small></div>
-            <div class="sub" data-b="c.resetlong"></div>
-            <div class="legend"><span><i style="background: var(--claude)"></i><span data-b="c.fivetxt">5 timer</span></span><span data-week-legend><i style="background: var(--ram)"></i><span data-b="c.weektxt">uge</span></span></div>
-          </div>
-        </div>
-        <div class="kv">
-          <div><small>Input</small><span data-b="c.b.in">–</span></div>
-          <div><small>Output</small><span data-b="c.b.out">–</span></div>
-          <div><small>Cache skrevet</small><span data-b="c.b.cw">–</span></div>
-          <div><small>Cache læst</small><span data-b="c.b.cr">–</span></div>
-        </div>
-      </div>
-      <div class="card c-stats">
-        <header><span class="label">I dag</span><span class="sub" data-b="c.msgs"></span></header>
-        <div class="kv col">
-          <div><small>Tokens i dag</small><span data-b="c.today">–</span></div>
-          <div><small>Output i dag</small><span data-b="c.out">–</span></div>
-          <div><small>Sidste 7 dage</small><span data-b="c.week">–</span></div>
-        </div>
-        <div class="models" data-models></div>
-      </div>
-      <div class="card c-chart">
-        <header><span class="label">Sidste 24 timer</span><span class="sub">tokens pr. time</span></header>
-        <canvas class="bars" data-chart="claude"></canvas>
-        <div class="sub tiny axis"><span>-24 t</span><span>-12 t</span><span>nu</span></div>
-      </div>
-    </section>
-
-    <!-- ============ 5. AKTIVITET ============ -->
-    <section class="page" id="p-activity" data-title="Aktivitet">
-      <div class="card heat" style="--accent: var(--gh)">
-        <header>
-          <span class="label">GitHub<span class="sub" data-b="gh.user"></span></span>
-          <span class="stats">
-            <span><b data-b="gh.total">–</b><small>bidrag · år</small></span>
-            <span><b data-b="gh.today">–</b><small>i dag</small></span>
-            <span><b data-b="gh.streak">–</b><small>dage i træk</small></span>
-          </span>
-        </header>
-        <canvas class="heatmap" data-heat="github"></canvas>
-      </div>
-      <div class="card heat" style="--accent: var(--claude)">
-        <header>
-          <span class="label">Claude Code</span>
-          <span class="stats">
-            <span><b data-b="ch.total">–</b><small>tokens · år</small></span>
-            <span><b data-b="ch.active">–</b><small>aktive dage</small></span>
-            <span><b data-b="ch.streak">–</b><small>dage i træk</small></span>
-          </span>
-        </header>
-        <canvas class="heatmap" data-heat="claude"></canvas>
-      </div>
-    </section>
 
     <!-- ============ 6. KNAPPER (Stream Deck – redigeres på /editor) ============ -->
     <section class="page" id="p-buttons" data-title="Knapper">
@@ -195,12 +99,7 @@
     </div>
   </div>
 
-  <div id="queue" class="sheet" hidden>
-    <div class="sheet-card">
-      <header><span class="label">Kø</span><span class="sub grow right" data-b="q.count"></span><button class="mini" data-queue-close aria-label="Luk"><i class="ic" data-icon="close"></i></button></header>
-      <ol class="queue-list" data-queue></ol>
-    </div>
-  </div>
+
   <script src="icons.js"></script>
   <script src="app.js"></script>
 </body>

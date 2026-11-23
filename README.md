@@ -151,6 +151,40 @@ Et program er **Aktiv**, når det har et åbent vindue, ikke bare når det køre
   Log derefter ud og ind igen. Udvidelsen gør kun én ting: den svarer på D-Bus med hvilke programmer, der har et vindue.
   Uden den regnes Wayland-programmer som aktive, så længe de kører.
 
+## Udvidelser
+
+Alt ud over kernen (system, Stream Deck, forside, indstillinger) er **udvidelser**, og hver
+ligger i sin egen mappe:
+
+```
+extensions/
+  music/         Musik      – afspiller, egen lydstyrke, visualizer
+  spotify/       Musik      – næste sang + kø (Spotify Web API)
+  claude-code/   AI         – forbrug, plan-donut, heatmap
+  github/        Udvikling  – bidrags-heatmap
+```
+
+- **Tilføj** en udvidelse ved at lægge en mappe i `extensions/` eller i
+  `~/.config/phonedeck/extensions/`. Den dukker op på telefonen og i indstillingerne
+  inden for få sekunder, uden genstart.
+- **Fjern** mappen, så forsvinder udvidelsen igen: dens side, widgets og indstillinger.
+- **Kategori:** `"category"` i `extension.json` grupperer udvidelser, så fx Claude Code og en
+  ChatGPT-udvidelse begge ligger under *AI*. Uden kategori havner den under *Andet*.
+  Indstillingerne vises under samme kategorier.
+
+En udvidelse består af:
+
+| Fil | Indhold |
+|---|---|
+| `extension.json` | navn, kategori, beskrivelse, side-titel, widgets og indstillinger (tekst, tal, til/fra, valg, info, status, knapper) |
+| `backend.py` | valgfri: `class Extension` med `state()`, `action()`, `http_get()`, `info()`, `stop()` |
+| `page.html` | valgfri: en side på telefonen |
+| `page.js` | valgfri: `PhoneDeck.register("<id>", {render, tick, page, widgets})` |
+| `page.css` | valgfri: styling |
+
+Se `examples/hello-extension/` for et lille, kommenteret eksempel. Formatet er beskrevet i
+toppen af `phonedeck/extensions.py`.
+
 ## Konfiguration
 
 ```bash

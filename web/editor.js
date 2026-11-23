@@ -365,10 +365,10 @@ document.addEventListener("keydown", (e) => {
 });
 
 // ================= home page layout =================
+// core widgets; installed extensions add theirs when the editor loads
 const WIDGETS = {
   cpu: ["CPU", "bolt"], gpu: ["GPU", "bolt"], ram: ["RAM", "folder"], net: ["Netværk", "globe"],
-  disk: ["Disk", "folder"], sys: ["Systemlinje (RAM, net, disk, ur)", "keyboard"], media: ["Musik", "play"],
-  claude: ["Claude-forbrug", "star"], donut: ["Claude-donut", "star"], clock: ["Ur", "lock"], github: ["GitHub-heatmap", "globe"],
+  disk: ["Disk", "folder"], sys: ["Systemlinje (RAM, net, disk, ur)", "keyboard"], clock: ["Ur", "lock"],
 };
 let home = null, homeDirty = false, selItem = -1, selStart = null;
 
@@ -396,7 +396,7 @@ function widgetLabel(it) {
     const b = deck.find((x) => x.id === it.button);
     return b ? [b.label, b.icon] : ["(slettet knap)", { kind: "emoji", value: "⚠️" }];
   }
-  const [name, icon] = WIDGETS[it.type] || [it.type, "star"];
+  const [name, icon] = WIDGETS[it.type] || [`${it.type} (udvidelse ikke installeret)`, "star"];
   return [name, { kind: "builtin", value: icon }];
 }
 function renderHomeGrid() {
@@ -534,6 +534,9 @@ window.addEventListener("hashchange", showTab);
     setDirty(false);
     select(-1);
     const st = await api("/api/settings");
+    for (const ext of st.extensions || []) {
+      for (const w of ext.widgets || []) WIDGETS[w.type] = [`${w.name} (${ext.name})`, w.icon || "star"];
+    }
     home = st.settings.ui.home;
     $("#grid").value = `${home.cols}x${home.rows}`;
     homeSetDirty(false);

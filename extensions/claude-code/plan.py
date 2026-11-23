@@ -32,8 +32,9 @@ def _window(d) -> dict | None:
 
 
 class ClaudePlan:
-    def __init__(self, settings):
-        self.settings = settings
+    def __init__(self, use_login, stopped):
+        self.use_login = use_login  # callable -> bool (extension setting)
+        self.stopped = stopped
         self._lock = threading.Lock()
         self.data: dict = {}
         self._wake = threading.Event()
@@ -100,8 +101,8 @@ class ClaudePlan:
             self._wake.wait(self._backoff)
             self._wake.clear()
             self._backoff = 0
-        while True:
-            if self.settings.get("claude", "use_login"):
+        while not self.stopped.is_set():
+            if self.use_login():
                 try:
                     data = self._fetch()
                 except Exception as e:
@@ -117,7 +118,7 @@ class ClaudePlan:
             self._wake.clear()
 
     def state(self) -> dict | None:
-        if not self.settings.get("claude", "use_login"):
+        if not self.use_login():
             return None
         with self._lock:
             return dict(self.data)

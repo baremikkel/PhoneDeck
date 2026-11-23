@@ -545,7 +545,7 @@ function fillHomeButtons(list) {
 }
 
 document.addEventListener("click", (e) => {
-  if (e.target.closest("[data-menu-open]")) { $("#menu").hidden = false; return; }
+  if (e.target.closest("[data-menu-open]")) { renderMenuPages(); $("#menu").hidden = false; return; }
   const item = e.target.closest("[data-menu-go]");
   if (item) {
     api("/api/action", { action: item.dataset.menuGo }).catch(() => {});
@@ -555,6 +555,21 @@ document.addEventListener("click", (e) => {
     $("#menu").hidden = true;
   }
 });
+
+// the Menu lists every visible page, so you can jump straight to one
+const PAGE_ICONS = { overview: "grid", system: "bolt", buttons: "keyboard", music: "play", "claude-code": "star", github: "globe", spotify: "queue" };
+function renderMenuPages() {
+  $("#menu-pages").replaceChildren(...pages.map((p, i) => {
+    const id = p.id.replace(/^p-/, "");
+    const b = document.createElement("button");
+    b.className = "tile" + (i === current ? " here" : "");
+    b.dataset.goto = id;
+    const ic = Object.assign(document.createElement("i"), { className: "ic" });
+    drawIcon(ic, PAGE_ICONS[id] || (id.startsWith("custom-") ? "grid" : "star"));
+    b.append(ic, Object.assign(document.createElement("span"), { textContent: p.dataset.title || id }));
+    return b;
+  }));
+}
 
 // short pop-up message at the bottom of the screen
 function toast(msg, ms = 2200) {
@@ -609,11 +624,12 @@ document.addEventListener("click", (e) => {
   }
   if (last) renderButtons(last.buttons || []);
 });
-// "Gå til side"-buttons
+// "Gå til side"-buttons (Stream Deck, home page and the Menu)
 document.addEventListener("click", (e) => {
   const go = e.target.closest("[data-goto]");
   if (!go) return;
   navigator.vibrate?.(10);
+  $("#menu").hidden = true;
   const i = pages.findIndex((p) => p.id === "p-" + go.dataset.goto);
   if (i < 0) toast("Siden er skjult eller findes ikke længere");
   else goTo(i);

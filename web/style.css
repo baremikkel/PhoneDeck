@@ -377,7 +377,7 @@ body.stack #p-system .legend { display: none; }
 .tile.home-menu { min-height: 0; border-style: dashed; background: transparent; }
 .tile.home-menu .ic { color: var(--muted); }
 .tile.home-menu span { color: var(--muted); }
-.menu-card { width: min(460px, 100%); }
+.menu-card { width: min(620px, 100%); overflow: auto; }
 .menu-items { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .menu-items .tile { min-height: 110px; }
 .menu-items .tile .ic { font-size: 34px; }
@@ -449,3 +449,13 @@ body.stack .grid-page { grid-template-areas: none !important; }
 @container donut (max-width: 130px) { .donut-center small { display: none; } .donut-center b { font-size: 15px; } }
 @container donut (max-height: 110px) { .donut-center small { display: none; } .donut-center b { font-size: 15px; } }
 @container donut (min-height: 300px) { .c-main .donut { max-height: 230px; } .c-main .donut-center b { font-size: 30px; } }
+
+/* Menu: jump to a page */
+.menu-card .menu-head { flex: none; font-size: 12px; color: var(--muted); margin-top: 2px; }
+.menu-items .tile { min-height: 64px; flex-direction: row; gap: 10px; }
+.menu-items .tile .ic { font-size: 26px; }
+.menu-pages { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+.menu-pages .tile { min-height: 52px; flex-direction: row; justify-content: flex-start; gap: 8px; padding: 6px 10px; font-size: 14px; }
+.menu-pages .tile span { white-space: normal; overflow: visible; text-overflow: clip; text-align: left; line-height: 1.15; }
+.menu-pages .tile .ic { font-size: 20px; flex: none; }
+.menu-pages .tile.here { border-color: var(--text); }

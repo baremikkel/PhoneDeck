@@ -50,9 +50,9 @@
           <div class="progress"><i data-w="m.progress"></i></div>
           <div class="times"><span data-b="m.pos"></span><span data-b="m.len"></span></div>
           <div class="controls">
-            <button data-action="media.previous" aria-label="Forrige">⏮</button>
-            <button data-action="media.playpause" class="primary" data-b="m.play" aria-label="Afspil/pause">▶</button>
-            <button data-action="media.next" aria-label="Næste">⏭</button>
+            <button data-action="media.previous" aria-label="Forrige"><i class="ic" data-icon="prev"></i></button>
+            <button data-action="media.playpause" class="primary" aria-label="Afspil/pause"><i class="ic" data-icon="play" data-ib="m.play"></i></button>
+            <button data-action="media.next" aria-label="Næste"><i class="ic" data-icon="next"></i></button>
           </div>
         </div>
       </div>
@@ -150,14 +150,14 @@
           <div class="progress"><i data-w="m.progress"></i></div>
           <div class="times"><span data-b="m.pos"></span><span data-b="m.len"></span></div>
           <div class="controls">
-            <button data-action="media.previous" aria-label="Forrige">⏮</button>
-            <button data-action="media.playpause" class="primary" data-b="m.play" aria-label="Afspil/pause">▶</button>
-            <button data-action="media.next" aria-label="Næste">⏭</button>
+            <button data-action="media.previous" aria-label="Forrige"><i class="ic" data-icon="prev"></i></button>
+            <button data-action="media.playpause" class="primary" aria-label="Afspil/pause"><i class="ic" data-icon="play" data-ib="m.play"></i></button>
+            <button data-action="media.next" aria-label="Næste"><i class="ic" data-icon="next"></i></button>
           </div>
           <div class="volume">
-            <button data-action="volume.down" aria-label="Lavere">−</button>
+            <button data-action="volume.down" aria-label="Lavere"><i class="ic" data-icon="minus"></i></button>
             <div class="bar"><i data-w="vol.pct"></i></div>
-            <button data-action="volume.up" aria-label="Højere">+</button>
+            <button data-action="volume.up" aria-label="Højere"><i class="ic" data-icon="plus"></i></button>
             <button data-action="volume.mute" class="vol" data-b="vol.txt" data-on="vol.muted">–</button>
           </div>
         </div>
@@ -196,14 +196,14 @@
     <!-- ============ 5. KNAPPER ============ -->
     <section class="page" id="p-buttons" data-title="Knapper">
       <div class="tiles" data-tiles>
-        <button class="tile" data-action="volume.down"><b>🔉</b>Lavere</button>
-        <button class="tile" data-action="volume.mute" data-on="vol.muted"><b data-b="vol.icon">🔈</b><span data-b="vol.txt">–</span></button>
-        <button class="tile" data-action="volume.up"><b>🔊</b>Højere</button>
-        <button class="tile" data-action="mic.mute" data-on="mic.muted"><b>🎙</b><span data-b="mic.txt">Mikrofon</span></button>
-        <button class="tile" data-action="media.previous"><b>⏮</b>Forrige</button>
-        <button class="tile" data-action="media.playpause"><b data-b="m.play">▶</b>Afspil/pause</button>
-        <button class="tile" data-action="media.next"><b>⏭</b>Næste</button>
-        <button class="tile" data-fullscreen><b>⛶</b>Fuld skærm</button>
+        <button class="tile" data-action="volume.down"><i class="ic" data-icon="volDown"></i>Lavere</button>
+        <button class="tile" data-action="volume.mute" data-on="vol.muted"><i class="ic" data-icon="volMute" data-ib="vol.icon"></i><span data-b="vol.txt">–</span></button>
+        <button class="tile" data-action="volume.up"><i class="ic" data-icon="volUp"></i>Højere</button>
+        <button class="tile" data-action="mic.mute" data-on="mic.muted"><i class="ic" data-icon="mic" data-ib="mic.icon"></i><span data-b="mic.txt">Mikrofon</span></button>
+        <button class="tile" data-action="media.previous"><i class="ic" data-icon="prev"></i>Forrige</button>
+        <button class="tile" data-action="media.playpause"><i class="ic" data-icon="play" data-ib="m.play"></i>Afspil/pause</button>
+        <button class="tile" data-action="media.next"><i class="ic" data-icon="next"></i>Næste</button>
+        <button class="tile" data-fullscreen><i class="ic" data-icon="fullscreen"></i>Fuld skærm</button>
       </div>
     </section>
   </main>

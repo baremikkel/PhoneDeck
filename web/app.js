@@ -26,6 +26,33 @@ function setTemp(key, t, warn, hot) {
   });
 }
 
+// ---------- icons (inline SVG, so they look the same everywhere – no emoji) ----------
+const P = (d, fill) => `<path d="${d}"${fill ? ' fill="currentColor" stroke="none"' : ""}/>`;
+const SPEAKER = P("M4 9.5h3.5L12 5.5v13l-4.5-4H4a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z", true);
+const ICONS = {
+  play: P("M8 5.2v13.6a1 1 0 0 0 1.53.85l10.9-6.8a1 1 0 0 0 0-1.7L9.53 4.35A1 1 0 0 0 8 5.2z", true),
+  pause: P("M7 4.5h3a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1zM14 4.5h3a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1z", true),
+  prev: P("M19 6.1v11.8a1 1 0 0 1-1.55.83L9 13.2a1.45 1.45 0 0 1 0-2.4l8.45-5.53A1 1 0 0 1 19 6.1zM5 5.5a1 1 0 0 1 2 0v13a1 1 0 0 1-2 0z", true),
+  next: P("M5 6.1v11.8a1 1 0 0 0 1.55.83L15 13.2a1.45 1.45 0 0 0 0-2.4L6.55 5.27A1 1 0 0 0 5 6.1zM17 5.5a1 1 0 0 1 2 0v13a1 1 0 0 1-2 0z", true),
+  minus: P("M5 12h14"),
+  plus: P("M12 5v14M5 12h14"),
+  volDown: SPEAKER + P("M15.5 9.5a3.5 3.5 0 0 1 0 5"),
+  volMute: SPEAKER + P("M15.5 9.5a3.5 3.5 0 0 1 0 5") + P("M18.5 7a7 7 0 0 1 0 10"),
+  volUp: SPEAKER + P("M15.5 9.5a3.5 3.5 0 0 1 0 5") + P("M18.5 7a7 7 0 0 1 0 10") + P("M21 4.5a10.5 10.5 0 0 1 0 15"),
+  volOff: SPEAKER + P("M16 9.5l5 5M21 9.5l-5 5"),
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/>' + P("M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6"),
+  micOff: '<rect x="9" y="3" width="6" height="11" rx="3"/>' + P("M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6M3.5 3.5l17 17"),
+  fullscreen: P("M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"),
+};
+const svg = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
+function drawIcon(el, name) {
+  if (el.dataset.drawn === name) return;
+  el.dataset.drawn = name;
+  el.innerHTML = svg(name);  // static markup from ICONS only
+}
+const setIcon = (key, name) => $$(`[data-ib="${key}"]`).forEach((el) => drawIcon(el, name));
+$$("[data-icon]").forEach((el) => drawIcon(el, el.dataset.icon));
+
 // ---------- canvas ----------
 function prep(canvas) {
   const dpr = window.devicePixelRatio || 1;
@@ -152,7 +179,7 @@ function renderMedia(m) {
     setText("m.title", m?.error ? "Medie: " + m.error : "Intet afspilles");
     ["m.artist", "m.album", "m.player", "m.pos", "m.len"].forEach((k) => setText(k, ""));
     setWidth("m.progress", 0);
-    setText("m.play", "▶");
+    setIcon("m.play", "play");
     if (artKey !== null) { $$("img[data-art]").forEach((i) => i.removeAttribute("src")); artKey = null; }
     media.playing = false; media.len = 0;
     return;
@@ -161,7 +188,7 @@ function renderMedia(m) {
   setText("m.title", m.title);
   setText("m.artist", m.artist || "");
   setText("m.album", m.album || "");
-  setText("m.play", m.status === "Playing" ? "⏸" : "▶");
+  setIcon("m.play", m.status === "Playing" ? "pause" : "play");
   if (m.art_key !== artKey) {
     artKey = m.art_key;
     $$("img[data-art]").forEach((img) => {
@@ -217,7 +244,8 @@ function renderClaude(c) {
 function renderAudio(a) {
   const out = a.output || {}, mic = a.mic || {};
   setText("vol.txt", out.muted ? "Lyd fra" : (out.volume ?? "–") + " %");
-  setText("vol.icon", out.muted ? "🔇" : "🔈");
+  setIcon("vol.icon", out.muted ? "volOff" : "volMute");
+  setIcon("mic.icon", mic.muted ? "micOff" : "mic");
   setWidth("vol.pct", out.volume);
   setOn("vol.muted", out.muted);
   setText("mic.txt", mic.muted ? "Mikrofon fra" : "Mikrofon");
@@ -251,18 +279,28 @@ document.addEventListener("click", async (e) => {
   } catch { /* offline banner covers this */ }
 });
 
-// Tap the clock: fullscreen + keep the screen awake
-let wakeLock = null;
-async function keepAwake() {
-  try { wakeLock = await navigator.wakeLock?.request("screen"); } catch { /* not allowed */ }
-}
+// Fullscreen on tap (clock or the tile)
 document.addEventListener("click", (e) => {
   if (!e.target.closest("[data-fullscreen]")) return;
   if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
   else document.exitFullscreen?.();
   keepAwake();
 });
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && wakeLock) keepAwake(); });
+
+// Keep the screen on for as long as the dashboard is visible. The browser drops
+// the lock whenever the page is hidden, so grab it again every time it comes back.
+let wakeLock = null;
+async function keepAwake() {
+  if (!("wakeLock" in navigator) || document.visibilityState !== "visible" || (wakeLock && !wakeLock.released)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request("screen");
+    wakeLock.addEventListener("release", () => setTimeout(keepAwake, 1000));
+  } catch { /* not allowed right now – retried on next tap / visibility change */ }
+}
+keepAwake();
+document.addEventListener("visibilitychange", keepAwake);
+document.addEventListener("pointerdown", keepAwake, { passive: true });
+setInterval(keepAwake, 30_000);
 
 // ---------- pages ----------
 const pager = $("#pager");

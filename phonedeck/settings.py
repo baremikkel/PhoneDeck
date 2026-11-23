@@ -10,7 +10,7 @@ import threading
 SETTINGS_PATH = os.path.expanduser(os.environ.get("PHONEDECK_SETTINGS", "~/.config/phonedeck/settings.json"))
 
 DEFAULTS = {
-    "claude": {"budget_5h": None, "budget_week": None},
+    "claude": {"budget_5h": None, "budget_week": None, "use_login": False},
     "spotify": {"client_id": ""},
 }
 
@@ -54,6 +54,8 @@ class Settings:
                     if not 1_000 <= v <= 10_000_000_000:
                         raise ValueError("grænsen skal være mellem 1.000 og 10 mia. tokens")
                     new["claude"][k] = v
+        if "use_login" in c:
+            new["claude"]["use_login"] = bool(c["use_login"])
         s = raw.get("spotify", {})
         if "client_id" in s:
             cid = str(s["client_id"] or "").strip()

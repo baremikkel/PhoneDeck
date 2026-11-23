@@ -165,22 +165,41 @@ function renderActivity(gh, cd) {
 }
 
 // ---------- Claude: donut with what is left of your own limits ----------
-function renderDonut(c, budget) {
+const clock = (iso) => iso ? new Date(iso).toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" }) : "";
+const weekday = (iso) => iso ? new Date(iso).toLocaleDateString("da-DK", { weekday: "short" }) + " " + clock(iso) : "";
+
+function renderDonut(c, budget, plan) {
   const used5 = c.block_used || 0;
   const usedW = c.last7d ? c.last7d.input + c.last7d.output + c.last7d.cache_write : 0;
-  const b5 = budget.budget_5h, bw = budget.budget_week;
-  if (b5) {
-    const left = Math.max(0, b5 - used5);
-    setText("c.left", fmtTok(left));
-    setText("c.leftlbl", `tilbage · ${Math.round((left / b5) * 100)} %`);
+  let rem5 = null, remW = null;
+  const p5 = plan?.five_hour, pW = plan?.seven_day;
+  if (p5) {
+    // real numbers from the Claude plan (opt-in, via the Claude Code login)
+    rem5 = Math.max(0, 1 - p5.used_pct / 100);
+    remW = pW ? Math.max(0, 1 - pW.used_pct / 100) : null;
+    setText("c.left", `${Math.round(rem5 * 100)} %`);
+    setText("c.leftlbl", "tilbage");
+    setText("c.fivetxt", `5 timer · ↻ ${clock(p5.resets_at)}`);
+    // rough token estimate: what this computer used so far ÷ share of the limit used
+    const est = p5.used_pct >= 3 ? used5 / (p5.used_pct / 100) : null;
+    setText("c.blockof", est ? `≈ ${fmtTok(est - used5)} tilbage` : "tokens");
+    if (pW) setText("c.weektxt", `uge ${Math.round(remW * 100)} % tilbage · ↻ ${weekday(pW.resets_at)}`);
+  } else if (budget.budget_5h) {
+    const b5 = budget.budget_5h;
+    rem5 = Math.max(0, 1 - used5 / b5);
+    setText("c.left", fmtTok(Math.max(0, b5 - used5)));
+    setText("c.leftlbl", `tilbage · ${Math.round(rem5 * 100)} %`);
     setText("c.blockof", `/ ${fmtTok(b5)}`);
   } else {
     setText("c.left", "–");
-    setText("c.leftlbl", "tryk: sæt grænse");
+    setText("c.leftlbl", plan?.error || "tryk: sæt grænse");
     setText("c.blockof", "tokens");
   }
-  $$("[data-week-legend]").forEach((el) => { el.hidden = !bw; });
-  if (bw) setText("c.weektxt", `uge ${Math.round(Math.max(0, 1 - usedW / bw) * 100)} % tilbage`);
+  if (!p5 && budget.budget_week) {
+    remW = Math.max(0, 1 - usedW / budget.budget_week);
+    setText("c.weektxt", `uge ${Math.round(remW * 100)} % tilbage`);
+  }
+  $$("[data-week-legend]").forEach((el) => { el.hidden = remW == null; });
   $$("canvas[data-donut]").forEach((cv) => {
     const [ctx, w, h] = prep(cv);
     if (!ctx) return;
@@ -198,15 +217,15 @@ function renderDonut(c, budget) {
       ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + f * Math.PI * 2); ctx.stroke();
     };
     const t = Math.max(6, R * 0.16);
-    const remaining5 = b5 ? 1 - used5 / b5 : null;
+    const remaining5 = rem5;
     const colour5 = remaining5 != null && remaining5 < 0.15 ? css("--hot")
       : remaining5 != null && remaining5 < 0.35 ? css("--warn") : css("--claude");
     ring(R - t / 2, t, remaining5, colour5);
-    if (bw) ring(R - t * 1.9, t * 0.55, 1 - usedW / bw, css("--ram"));
+    if (remW != null) ring(R - t * 1.9, t * 0.55, remW, css("--ram"));
   });
 }
 document.addEventListener("click", (e) => {
-  if (!e.target.closest("[data-donut-wrap]") || last?.claude_budget?.budget_5h) return;
+  if (!e.target.closest("[data-donut-wrap]") || last?.claude_budget?.budget_5h || last?.claude_plan?.five_hour) return;
   api("/api/action", { action: "open.settings" }).catch(() => {});
 });
 
@@ -302,7 +321,7 @@ function render(s) {
   renderActivity(s.github, s.claude?.daily);
   renderMedia(s.media);
   renderClaude(s.claude || {});
-  renderDonut(s.claude || {}, s.claude_budget || {});
+  renderDonut(s.claude || {}, s.claude_budget || {}, s.claude_plan);
   renderSpotify(s.spotify);
   renderAudio(s.audio || {});
   renderButtons(s.buttons || []);

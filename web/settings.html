@@ -23,6 +23,8 @@
     a.button.disabled { opacity: .4; pointer-events: none; }
     a { color: var(--accent); }
     .hint { font-size: 12px; color: var(--muted); }
+    label.check { flex-direction: row; align-items: flex-start; gap: 10px; color: var(--text); font-size: 14px; }
+    label.check input { width: 18px; height: 18px; margin-top: 2px; flex: none; }
     @media (max-width: 640px) { .two { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -63,6 +65,14 @@
       <p class="muted" style="margin:0">Donutten på Claude-siden viser, hvor meget der er tilbage af dine grænser.
         Anthropic oplyser ikke grænserne i tokens, så det er <b>dit eget estimat</b>. Tælles som input + output + cache skrevet
         fra Claude Code på denne computer.</p>
+      <label class="check"><input type="checkbox" id="use-login">
+        <span><b>Brug mit Claude Code-login (præcist)</b><br>
+        <span class="hint">Henter din plans rigtige forbrug fra Anthropic, de samme tal som <code>/usage</code> i Claude Code.
+        Tokenet læses lokalt fra <code>~/.claude/.credentials.json</code>, sendes kun til api.anthropic.com og bliver aldrig
+        gemt eller vist af PhoneDeck. Bruger et ikke-officielt endpoint, der kan ændre sig.</span>
+        <span class="hint" id="plan-status"></span></span>
+      </label>
+      <p class="hint" style="margin:0">Uden login bruges dit eget estimat herunder:</p>
       <div class="two">
         <label>Pr. 5-timers vindue (tokens)
           <input id="b5" type="number" min="1000" step="1000" placeholder="fx 1000000">
@@ -115,6 +125,11 @@
     $("#client-id").value = d.settings.spotify.client_id || "";
     $("#b5").value = d.settings.claude.budget_5h || "";
     $("#bw").value = d.settings.claude.budget_week || "";
+    $("#use-login").checked = !!d.settings.claude.use_login;
+    const p = d.plan;
+    $("#plan-status").textContent = !p ? "" : p.error ? "⚠ " + p.error
+      : p.five_hour ? `✓ ${p.plan ? p.plan[0].toUpperCase() + p.plan.slice(1) + "-plan: " : ""}${Math.round(p.five_hour.used_pct)} % brugt i 5-timers vinduet` + (p.seven_day ? `, ${Math.round(p.seven_day.used_pct)} % af ugen` : "")
+      : "Henter …";
     maxBlock = d.claude.block_max || 0;
     $("#b5-hint").textContent = `Nu: ${fmt(d.claude.block_used)} · største blok de sidste 30 dage: ${fmt(maxBlock)}`;
     const w = d.claude.last7d;
@@ -129,6 +144,13 @@
       showSpotify({ connected: false }, r.settings.spotify.client_id);
       toast("Gemt – tryk nu Forbind Spotify");
     } catch (e) { toast(e.message, true); }
+  };
+  $("#use-login").onchange = async (e) => {
+    try {
+      await api("/api/settings", { claude: { use_login: e.target.checked } });
+      toast(e.target.checked ? "Bruger dit Claude Code-login" : "Bruger dit eget estimat");
+      setTimeout(load, 2500);
+    } catch (err) { toast(err.message, true); e.target.checked = !e.target.checked; }
   };
   $("#disconnect").onclick = async () => { await api("/api/spotify/disconnect", {}); load(); toast("Afbrudt"); };
   $("#use-max").onclick = () => { if (maxBlock) $("#b5").value = Math.ceil(maxBlock / 1000) * 1000; };

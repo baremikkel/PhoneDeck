@@ -103,9 +103,14 @@ systemctl --user daemon-reload && systemctl --user enable --now phonedeck
   `http://127.0.0.1:8765/spotify/callback`, indsæt Client ID'et, og tryk *Forbind Spotify*.
   Der bruges PKCE (ingen client secret) og kun læseadgang til afspilleren. Login-tokenet
   gemmes i `~/.config/phonedeck/spotify_token.json` (kun læsbart for dig).
-- **Claude-grænser:** Anthropic oplyser ikke abonnementets grænser i tokens, så du sætter dit
-  eget estimat pr. 5-timers vindue og evt. pr. uge. Siden viser din største blok de sidste
-  30 dage som hjælp. Donutten på Claude-siden viser, hvor meget der er tilbage.
+- **Claude-grænser:** Donutten på Claude-siden viser, hvor meget der er tilbage af 5-timers
+  vinduet og ugen. To muligheder:
+  - **Brug mit Claude Code-login (præcist):** henter din plans rigtige forbrug, de samme
+    procenter som `/usage` i Claude Code. Tokenet læses lokalt fra `~/.claude/.credentials.json`,
+    sendes kun til `api.anthropic.com` og bliver aldrig gemt, fornyet eller vist af PhoneDeck.
+    Endpointet er ikke officielt dokumenteret og kan holde op med at virke.
+  - **Eget estimat:** sæt selv en grænse i tokens pr. 5-timers vindue og evt. pr. uge. Siden
+    viser din største blok de sidste 30 dage som hjælp.
 
 ## Stream Deck-knapper
 

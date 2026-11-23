@@ -13,6 +13,7 @@ from pathlib import Path
 
 from .actions import BUILTINS, Actions, audio_state, load_config
 from .apps import Apps
+from .claude_plan import ClaudePlan
 from .claude_usage import ClaudeUsage
 from .deck import Deck, hotkeys_available, validate
 from .github import GitHub
@@ -33,6 +34,7 @@ class Hub:
         self.interval = interval
         self.settings = Settings()
         self.spotify = Spotify(self.settings, port)
+        self.plan = ClaudePlan(self.settings)
         self._last_title = None
         self.sensors = Sensors()
         gpu_name = load_config().get("gpu", {}).get("name")
@@ -72,6 +74,7 @@ class Hub:
             "buttons": self.deck.public(),
             "spotify": self.spotify.state(),
             "claude_budget": self.settings.public()["claude"],
+            "claude_plan": self.plan.state(),
         }
         title = (state["media"] or {}).get("title")
         if title != self._last_title:  # new song -> refresh the queue right away
@@ -187,6 +190,7 @@ def make_handler(hub: Hub, host: str, port: int):
                 return self._json({"settings": hub.settings.public(),
                                    "spotify": hub.spotify.state(),
                                    "redirect_uri": hub.spotify.redirect_uri,
+                                   "plan": hub.plan.state(),
                                    "claude": {k: hub.state.get("claude", {}).get(k)
                                               for k in ("block_used", "block_max", "last7d")}})
             if path == "/spotify/login":
@@ -249,7 +253,9 @@ def make_handler(hub: Hub, host: str, port: int):
                     hub.poke()
                     return self._json({"ok": True, "buttons": saved})
                 elif self.path == "/api/settings":
-                    return self._json({"ok": True, "settings": hub.settings.update(body)})
+                    saved = hub.settings.update(body)
+                    hub.plan.refresh_soon()
+                    return self._json({"ok": True, "settings": saved})
                 elif self.path == "/api/spotify/disconnect":
                     hub.spotify.disconnect()
                 elif self.path == "/api/deck/test":

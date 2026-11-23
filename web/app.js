@@ -90,7 +90,6 @@ function drawCharts(s) {
         line(ctx, w, h, hist.net_down || [], css("--net"), max);
         return line(ctx, w, h, hist.net_up || [], css("--disk"), max, false);
       }
-      case "claude": return bars(ctx, w, h, s.claude?.hourly || [], css("--claude"));
     }
   });
 }
@@ -138,170 +137,76 @@ function heatmap(canvas, startIso, levels, color) {
   });
 }
 
-let heatKey = "";
-function renderActivity(gh, cd) {
-  if (gh?.error && !gh.days) setText("gh.user", gh.error);
-  else if (gh?.user) setText("gh.user", "@" + gh.user);
-  if (gh?.days) {
-    setText("gh.total", String(gh.total));
-    setText("gh.today", String(gh.today));
-    setText("gh.streak", String(gh.streak));
-  }
-  if (cd) {
-    setText("ch.total", fmtTok(cd.total));
-    setText("ch.active", String(cd.active_days));
-    setText("ch.streak", String(cd.streak));
-  }
-  // only redraw when the data or the size changed
-  const key = JSON.stringify([gh?.updated, cd?.counts, window.innerWidth, window.innerHeight]);
-  if (key === heatKey) return;
-  heatKey = key;
-  $$("canvas[data-heat]").forEach((c) => {
-    if (c.dataset.heat === "github" && gh?.days?.length)
-      heatmap(c, gh.days[0].date, gh.days.map((d) => d.level), css("--gh"));
-    if (c.dataset.heat === "claude" && cd)
-      heatmap(c, cd.start, quartileLevels(cd.counts), css("--claude"));
-  });
-}
-
-// ---------- Claude: donut with what is left of your own limits ----------
-const clock = (iso) => iso ? new Date(iso).toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" }) : "";
-const weekday = (iso) => iso ? new Date(iso).toLocaleDateString("da-DK", { weekday: "short" }) + " " + clock(iso) : "";
-
-function renderDonut(c, budget, plan) {
-  const used5 = c.block_used || 0;
-  const usedW = c.last7d ? c.last7d.input + c.last7d.output + c.last7d.cache_write : 0;
-  let rem5 = null, remW = null;
-  const p5 = plan?.five_hour, pW = plan?.seven_day;
-  if (p5) {
-    // real numbers from the Claude plan (opt-in, via the Claude Code login)
-    rem5 = Math.max(0, 1 - p5.used_pct / 100);
-    remW = pW ? Math.max(0, 1 - pW.used_pct / 100) : null;
-    setText("c.left", `${Math.round(rem5 * 100)} %`);
-    setText("c.leftlbl", "tilbage");
-    setText("c.fivetxt", `5 timer · ↻ ${clock(p5.resets_at)}`);
-    // rough token estimate: what this computer used so far ÷ share of the limit used
-    const est = p5.used_pct >= 3 ? used5 / (p5.used_pct / 100) : null;
-    setText("c.blockof", est ? `≈ ${fmtTok(est - used5)} tilbage` : "tokens");
-    if (pW) setText("c.weektxt", `uge ${Math.round(remW * 100)} % tilbage · ↻ ${weekday(pW.resets_at)}`);
-  } else if (budget.budget_5h) {
-    const b5 = budget.budget_5h;
-    rem5 = Math.max(0, 1 - used5 / b5);
-    setText("c.left", fmtTok(Math.max(0, b5 - used5)));
-    setText("c.leftlbl", `tilbage · ${Math.round(rem5 * 100)} %`);
-    setText("c.blockof", `/ ${fmtTok(b5)}`);
-  } else {
-    setText("c.left", "–");
-    setText("c.leftlbl", plan?.error || "tryk: sæt grænse");
-    setText("c.blockof", "tokens");
-  }
-  if (!p5 && budget.budget_week) {
-    remW = Math.max(0, 1 - usedW / budget.budget_week);
-    setText("c.weektxt", `uge ${Math.round(remW * 100)} % tilbage`);
-  }
-  // "Brugt"-mode (Indstillinger → Claude): show what is used instead of what is left
-  const showUsed = budget.donut_mode === "used";
-  if (showUsed && rem5 != null) {
-    const usedPct = Math.round((1 - rem5) * 100);
-    if (p5) {
-      setText("c.left", `${usedPct} %`);
-      setText("c.leftlbl", "brugt");
-    } else {
-      setText("c.left", fmtTok(used5));
-      setText("c.leftlbl", `brugt · ${usedPct} %`);
+// ---------- extensions (phone side) ----------
+// Every extension folder may ship page.html / page.js / page.css. page.js calls
+// PhoneDeck.register(id, {render(extState, fullState), tick(), page(pageId), widgets: {type: html}}).
+let layoutGen = 0;  // bumped when the layout changes, so canvases redraw
+const PhoneDeck = {
+  renderers: new Map(),
+  widgets: {},
+  register(id, r) {
+    this.renderers.set(id, r);
+    Object.assign(this.widgets, r.widgets || {});
+  },
+  each(hook, ...args) {
+    for (const [id, r] of this.renderers) {
+      try { r[hook]?.(...args); } catch (e) { console.error(`[${id}]`, e); }
     }
-  }
-  // Limit used up: the centre counts down to when new tokens arrive
-  const resetIn = (iso, secs) => iso ? (new Date(iso) - Date.now()) / 1000 : secs;
-  let blocked = null;
-  if (rem5 != null && rem5 <= 0.001) blocked = resetIn(p5?.resets_at, c.block_reset_in);
-  if (remW != null && remW <= 0.001) blocked = Math.max(blocked ?? 0, resetIn(pW?.resets_at, null) ?? 0);
-  if (blocked != null && blocked > 0) {
-    const h = Math.floor(blocked / 3600), m = Math.floor((blocked % 3600) / 60), sec = Math.floor(blocked % 60);
-    setText("c.left", h ? `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}` : `${m}:${String(sec).padStart(2, "0")}`);
-    setText("c.leftlbl", "til nye tokens");
-  }
-  if (showUsed && remW != null) {
-    const reset = pW ? ` · ↻ ${weekday(pW.resets_at)}` : "";
-    setText("c.weektxt", `uge ${Math.round((1 - remW) * 100)} % brugt${reset}`);
-  }
-  $$("[data-week-legend]").forEach((el) => { el.hidden = remW == null; });
-  $$("canvas[data-donut]").forEach((cv) => {
-    const [ctx, w, h] = prep(cv);
-    if (!ctx) return;
-    const cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2 - 2;
-    const ring = (r, width, frac, color) => {
-      ctx.lineCap = "round";
-      ctx.lineWidth = width;
-      ctx.strokeStyle = css("--line");
-      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
-      if (frac == null) return;
-      // remaining share, drawn clockwise from 12 o'clock
-      const f = Math.max(0, Math.min(1, frac));
-      if (f <= 0) return;
-      ctx.strokeStyle = color;
-      ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + f * Math.PI * 2); ctx.stroke();
-    };
-    const t = Math.max(6, R * 0.16);
-    const remaining5 = rem5;
-    const colour5 = remaining5 != null && remaining5 < 0.15 ? css("--hot")
-      : remaining5 != null && remaining5 < 0.35 ? css("--warn") : css("--claude");
-    // the colour always follows what is left; only the filled part flips
-    const fill = (rem) => (rem == null ? null : showUsed ? 1 - rem : rem);
-    ring(R - t / 2, t, fill(remaining5), colour5);
-    if (remW != null) ring(R - t * 1.9, t * 0.55, fill(remW), css("--ram"));
-  });
-}
-document.addEventListener("click", (e) => {
-  if (!e.target.closest("[data-donut-wrap]") || last?.claude_budget?.budget_5h || last?.claude_plan?.five_hour) return;
-  api("/api/action", { action: "open.settings" }).catch(() => {});
-});
+  },
+  render(s) {
+    for (const [id, r] of this.renderers) {
+      try { r.render?.(s.ext?.[id], s); } catch (e) { console.error(`[${id}]`, e); }
+    }
+  },
+  action: (ext, name, body) => api(`/api/ext/${ext}/action/${name}`, body).then((r) => r.json()),
+  currentPage: () => pages[current]?.id,
+};
 
-// ---------- Spotify: next song + queue ----------
-let queueKey = "";
-function renderSpotify(sp) {
-  const img = $("img[data-next-art]");
-  if (!sp || !sp.connected) {
-    setText("q.lbl", "Næste sang");
-    setText("q.next", sp?.configured ? "Tryk for at forbinde Spotify på computeren"
-      : "Tryk for at sætte Spotify-køen op på computeren");
-    img.hidden = true;
-    return;
+let extKey = null;
+async function loadExtensions() {
+  let list = [];
+  try { list = await (await fetch("/api/extensions", { headers: { "X-PhoneDeck": "1" } })).json(); } catch { /* offline */ }
+  extKey = JSON.stringify(list.map((e) => [e.id, e.rev]));
+  // 1) all pages first, so every script finds the elements it needs
+  for (const e of list) {
+    if (e.has_style) document.head.append(Object.assign(document.createElement("link"), { rel: "stylesheet", href: `/ext/${e.id}/page.css?v=${e.rev}` }));
+    if (!e.page) continue;
+    const sec = document.createElement("section");
+    sec.className = "page";
+    sec.id = "p-" + e.id;
+    sec.dataset.title = e.page.title;
+    sec.dataset.category = e.category;
+    sec.innerHTML = await (await fetch(`/ext/${e.id}/page.html?v=${e.rev}`)).text();
+    pager.insertBefore(sec, $("#p-buttons"));
   }
-  const n = sp.next;
-  setText("q.lbl", `Næste · ${sp.queue?.length || 0} i kø`);
-  setText("q.next", n ? `${n.title} – ${n.artist}` : "Køen er tom");
-  if (n?.art) { if (img.getAttribute("src") !== n.art) img.src = n.art; img.hidden = false; } else img.hidden = true;
-  setText("q.count", `${sp.queue?.length || 0} sange`);
-  const key = JSON.stringify(sp.queue);
-  if (key === queueKey) return;
-  queueKey = key;
-  $("[data-queue]").replaceChildren(...(sp.queue || []).map((t, i) => {
-    const li = document.createElement("li");
-    const num = Object.assign(document.createElement("small"), { textContent: String(i + 1) });
-    const art = t.art ? Object.assign(document.createElement("img"), { src: t.art, alt: "", loading: "lazy" })
-      : Object.assign(document.createElement("span"), { className: "noimg" });
-    const txt = document.createElement("div");
-    txt.className = "t";
-    txt.append(Object.assign(document.createElement("b"), { textContent: t.title }),
-      Object.assign(document.createElement("span"), { textContent: t.artist }));
-    const dur = Object.assign(document.createElement("small"), { textContent: fmtTime(t.duration) });
-    li.append(num, art, txt, dur);
-    return li;
-  }));
+  // 2) then the scripts, in order
+  for (const e of list.filter((x) => x.has_script)) {
+    await new Promise((done) => {
+      const sc = Object.assign(document.createElement("script"), { src: `/ext/${e.id}/page.js?v=${e.rev}` });
+      sc.onload = sc.onerror = done;
+      document.body.append(sc);
+    });
+  }
+  $$("[data-icon]").forEach((el) => drawIcon(el, el.dataset.icon));
+  pages = $$(".page").filter((p) => !p.hidden);
+  buildDots();
 }
+// a folder was added/removed/changed on the PC -> load the new set of extensions
+function checkExtensions(list) {
+  if (!list || extKey === null) return;
+  if (JSON.stringify(list.map((e) => [e.id, e.rev])) !== extKey) location.reload();
+}
+// generic buttons for extension actions: data-ext="<id>:<action>"
 document.addEventListener("click", (e) => {
-  if (e.target.closest("[data-queue-open]")) {
-    if (!last?.spotify?.connected) { api("/api/action", { action: "open.settings" }).catch(() => {}); return; }
-    $("#queue").hidden = false;
-  } else if (e.target.closest("[data-queue-close]") || e.target.id === "queue") {
-    $("#queue").hidden = true;
-  }
+  const b = e.target.closest("[data-ext]");
+  if (!b) return;
+  const [ext, name] = b.dataset.ext.split(":");
+  navigator.vibrate?.(10);
+  PhoneDeck.action(ext, name).then((r) => { if (r?.error) toast(r.error); }).catch(() => {});
 });
 
 // ---------- render ----------
 let last = null;
-let media = { pos: 0, len: 0, playing: false, at: 0 };
 
 function render(s) {
   last = s;
@@ -347,12 +252,9 @@ function render(s) {
   }
   if (hw.uptime) setText("uptime", "oppe " + fmtDur(hw.uptime));
 
-  renderActivity(s.github, s.claude?.daily);
-  renderMedia(s.media);
-  renderClaude(s.claude || {});
-  renderDonut(s.claude || {}, s.claude_budget || {}, s.claude_plan);
-  renderSpotify(s.spotify);
+  checkExtensions(s.extensions);
   renderAudio(s.audio || {});
+  PhoneDeck.render(s);
   renderButtons(s.buttons || []);
   drawCharts(s);
 }
@@ -361,74 +263,6 @@ function renderCores(cores) {
   $$("[data-cores]").forEach((box) => {
     if (box.children.length !== cores.length) box.replaceChildren(...cores.map(() => document.createElement("i")));
     cores.forEach((c, i) => { box.children[i].style.setProperty("--v", Math.max(3, c) + "%"); });
-  });
-}
-
-let artKey;
-function renderMedia(m) {
-  if (!m || m.error || !m.title) {
-    setText("m.title", m?.error ? "Medie: " + m.error : "Intet afspilles");
-    ["m.artist", "m.album", "m.player", "m.pos", "m.len"].forEach((k) => setText(k, ""));
-    setWidth("m.progress", 0);
-    setIcon("m.play", "play");
-    if (artKey !== null) { $$("img[data-art]").forEach((i) => i.removeAttribute("src")); artKey = null; }
-    media.playing = false; media.len = 0;
-    return;
-  }
-  setText("m.player", m.player);
-  setText("m.title", m.title);
-  setText("m.artist", m.artist || "");
-  setText("m.album", m.album || "");
-  setIcon("m.play", m.status === "Playing" ? "pause" : "play");
-  if (m.art_key !== artKey) {
-    artKey = m.art_key;
-    $$("img[data-art]").forEach((img) => {
-      if (m.art) img.src = "/api/art?k=" + encodeURIComponent(m.art_key || "");
-      else img.removeAttribute("src");
-    });
-  }
-  media = { pos: m.position, len: m.length, playing: m.status === "Playing", at: performance.now() };
-  tickMedia();
-}
-
-function tickMedia() {
-  if (!media.len) return;
-  const pos = Math.min(media.len, media.pos + (media.playing ? (performance.now() - media.at) / 1000 : 0));
-  setText("m.pos", fmtTime(pos));
-  setText("m.len", fmtTime(media.len));
-  setWidth("m.progress", (pos / media.len) * 100);
-}
-
-function renderClaude(c) {
-  if (!c.available) { setText("c.block", "–"); setText("c.reset", c.error || "ingen data"); return; }
-  const sum = (b) => b ? b.input + b.output + b.cache_write : null;
-  setText("c.block", fmtTok(c.block_used ?? sum(c.last5h)));
-  setText("c.today", fmtTok(sum(c.today)));
-  setText("c.week", fmtTok(sum(c.last7d)));
-  setText("c.out", fmtTok(c.today?.output));
-  setText("c.msgs", (c.today?.messages ?? 0) + " svar");
-  setText("c.b.in", fmtTok(c.last5h?.input));
-  setText("c.b.out", fmtTok(c.last5h?.output));
-  setText("c.b.cw", fmtTok(c.last5h?.cache_write));
-  setText("c.b.cr", fmtTok(c.last5h?.cache_read));
-  setText("c.reset", c.block_reset_in ? "↻ " + fmtDur(c.block_reset_in) : "intet aktivt vindue");
-  setText("c.resetlong", c.block_reset_in ? "Vinduet nulstilles om " + fmtDur(c.block_reset_in) : "Intet aktivt vindue");
-
-  const models = Object.entries(c.models || {});
-  const total = models.reduce((a, [, v]) => a + v, 0) || 1;
-  const key = JSON.stringify(models);
-  $$("[data-models]").forEach((box) => {
-    if (box.dataset.key === key) return;
-    box.dataset.key = key;
-    box.replaceChildren(...models.slice(0, 4).map(([name, v]) => {
-      const row = document.createElement("div");
-      const n = document.createElement("span"); n.textContent = name;
-      const t = document.createElement("span"); t.textContent = fmtTok(v);
-      const bar = document.createElement("div"); bar.className = "bar";
-      const fill = document.createElement("i"); fill.style.width = (v / total) * 100 + "%";
-      bar.append(fill); row.append(n, t, bar);
-      return row;
-    }));
   });
 }
 
@@ -499,7 +333,7 @@ function renderButtons(list) {
   add.append(makeIcon({ kind: "builtin", value: "plus" }), "Redigér knapper");
   $("[data-tiles]").replaceChildren(...tiles, add);
   fillHomeButtons(list);
-  if (last) { renderAudio(last.audio || {}); renderMedia(last.media); }
+  if (last) { renderAudio(last.audio || {}); PhoneDeck.render(last); }
 }
 
 // ---------- customisable home page: a fixed grid of widgets (set up at /editor#home) ----------
@@ -534,26 +368,7 @@ const WIDGET_HTML = {
     <div><small>↑ Net</small><span data-b="net.up">–</span></div>
     <div class="hide-narrow"><small>Disk</small><span data-b="disk.txt">–</span></div>
     <div class="clock" data-fullscreen><span data-b="time">–</span><small data-b="date"></small></div></div>`,
-  media: `<div class="card media">
-    <div class="art"><img data-art alt=""><div class="noart">♪</div></div>
-    <div class="info"><div class="title" data-b="m.title">Intet afspilles</div><div class="artist" data-b="m.artist"></div>
-      <div class="progress"><i data-w="m.progress"></i></div>
-      <div class="controls"><button data-action="media.previous" aria-label="Forrige"><i class="ic" data-icon="prev"></i></button>
-        <button data-action="media.playpause" class="primary" aria-label="Afspil/pause"><i class="ic" data-icon="play" data-ib="m.play"></i></button>
-        <button data-action="media.next" aria-label="Næste"><i class="ic" data-icon="next"></i></button></div></div></div>`,
-  claude: `<div class="card" style="--accent: var(--claude)">
-    <header><span class="label">Claude</span><span class="sub" data-b="c.reset"></span></header>
-    <div class="big"><span data-b="c.block">–</span><small>tokens · 5 t</small></div>
-    <div class="facts grid2"><div><span data-b="c.today">–</span><small>i dag</small></div><div><span data-b="c.week">–</span><small>7 dage</small></div></div>
-    <canvas class="bars" data-chart="claude"></canvas></div>`,
-  donut: `<div class="card donut-card" style="--accent: var(--claude)">
-    <div class="donut" data-donut-wrap><canvas data-donut></canvas>
-      <div class="donut-center"><b data-b="c.left">–</b><small data-b="c.leftlbl">tilbage</small></div></div>
-    <div class="sub center" data-b="c.fivetxt">Claude · 5 timer</div></div>`,
   clock: `<div class="card clock-card" data-fullscreen><b data-b="time">–</b><span data-b="datelong"></span></div>`,
-  github: `<div class="card heat" style="--accent: var(--gh)">
-    <header><span class="label">GitHub</span><span class="sub"><b data-b="gh.total">–</b> bidrag · <b data-b="gh.streak">–</b> dage i træk</span></header>
-    <canvas class="heatmap" data-heat="github"></canvas></div>`,
 };
 
 let homeKey = "";
@@ -572,8 +387,10 @@ function renderHome(home) {
       el.className = "home-btn";
       el.dataset.homeButton = it.button;
     } else {
+      const html = WIDGET_HTML[it.type] || PhoneDeck.widgets[it.type];
+      if (!html) return null;  // widget from an extension that isn't installed
       const t = document.createElement("template");
-      t.innerHTML = WIDGET_HTML[it.type] || "<div class='card'></div>";  // static strings above
+      t.innerHTML = html;  // static strings from core / installed extensions
       el = t.content.firstElementChild;
     }
     el.classList.add("w-" + it.type);
@@ -582,7 +399,7 @@ function renderHome(home) {
     el.style.gridColumn = `${it.x + 1} / span ${it.w}`;
     el.style.gridRow = `${it.y + 1} / span ${it.h}`;
     return el;
-  }));
+  }).filter(Boolean));
   // locked menu button in the bottom-right cell (can't be moved or removed)
   const menu = document.createElement("button");
   menu.className = "tile home-menu";
@@ -593,8 +410,8 @@ function renderHome(home) {
   drawIcon(menu.querySelector(".ic"), "gear");
   page.append(menu);
   $$("[data-icon]", page).forEach((el) => drawIcon(el, el.dataset.icon));
-  heatKey = "";
-  artKey = undefined;
+  layoutGen++;
+  PhoneDeck.each("rebuilt");  // the home page was rebuilt – extensions refresh their widgets
   if (last) { fillHomeButtons(last.buttons || []); }
 }
 function fillHomeButtons(list) {
@@ -669,7 +486,7 @@ document.addEventListener("click", (e) => {
   savePrefs();
   navigator.vibrate?.(8);
   applyLayout();
-  heatKey = "";
+  layoutGen++;
   if (last) render(last);
 });
 applyLayout();
@@ -746,6 +563,7 @@ function updateDots() {
   current = i;
   $$("#dots button").forEach((b, j) => b.classList.toggle("on", j === i));
   if (pages[i]) store.set("phonedeck.page", pages[i].id);
+  PhoneDeck.each("page", pages[i]?.id);
 }
 function applyUi(next) {
   if (!next) return;
@@ -768,7 +586,7 @@ function applyUi(next) {
   renderHome(next.home);
   dim();
   const idx = Math.max(0, pages.findIndex((p) => p.id === keepId));
-  requestAnimationFrame(() => { goTo(idx, false); current = -1; updateDots(); updateViz(); });
+  requestAnimationFrame(() => { goTo(idx, false); current = -1; updateDots(); });
 }
 pager.addEventListener("scroll", updateDots, { passive: true });
 window.addEventListener("resize", () => { goTo(current, false); if (last) render(last); });
@@ -781,7 +599,7 @@ function tickClock() {
   setText("time", d.toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" }));
   setText("date", d.toLocaleDateString("da-DK", { weekday: "short", day: "numeric", month: "short" }));
   setText("datelong", d.toLocaleDateString("da-DK", { weekday: "long", day: "numeric", month: "long" }));
-  tickMedia();
+  PhoneDeck.each("tick");
 }
 setInterval(tickClock, 1000); tickClock();
 
@@ -800,53 +618,6 @@ function dim() {
 }
 setInterval(dim, 30_000); dim();
 
-// ---------- music visualizer ----------
-// Only listens while it is switched on AND the music page is on screen.
-let vizSource = null;
-const vizCanvas = $("canvas[data-viz]");
-
-function drawViz(levels) {
-  const [ctx, w, h] = prep(vizCanvas);
-  if (!ctx) return;
-  const n = levels.length, gap = 4, bw = (w - gap * (n - 1)) / n;
-  const g = ctx.createLinearGradient(0, h, 0, 0);
-  g.addColorStop(0, css("--media"));
-  g.addColorStop(1, css("--media") + "10");
-  ctx.fillStyle = g;
-  levels.forEach((v, i) => {
-    const bh = Math.max(2, (v / 100) * h * 0.7);
-    ctx.beginPath();
-    ctx.roundRect(i * (bw + gap), h - bh, bw, bh, [Math.min(4, bw / 2), Math.min(4, bw / 2), 0, 0]);
-    ctx.fill();
-  });
-}
-
-function updateViz() {
-  const want = prefs.viz && pages[current]?.id === "p-music" && document.visibilityState === "visible";
-  $$("[data-viz-toggle]").forEach((b) => b.classList.toggle("on", !!prefs.viz));
-  vizCanvas.hidden = !prefs.viz;
-  if (want && !vizSource) {
-    vizPing();  // the PC only listens while this page keeps pinging
-    vizSource = new EventSource("/api/spectrum");
-    vizSource.onmessage = (e) => drawViz(JSON.parse(e.data));
-  } else if (!want && vizSource) {
-    vizSource.close();
-    vizSource = null;
-    drawViz(new Array(36).fill(0));
-  }
-}
-const vizPing = () => api("/api/viz/keepalive").catch(() => {});
-setInterval(() => { if (vizSource) vizPing(); }, 1500);
-document.addEventListener("click", (e) => {
-  if (!e.target.closest("[data-viz-toggle]")) return;
-  prefs.viz = !prefs.viz;
-  savePrefs();
-  updateViz();
-});
-document.addEventListener("visibilitychange", updateViz);
-pager.addEventListener("scroll", () => requestAnimationFrame(updateViz), { passive: true });
-setTimeout(updateViz, 300);
-
 // ---------- live data ----------
 // Only stay connected while this tab is visible: browsers allow just 6 connections per
 // server, so forgotten background tabs must not hog them.
@@ -860,4 +631,4 @@ function connect() {
 function disconnect() { if (es) { es.close(); es = null; } }
 document.addEventListener("visibilitychange", () => (document.visibilityState === "visible" ? connect() : disconnect()));
 window.addEventListener("pagehide", disconnect);
-connect();
+loadExtensions().then(connect);

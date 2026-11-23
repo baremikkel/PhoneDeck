@@ -1,0 +1,21 @@
+{
+  "id": "claude-code",
+  "name": "Claude Code",
+  "category": "AI",
+  "description": "Tokenforbrug fra Claude Code på denne computer, din plans grænser (donut) og et heatmap over det seneste år.",
+  "page": {"title": "Claude"},
+  "widgets": [
+    {"type": "claude", "name": "Claude-forbrug", "icon": "star"},
+    {"type": "donut", "name": "Claude-donut", "icon": "star"}
+  ],
+  "settings": [
+    {"key": "donut_mode", "label": "Donutten viser", "type": "select", "default": "left",
+     "options": [["left", "Hvad der er tilbage (fylder mindre, jo mere du bruger)"], ["used", "Hvad der er brugt (fylder mere, jo mere du bruger)"]]},
+    {"key": "use_login", "label": "Brug mit Claude Code-login (præcist)", "type": "bool", "default": false,
+     "help": "Henter din plans rigtige forbrug fra Anthropic – de samme tal som /usage i Claude Code. Tokenet læses lokalt fra ~/.claude/.credentials.json, sendes kun til api.anthropic.com og bliver aldrig gemt, fornyet eller vist af PhoneDeck. Bruger et ikke-officielt endpoint, der kan ændre sig."},
+    {"type": "status", "key": "plan_status"},
+    {"type": "info", "html": "Uden login bruges dit eget estimat herunder (input + output + cache skrevet fra Claude Code på denne computer). {block_hint}"},
+    {"key": "budget_5h", "label": "Grænse pr. 5-timers vindue (tokens)", "type": "number", "min": 1000, "max": 10000000000},
+    {"key": "budget_week", "label": "Grænse pr. uge (tokens, valgfri)", "type": "number", "min": 1000, "max": 10000000000}
+  ]
+}

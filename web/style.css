@@ -132,13 +132,14 @@ header .grow { flex: 1; min-width: 0; }
 button.mini { min-width: 0; min-height: 0; width: 26px; height: 22px; padding: 0; border-radius: 7px; display: grid; place-items: center; font-size: 15px; color: var(--muted); background: transparent; }
 .legend { display: flex; gap: 10px; font-size: 10px; color: var(--muted); }
 .legend i { display: inline-block; width: 10px; height: 2px; vertical-align: middle; margin-right: 4px; border-radius: 1px; }
-#p-claude {
+#p-claude-code {
   grid-template-columns: 1.2fr 1fr;
   grid-template-rows: auto 1fr;
-  grid-template-areas: "main stats" "chart stats";
+  grid-template-areas: "main stats" "chart heat";
 }
+.c-heat { grid-area: heat; }
 #p-buttons { grid-template-columns: 1fr; }
-#p-activity { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+#p-github { grid-template-columns: 1fr; grid-template-rows: 1fr; }
 
 /* ---------- portrait: each page scrolls vertically ---------- */
 @media (orientation: portrait) {
@@ -407,3 +408,5 @@ body.stack #p-overview { grid-template-areas: none !important; }
 }
 #toast.show { animation: toast-in .18s ease-out; }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
+
+.vol.mvol { display: grid; place-items: center; min-width: 64px; min-height: 36px; font-size: 15px; }

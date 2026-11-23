@@ -1,0 +1,46 @@
+
+      <div class="card c-main">
+        <header><span class="label">Claude Code · 5-timers vindue</span></header>
+        <div class="donut-row">
+          <div class="donut" data-donut-wrap title="Tryk for at sætte grænser">
+            <canvas data-donut></canvas>
+            <div class="donut-center"><b data-b="c.left">–</b><small data-b="c.leftlbl">tilbage</small></div>
+          </div>
+          <div class="donut-info">
+            <div class="big"><span data-b="c.block">–</span><small data-b="c.blockof">tokens</small></div>
+            <div class="sub" data-b="c.resetlong"></div>
+            <div class="legend"><span><i style="background: var(--claude)"></i><span data-b="c.fivetxt">5 timer</span></span><span data-week-legend><i style="background: var(--ram)"></i><span data-b="c.weektxt">uge</span></span></div>
+          </div>
+        </div>
+        <div class="kv">
+          <div><small>Input</small><span data-b="c.b.in">–</span></div>
+          <div><small>Output</small><span data-b="c.b.out">–</span></div>
+          <div><small>Cache skrevet</small><span data-b="c.b.cw">–</span></div>
+          <div><small>Cache læst</small><span data-b="c.b.cr">–</span></div>
+        </div>
+      </div>
+      <div class="card c-stats">
+        <header><span class="label">I dag</span><span class="sub" data-b="c.msgs"></span></header>
+        <div class="kv col">
+          <div><small>Tokens i dag</small><span data-b="c.today">–</span></div>
+          <div><small>Output i dag</small><span data-b="c.out">–</span></div>
+          <div><small>Sidste 7 dage</small><span data-b="c.week">–</span></div>
+        </div>
+        <div class="models" data-models></div>
+      </div>
+      <div class="card c-chart">
+        <header><span class="label">Sidste 24 timer</span><span class="sub">tokens pr. time</span></header>
+        <canvas class="bars" data-chart="claude"></canvas>
+        <div class="sub tiny axis"><span>-24 t</span><span>-12 t</span><span>nu</span></div>
+      </div>
+      <div class="card heat c-heat" style="--accent: var(--claude)">
+        <header>
+          <span class="label">Seneste år</span>
+          <span class="stats">
+            <span><b data-b="ch.total">–</b><small>tokens · år</small></span>
+            <span><b data-b="ch.active">–</b><small>aktive dage</small></span>
+            <span><b data-b="ch.streak">–</b><small>dage i træk</small></span>
+          </span>
+        </header>
+        <canvas class="heatmap" data-heat="claude"></canvas>
+      </div>

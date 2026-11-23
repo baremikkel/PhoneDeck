@@ -78,11 +78,24 @@ class Media:
                 "album": meta.get("xesam:album"),
                 "length": (meta.get("mpris:length") or 0) / 1e6,
                 "position": (props.get("Position") or 0) / 1e6,
+                "volume": round(props["Volume"] * 100) if isinstance(props.get("Volume"), float) else None,
                 "art": bool(art),
                 "art_key": art,
             }
         except Exception as e:
             return {"error": str(e)}
+
+    def set_volume(self, delta: float) -> int:
+        """Change only the player's own volume (MPRIS), not the whole PC."""
+        if not (self.bus and self.current_player):
+            raise ValueError("ingen afspiller")
+        props = self._props(self.current_player)
+        if not isinstance(props.get("Volume"), float):
+            raise ValueError("afspilleren kan ikke styre sin lydstyrke")
+        new = min(1.0, max(0.0, props["Volume"] + delta))
+        self._call(self.current_player, "org.freedesktop.DBus.Properties", "Set",
+                   GLib.Variant("(ssv)", (PLAYER, "Volume", GLib.Variant("d", new))))
+        return round(new * 100)
 
     def command(self, method: str) -> None:
         if not (self.bus and self.current_player):

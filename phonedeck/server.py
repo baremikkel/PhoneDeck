@@ -194,6 +194,8 @@ def make_handler(hub: Hub, host: str, port: int):
                 return self._json(hub.state)
             if path == "/api/stream":
                 return self._stream()
+            if path == "/spotify/callback":  # compatibility: Redirect URI used before extensions
+                path = "/ext/spotify/callback"
             if path.startswith("/ext/"):
                 return self._ext_get(path, query)
             if path == "/api/extensions":

@@ -50,7 +50,8 @@ def streak(days: list[dict]) -> int:
 
 
 class GitHub:
-    def __init__(self, user: str | None):
+    def __init__(self, user: str | None, stopped=None):
+        self.stopped = stopped or threading.Event()
         self.user = user
         self.data: dict | None = None if user else {"error": "Sæt [github] user i config.toml"}
         self._lock = threading.Lock()
@@ -58,7 +59,7 @@ class GitHub:
             threading.Thread(target=self._loop, daemon=True).start()
 
     def _loop(self) -> None:
-        while True:
+        while not self.stopped.is_set():
             try:
                 days = fetch(self.user)
                 data = {
@@ -76,7 +77,7 @@ class GitHub:
                 wait = 120  # retry sooner after a failure
             with self._lock:
                 self.data = data
-            time.sleep(wait)
+            self.stopped.wait(wait)
 
     def state(self) -> dict | None:
         with self._lock:

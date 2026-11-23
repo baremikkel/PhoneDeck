@@ -1,0 +1,25 @@
+      <div class="card media big-media">
+        <canvas class="viz" data-viz hidden></canvas>
+        <div class="art"><img data-art alt=""><div class="noart">♪</div></div>
+        <div class="info">
+          <div class="sub" data-b="m.player"></div>
+          <div class="title" data-b="m.title">Intet afspilles</div>
+          <div class="artist" data-b="m.artist"></div>
+          <div class="album sub" data-b="m.album"></div>
+          <div class="progress"><i data-w="m.progress"></i></div>
+          <div class="times"><span data-b="m.pos"></span><span data-b="m.len"></span></div>
+          <div class="controls">
+            <button data-action="media.previous" aria-label="Forrige"><i class="ic" data-icon="prev"></i></button>
+            <button data-action="media.playpause" class="primary" aria-label="Afspil/pause"><i class="ic" data-icon="play" data-ib="m.play"></i></button>
+            <button data-action="media.next" aria-label="Næste"><i class="ic" data-icon="next"></i></button>
+          </div>
+          <div class="volume">
+            <button data-ext="music:volume_down" aria-label="Lavere (kun afspilleren)"><i class="ic" data-icon="minus"></i></button>
+            <div class="bar"><i data-w="mv.pct"></i></div>
+            <button data-ext="music:volume_up" aria-label="Højere (kun afspilleren)"><i class="ic" data-icon="plus"></i></button>
+            <span class="vol mvol" data-b="mv.txt">–</span>
+            <button data-viz-toggle aria-label="Visualizer til/fra" title="Visualizer"><i class="ic" data-icon="viz"></i></button>
+          </div>
+        </div>
+      </div>
+    

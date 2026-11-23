@@ -1,0 +1,12 @@
+{
+  "id": "music",
+  "name": "Musik",
+  "category": "Musik",
+  "description": "Hvad der spiller (Spotify, browser, VLC … via MPRIS), afspilningsknapper, afspillerens egen lydstyrke og en visualizer.",
+  "page": {"title": "Musik"},
+  "widgets": [{"type": "media", "name": "Musik", "icon": "play"}],
+  "settings": [
+    {"type": "info", "html": "Lydstyrken på musiksiden ændrer kun afspillerens egen lydstyrke – ikke resten af computeren."},
+    {"key": "volume_step", "label": "Lydstyrke-trin (%)", "type": "number", "default": 5, "min": 1, "max": 25}
+  ]
+}

@@ -466,6 +466,7 @@ const WIDGETS = {
   cpu: ["CPU", "bolt", "System"], gpu: ["GPU", "bolt", "System"], ram: ["RAM", "folder", "System"],
   net: ["Netværk", "globe", "System"], disk: ["Disk", "folder", "System"],
   sys: ["Systemlinje (RAM, net, disk, ur)", "keyboard", "System"], clock: ["Ur", "lock", "System"],
+  menu: ["Menu (indstillinger og editor)", "gear", "System"],
 };
 let home = null, homeDirty = false, selItem = -1, selStart = null;
 let editing = "home";          // "home" or the id of one of your own pages
@@ -479,7 +480,7 @@ function homeSetDirty(v = true) {
   $("#home-save").textContent = v ? (isHome() ? "Gem forside" : "Gem side") : "Gemt ✓";
 }
 function occupied(except = -1) {
-  const m = new Set(isHome() ? [`${home.cols - 1},${home.rows - 1}`] : []);  // locked menu button (home only)
+  const m = new Set();
   home.items.forEach((it, i) => {
     if (i === except) return;
     for (let x = it.x; x < it.x + it.w; x++) for (let y = it.y; y < it.y + it.h; y++) m.add(`${x},${y}`);
@@ -514,14 +515,6 @@ function renderHomeGrid() {
     c.dataset.x = x; c.dataset.y = y;
     els.push(c);
   }
-  const lock = document.createElement("div");
-  lock.className = "w locked";
-  lock.title = "Låst: åbner indstillinger og editor";
-  lock.style.gridColumn = `${home.cols}`; lock.style.gridRow = `${home.rows}`;
-  if (!isHome()) lock.hidden = true;
-  lock.append(iconEl({ kind: "builtin", value: "gear" }), Object.assign(document.createElement("span"), { textContent: "Menu" }),
-    Object.assign(document.createElement("small"), { textContent: "🔒 låst" }));
-  els.push(lock);
   home.items.forEach((it, i) => {
     const w = document.createElement("div");
     w.className = "w" + (i === selItem ? " on" : "");
@@ -715,8 +708,7 @@ $$("[data-mv], [data-sz]").forEach((btn) => btn.addEventListener("click", () => 
 }));
 $("#grid").onchange = (e) => {
   const [c, r] = e.target.value.split("x").map(Number);
-  const kept = home.items.filter((it) => it.x + it.w <= c && it.y + it.h <= r
-    && !(isHome() && it.x <= c - 1 && c - 1 < it.x + it.w && it.y <= r - 1 && r - 1 < it.y + it.h));
+  const kept = home.items.filter((it) => it.x + it.w <= c && it.y + it.h <= r);
   if (kept.length < home.items.length && !confirm(`${home.items.length - kept.length} felt(er) passer ikke i det nye gitter og bliver fjernet. Fortsæt?`)) {
     e.target.value = `${home.cols}x${home.rows}`; return;
   }
@@ -795,7 +787,7 @@ $("#home-reset").onclick = () => {
   home = { cols: 8, rows: 4, items: [
     { type: "cpu", x: 0, y: 0, w: 2, h: 3 }, { type: "gpu", x: 2, y: 0, w: 2, h: 3 },
     { type: "media", x: 4, y: 0, w: 2, h: 3 }, { type: "claude", x: 6, y: 0, w: 2, h: 3 },
-    { type: "sys", x: 0, y: 3, w: 7, h: 1 }] };
+    { type: "sys", x: 0, y: 3, w: 7, h: 1 }, { type: "menu", x: 7, y: 3, w: 1, h: 1 }] };
   $("#grid").value = "8x4"; selItem = -1; selStart = null;
   homeSetDirty(); renderHomeGrid(); showPanel();
 };

@@ -55,7 +55,6 @@ body.tab-deck .home-only, body.tab-home .deck-only { display: none !important; }
 }
 .home-grid .w:hover .resize { border-color: var(--accent); }
 .widget-list button[draggable="true"] { cursor: grab; }
-.home-grid .w.locked { border-style: dashed; cursor: not-allowed; color: var(--muted); background: transparent; }
 
 button {
   font: inherit; color: var(--text); background: var(--tile); border: 1px solid var(--line);

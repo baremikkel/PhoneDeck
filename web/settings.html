@@ -91,6 +91,12 @@
       <p class="muted" style="margin:0">Donutten på Claude-siden viser, hvor meget der er tilbage af dine grænser.
         Anthropic oplyser ikke grænserne i tokens, så det er <b>dit eget estimat</b>. Tælles som input + output + cache skrevet
         fra Claude Code på denne computer.</p>
+      <label>Donutten viser
+        <select id="donut-mode">
+          <option value="left">Hvad der er tilbage (fylder mindre, jo mere du bruger)</option>
+          <option value="used">Hvad der er brugt (fylder mere, jo mere du bruger)</option>
+        </select>
+      </label>
       <label class="check"><input type="checkbox" id="use-login">
         <span><b>Brug mit Claude Code-login (præcist)</b><br>
         <span class="hint">Henter din plans rigtige forbrug fra Anthropic, de samme tal som <code>/usage</code> i Claude Code.
@@ -173,6 +179,7 @@
     $("#b5").value = d.settings.claude.budget_5h || "";
     $("#bw").value = d.settings.claude.budget_week || "";
     $("#use-login").checked = !!d.settings.claude.use_login;
+    $("#donut-mode").value = d.settings.claude.donut_mode || "left";
     const p = d.plan;
     $("#plan-status").textContent = !p ? "" : p.error ? "⚠ " + p.error
       : p.five_hour ? `✓ ${p.plan ? p.plan[0].toUpperCase() + p.plan.slice(1) + "-plan: " : ""}${Math.round(p.five_hour.used_pct)} % brugt i 5-timers vinduet` + (p.seven_day ? `, ${Math.round(p.seven_day.used_pct)} % af ugen` : "")
@@ -202,6 +209,10 @@
         pixel_shift: $("#shift").checked, deck_cols: +$("#deck-cols").value } });
       toast("Gemt – telefonen er opdateret");
     } catch (e) { toast(e.message, true); }
+  };
+  $("#donut-mode").onchange = async (e) => {
+    try { await api("/api/settings", { claude: { donut_mode: e.target.value } }); toast("Gemt – telefonen er opdateret"); }
+    catch (err) { toast(err.message, true); }
   };
   $("#use-login").onchange = async (e) => {
     try {

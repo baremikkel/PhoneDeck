@@ -61,6 +61,12 @@ class ClaudePlan:
             with urllib.request.urlopen(req, timeout=10) as r:
                 d = json.load(r)
         except urllib.error.HTTPError as e:
+            if e.code == 429:  # rate limited: wait (Retry-After, else 10 min) before asking again
+                try:
+                    self._backoff = max(60, int(e.headers.get("Retry-After") or 600))
+                except ValueError:
+                    self._backoff = 600
+                return {"error": "Anthropic beder os vente – prøver igen senere"}
             return {"error": f"Anthropic svarede {e.code}"}
         return {
             "plan": oauth.get("subscriptionType"),
@@ -83,7 +89,8 @@ class ClaudePlan:
             else:
                 with self._lock:
                     self.data = {}
-            self._wake.wait(POLL)
+            wait, self._backoff = max(POLL, getattr(self, "_backoff", 0)), 0
+            self._wake.wait(wait)
             self._wake.clear()
 
     def state(self) -> dict | None:

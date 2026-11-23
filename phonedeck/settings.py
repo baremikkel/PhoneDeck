@@ -27,7 +27,7 @@ DEFAULT_HOME = {
 }
 
 DEFAULTS = {
-    "claude": {"budget_5h": None, "budget_week": None, "use_login": False},
+    "claude": {"budget_5h": None, "budget_week": None, "use_login": False, "donut_mode": "left"},
     "spotify": {"client_id": ""},
     "ui": {
         "pages": PAGES, "hidden": [],
@@ -132,6 +132,10 @@ class Settings:
                     new["claude"][k] = v
         if "use_login" in c:
             new["claude"]["use_login"] = bool(c["use_login"])
+        if "donut_mode" in c:
+            if c["donut_mode"] not in ("left", "used"):
+                raise ValueError("donutten skal vise 'left' eller 'used'")
+            new["claude"]["donut_mode"] = c["donut_mode"]
         u = raw.get("ui", {})
         if "pages" in u:
             pages = [p for p in u["pages"] if p in PAGES]

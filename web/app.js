@@ -199,6 +199,22 @@ function renderDonut(c, budget, plan) {
     remW = Math.max(0, 1 - usedW / budget.budget_week);
     setText("c.weektxt", `uge ${Math.round(remW * 100)} % tilbage`);
   }
+  // "Brugt"-mode (Indstillinger → Claude): show what is used instead of what is left
+  const showUsed = budget.donut_mode === "used";
+  if (showUsed && rem5 != null) {
+    const usedPct = Math.round((1 - rem5) * 100);
+    if (p5) {
+      setText("c.left", `${usedPct} %`);
+      setText("c.leftlbl", "brugt");
+    } else {
+      setText("c.left", fmtTok(used5));
+      setText("c.leftlbl", `brugt · ${usedPct} %`);
+    }
+  }
+  if (showUsed && remW != null) {
+    const reset = pW ? ` · ↻ ${weekday(pW.resets_at)}` : "";
+    setText("c.weektxt", `uge ${Math.round((1 - remW) * 100)} % brugt${reset}`);
+  }
   $$("[data-week-legend]").forEach((el) => { el.hidden = remW == null; });
   $$("canvas[data-donut]").forEach((cv) => {
     const [ctx, w, h] = prep(cv);
@@ -220,8 +236,10 @@ function renderDonut(c, budget, plan) {
     const remaining5 = rem5;
     const colour5 = remaining5 != null && remaining5 < 0.15 ? css("--hot")
       : remaining5 != null && remaining5 < 0.35 ? css("--warn") : css("--claude");
-    ring(R - t / 2, t, remaining5, colour5);
-    if (remW != null) ring(R - t * 1.9, t * 0.55, remW, css("--ram"));
+    // the colour always follows what is left; only the filled part flips
+    const fill = (rem) => (rem == null ? null : showUsed ? 1 - rem : rem);
+    ring(R - t / 2, t, fill(remaining5), colour5);
+    if (remW != null) ring(R - t * 1.9, t * 0.55, fill(remW), css("--ram"));
   });
 }
 document.addEventListener("click", (e) => {

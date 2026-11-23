@@ -21,6 +21,8 @@ burde virke.
 
 ## Funktioner
 
+Swipe til venstre og højre mellem fem sider: **Oversigt**, **System**, **Musik**, **Claude** og **Knapper**. Prikkerne nederst viser, hvor du er, og den side, du sidst så, huskes.
+
 | Kort | Indhold |
 |---|---|
 | **CPU** | Belastning, temperatur (k10temp/coretemp), frekvens, graf |

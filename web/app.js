@@ -1,7 +1,7 @@
 "use strict";
 
 const $ = (sel, root = document) => root.querySelector(sel);
-const k = (card, key) => $(`#${card} [data-k="${key}"]`);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 // ---------- formatting ----------
@@ -13,18 +13,24 @@ const fmtBytes = (b) => b == null ? "–" : b >= 1e9 ? (b / 1e9).toFixed(1) + " 
 const fmtRate = (b) => fmtBytes(b) + "/s";
 const fmtTime = (s) => { s = Math.max(0, Math.floor(s || 0)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 const fmtDur = (s) => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h ? `${h} t ${m} m` : `${m} m`; };
-const round = (v) => v == null ? "–" : Math.round(v);
+const round = (v) => v == null ? "–" : String(Math.round(v));
 
-function setTemp(el, t, warn = 75, hot = 88) {
-  el.textContent = round(t);
-  el.classList.toggle("warn", t != null && t >= warn && t < hot);
-  el.classList.toggle("hot", t != null && t >= hot);
+// ---------- binding helpers: one value can appear on several pages ----------
+const setText = (key, v) => $$(`[data-b="${key}"]`).forEach((el) => { if (el.textContent !== v) el.textContent = v; });
+const setWidth = (key, pct) => $$(`[data-w="${key}"]`).forEach((el) => { el.style.width = Math.max(0, Math.min(100, pct || 0)) + "%"; });
+const setOn = (key, on) => $$(`[data-on="${key}"]`).forEach((el) => el.classList.toggle("on", !!on));
+function setTemp(key, t, warn, hot) {
+  $$(`[data-temp="${key}"]`).forEach((el) => {
+    el.classList.toggle("warn", t != null && t >= warn && t < hot);
+    el.classList.toggle("hot", t != null && t >= hot);
+  });
 }
 
-// ---------- canvas helpers ----------
+// ---------- canvas ----------
 function prep(canvas) {
   const dpr = window.devicePixelRatio || 1;
   const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (!w || !h) return [null, 0, 0];
   if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
   }
@@ -34,24 +40,22 @@ function prep(canvas) {
   return [ctx, w, h];
 }
 
-function sparkline(canvas, data, color, max = 100) {
-  const [ctx, w, h] = prep(canvas);
+function line(ctx, w, h, data, color, max, fill = true) {
   const pts = data.map((v) => v ?? 0);
-  if (pts.length < 2 || h < 4) return;
-  const n = 90; // fixed slots so the line scrolls in from the right
-  const step = w / (n - 1), x0 = w - (pts.length - 1) * step;
+  if (pts.length < 2) return;
+  const n = 90, step = w / (n - 1), x0 = w - (pts.length - 1) * step;
   const y = (v) => h - 2 - (Math.min(v, max) / max) * (h - 4);
   ctx.beginPath();
   pts.forEach((v, i) => i ? ctx.lineTo(x0 + i * step, y(v)) : ctx.moveTo(x0, y(v)));
   ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.stroke();
+  if (!fill) return;
   ctx.lineTo(w, h); ctx.lineTo(x0, h); ctx.closePath();
   const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, color + "55"); g.addColorStop(1, color + "00");
   ctx.fillStyle = g; ctx.fill();
 }
 
-function bars(canvas, data, color) {
-  const [ctx, w, h] = prep(canvas);
+function bars(ctx, w, h, data, color) {
   const max = Math.max(...data, 1), gap = 2, bw = (w - gap * (data.length - 1)) / data.length;
   data.forEach((v, i) => {
     const bh = v ? Math.max(2, (v / max) * (h - 2)) : 1;
@@ -59,6 +63,25 @@ function bars(canvas, data, color) {
     ctx.beginPath();
     ctx.roundRect(i * (bw + gap), h - bh, bw, bh, [2, 2, 0, 0]);
     ctx.fill();
+  });
+}
+
+function drawCharts(s) {
+  const hist = s.hw?.history || {};
+  $$("canvas[data-chart]").forEach((c) => {
+    const [ctx, w, h] = prep(c);
+    if (!ctx) return;
+    switch (c.dataset.chart) {
+      case "cpu": return line(ctx, w, h, hist.cpu || [], css("--cpu"), 100);
+      case "gpu": return line(ctx, w, h, hist.gpu || [], css("--gpu"), 100);
+      case "ram": return line(ctx, w, h, hist.ram || [], css("--ram"), 100);
+      case "net": {
+        const max = Math.max(1024, ...(hist.net_down || []), ...(hist.net_up || []));
+        line(ctx, w, h, hist.net_down || [], css("--net"), max);
+        return line(ctx, w, h, hist.net_up || [], css("--disk"), max, false);
+      }
+      case "claude": return bars(ctx, w, h, s.claude?.hourly || [], css("--claude"));
+    }
   });
 }
 
@@ -70,61 +93,81 @@ function render(s) {
   last = s;
   const hw = s.hw || {};
 
-  // CPU
   const cpu = hw.cpu || {};
-  k("cpu", "name").textContent = cpu.name || "";
-  k("cpu", "load").textContent = round(cpu.load);
-  setTemp(k("cpu", "temp"), cpu.temp);
-  k("cpu", "freq").textContent = round(cpu.freq);
-  sparkline(k("cpu", "spark"), hw.history?.cpu || [], css("--cpu"));
+  setText("cpu.name", cpu.name || "");
+  setText("cpu.load", round(cpu.load));
+  setText("cpu.temp", round(cpu.temp)); setTemp("cpu", cpu.temp, 75, 88);
+  setText("cpu.freq", round(cpu.freq));
+  renderCores(cpu.cores || []);
 
-  // GPU
   const gpu = hw.gpu;
   if (gpu) {
-    k("gpu", "name").textContent = gpu.name || "";
-    k("gpu", "load").textContent = round(gpu.load);
-    setTemp(k("gpu", "temp"), gpu.temp_hot ?? gpu.temp, 85, 100);
-    k("gpu", "power").textContent = round(gpu.power);
-    const vp = gpu.vram_total ? (gpu.vram_used / gpu.vram_total) * 100 : 0;
-    k("gpu", "vram").style.width = vp + "%";
-    k("gpu", "vramtxt").textContent = gpu.vram_total ? `VRAM ${fmtBytes(gpu.vram_used)} / ${fmtBytes(gpu.vram_total)}` : "";
-    sparkline(k("gpu", "spark"), hw.history?.gpu || [], css("--gpu"));
+    const t = gpu.temp_hot ?? gpu.temp;
+    setText("gpu.name", gpu.name || "");
+    setText("gpu.load", round(gpu.load));
+    setText("gpu.temp", round(t)); setTemp("gpu", t, 85, 100);
+    setText("gpu.edge", round(gpu.temp));
+    setText("gpu.power", round(gpu.power));
+    setText("gpu.clock", round(gpu.clock));
+    setText("gpu.fan", round(gpu.fan));
+    setWidth("gpu.vram", gpu.vram_total ? (gpu.vram_used / gpu.vram_total) * 100 : 0);
+    setText("gpu.vramtxt", gpu.vram_total ? `VRAM ${fmtBytes(gpu.vram_used)} / ${fmtBytes(gpu.vram_total)}` : "");
   }
 
-  // System strip
-  if (hw.ram) k("sys", "ram").textContent = `${(hw.ram.used / 1e9).toFixed(1)} / ${(hw.ram.total / 1e9).toFixed(0)} GB`;
-  if (hw.net) { k("sys", "down").textContent = fmtRate(hw.net.down); k("sys", "up").textContent = fmtRate(hw.net.up); }
-  if (hw.disk) {
-    k("sys", "disk").textContent = `${Math.round(hw.disk.used / hw.disk.total * 100)} % · ${fmtRate(hw.disk.read + hw.disk.write)}`;
-    k("sys", "nvme").textContent = hw.disk.temps?.length ? hw.disk.temps.map((t) => Math.round(t) + "°").join(" ") : "–";
+  if (hw.ram) {
+    setText("ram.txt", `${(hw.ram.used / 1e9).toFixed(1)} / ${(hw.ram.total / 1e9).toFixed(0)} GB`);
+    setText("ram.used", (hw.ram.used / 1e9).toFixed(1));
+    setText("ram.total", `/ ${(hw.ram.total / 1e9).toFixed(0)} GB`);
+    setText("ram.pcttxt", Math.round(hw.ram.percent) + " % brugt");
+    setWidth("ram.pct", hw.ram.percent);
   }
+  if (hw.net) { setText("net.down", fmtRate(hw.net.down)); setText("net.up", fmtRate(hw.net.up)); }
+  if (hw.disk) {
+    const pct = hw.disk.used / hw.disk.total * 100;
+    setText("disk.txt", `${Math.round(pct)} % · ${fmtRate(hw.disk.read + hw.disk.write)}`);
+    setText("disk.usage", `${fmtBytes(hw.disk.used)} / ${fmtBytes(hw.disk.total)}`);
+    setText("disk.io", fmtRate(hw.disk.read + hw.disk.write));
+    setWidth("disk.pct", pct);
+    setText("nvme", hw.disk.temps?.length ? hw.disk.temps.map((t) => Math.round(t) + "°").join(" ") : "–");
+  }
+  if (hw.uptime) setText("uptime", "oppe " + fmtDur(hw.uptime));
 
   renderMedia(s.media);
   renderClaude(s.claude || {});
-  renderButtons(s);
+  renderAudio(s.audio || {});
+  renderButtons(s.buttons || []);
+  drawCharts(s);
 }
 
-let artKey = null;
+function renderCores(cores) {
+  $$("[data-cores]").forEach((box) => {
+    if (box.children.length !== cores.length) box.replaceChildren(...cores.map(() => document.createElement("i")));
+    cores.forEach((c, i) => { box.children[i].style.height = Math.max(3, c) + "%"; });
+  });
+}
+
+let artKey;
 function renderMedia(m) {
-  const img = k("media", "art");
   if (!m || m.error || !m.title) {
-    k("media", "title").textContent = m?.error ? "Medie: " + m.error : "Intet afspilles";
-    k("media", "artist").textContent = ""; k("media", "player").textContent = "";
-    k("media", "pos").textContent = k("media", "len").textContent = "";
-    k("media", "progress").style.width = "0";
-    k("media", "playbtn").textContent = "▶";
-    if (artKey !== null) { img.removeAttribute("src"); artKey = null; }
-    media.playing = false;
+    setText("m.title", m?.error ? "Medie: " + m.error : "Intet afspilles");
+    ["m.artist", "m.album", "m.player", "m.pos", "m.len"].forEach((k) => setText(k, ""));
+    setWidth("m.progress", 0);
+    setText("m.play", "▶");
+    if (artKey !== null) { $$("img[data-art]").forEach((i) => i.removeAttribute("src")); artKey = null; }
+    media.playing = false; media.len = 0;
     return;
   }
-  k("media", "player").textContent = m.player;
-  k("media", "title").textContent = m.title;
-  k("media", "artist").textContent = [m.artist, m.album].filter(Boolean).join(" · ");
-  k("media", "playbtn").textContent = m.status === "Playing" ? "⏸" : "▶";
+  setText("m.player", m.player);
+  setText("m.title", m.title);
+  setText("m.artist", m.artist || "");
+  setText("m.album", m.album || "");
+  setText("m.play", m.status === "Playing" ? "⏸" : "▶");
   if (m.art_key !== artKey) {
     artKey = m.art_key;
-    if (m.art) img.src = "/api/art?k=" + encodeURIComponent(m.art_key || "");
-    else img.removeAttribute("src");
+    $$("img[data-art]").forEach((img) => {
+      if (m.art) img.src = "/api/art?k=" + encodeURIComponent(m.art_key || "");
+      else img.removeAttribute("src");
+    });
   }
   media = { pos: m.position, len: m.length, playing: m.status === "Playing", at: performance.now() };
   tickMedia();
@@ -133,42 +176,68 @@ function renderMedia(m) {
 function tickMedia() {
   if (!media.len) return;
   const pos = Math.min(media.len, media.pos + (media.playing ? (performance.now() - media.at) / 1000 : 0));
-  k("media", "pos").textContent = fmtTime(pos);
-  k("media", "len").textContent = fmtTime(media.len);
-  k("media", "progress").style.width = (pos / media.len) * 100 + "%";
+  setText("m.pos", fmtTime(pos));
+  setText("m.len", fmtTime(media.len));
+  setWidth("m.progress", (pos / media.len) * 100);
 }
 
 function renderClaude(c) {
-  if (!c.available) { k("claude", "block").textContent = "–"; k("claude", "reset").textContent = c.error || "ingen data"; return; }
+  if (!c.available) { setText("c.block", "–"); setText("c.reset", c.error || "ingen data"); return; }
   const sum = (b) => b ? b.input + b.output + b.cache_write : null;
-  k("claude", "block").textContent = fmtTok(sum(c.last5h));
-  k("claude", "today").textContent = fmtTok(sum(c.today));
-  k("claude", "week").textContent = fmtTok(sum(c.last7d));
-  k("claude", "out").textContent = fmtTok(c.today?.output);
-  k("claude", "msgs").textContent = c.today?.messages ?? "–";
-  k("claude", "reset").textContent = c.block_reset_in ? "↻ " + fmtDur(c.block_reset_in) : "intet aktivt vindue";
-  bars(k("claude", "hourly"), c.hourly || [], css("--claude"));
+  setText("c.block", fmtTok(sum(c.last5h)));
+  setText("c.today", fmtTok(sum(c.today)));
+  setText("c.week", fmtTok(sum(c.last7d)));
+  setText("c.out", fmtTok(c.today?.output));
+  setText("c.msgs", (c.today?.messages ?? 0) + " svar");
+  setText("c.b.in", fmtTok(c.last5h?.input));
+  setText("c.b.out", fmtTok(c.last5h?.output));
+  setText("c.b.cw", fmtTok(c.last5h?.cache_write));
+  setText("c.b.cr", fmtTok(c.last5h?.cache_read));
+  setText("c.reset", c.block_reset_in ? "↻ " + fmtDur(c.block_reset_in) : "intet aktivt vindue");
+  setText("c.resetlong", c.block_reset_in ? "Vinduet nulstilles om " + fmtDur(c.block_reset_in) : "Intet aktivt vindue");
+
+  const models = Object.entries(c.models || {});
+  const total = models.reduce((a, [, v]) => a + v, 0) || 1;
+  const key = JSON.stringify(models);
+  $$("[data-models]").forEach((box) => {
+    if (box.dataset.key === key) return;
+    box.dataset.key = key;
+    box.replaceChildren(...models.slice(0, 4).map(([name, v]) => {
+      const row = document.createElement("div");
+      const n = document.createElement("span"); n.textContent = name;
+      const t = document.createElement("span"); t.textContent = fmtTok(v);
+      const bar = document.createElement("div"); bar.className = "bar";
+      const fill = document.createElement("i"); fill.style.width = (v / total) * 100 + "%";
+      bar.append(fill); row.append(n, t, bar);
+      return row;
+    }));
+  });
+}
+
+function renderAudio(a) {
+  const out = a.output || {}, mic = a.mic || {};
+  setText("vol.txt", out.muted ? "Lyd fra" : (out.volume ?? "–") + " %");
+  setText("vol.icon", out.muted ? "🔇" : "🔈");
+  setWidth("vol.pct", out.volume);
+  setOn("vol.muted", out.muted);
+  setText("mic.txt", mic.muted ? "Mikrofon fra" : "Mikrofon");
+  setOn("mic.muted", mic.muted);
 }
 
 let buttonsKey = "";
-function renderButtons(s) {
-  const a = s.audio || {};
-  const vol = k("buttons", "vol");
-  vol.textContent = a.output?.muted ? "🔇" : (a.output?.volume ?? "–") + " %";
-  vol.classList.toggle("on", !!a.output?.muted);
-  k("buttons", "mic").classList.toggle("on", !!a.mic?.muted);
-
-  const key = JSON.stringify(s.buttons || []);
+function renderButtons(list) {
+  const key = JSON.stringify(list);
   if (key === buttonsKey) return;
   buttonsKey = key;
-  const box = $("#custom");
-  box.replaceChildren(...(s.buttons || []).map((b) => {
+  const box = $("[data-tiles]");
+  $$("[data-custom]", box).forEach((el) => el.remove());
+  list.forEach((b) => {
     const el = document.createElement("button");
-    el.dataset.action = b.id;
+    el.className = "tile"; el.dataset.action = b.id; el.dataset.custom = "";
     const icon = document.createElement("b"); icon.textContent = b.icon;
     el.append(icon, b.label);
-    return el;
-  }));
+    box.append(el);
+  });
 }
 
 // ---------- actions ----------
@@ -187,18 +256,52 @@ let wakeLock = null;
 async function keepAwake() {
   try { wakeLock = await navigator.wakeLock?.request("screen"); } catch { /* not allowed */ }
 }
-$("#clock").addEventListener("click", () => {
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("[data-fullscreen]")) return;
   if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
   else document.exitFullscreen?.();
   keepAwake();
 });
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && wakeLock) keepAwake(); });
 
+// ---------- pages ----------
+const pager = $("#pager");
+const pages = $$(".page");
+const store = {
+  get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } },
+};
+let current = 0;
+
+$("#dots").replaceChildren(...pages.map((p, i) => {
+  const b = document.createElement("button");
+  b.setAttribute("aria-label", p.dataset.title);
+  b.append(document.createElement("i"));
+  b.addEventListener("click", () => goTo(i));
+  return b;
+}));
+
+function goTo(i, smooth = true) {
+  pager.scrollTo({ left: i * pager.clientWidth, behavior: smooth ? "smooth" : "instant" });
+}
+function updateDots() {
+  const i = Math.round(pager.scrollLeft / Math.max(1, pager.clientWidth));
+  if (i === current && $("#dots .on")) return;
+  current = i;
+  $$("#dots button").forEach((b, j) => b.classList.toggle("on", j === i));
+  store.set("phonedeck.page", String(i));
+}
+pager.addEventListener("scroll", updateDots, { passive: true });
+window.addEventListener("resize", () => { goTo(current, false); if (last) render(last); });
+
+const saved = Number(store.get("phonedeck.page"));
+requestAnimationFrame(() => { goTo(Number.isInteger(saved) && saved < pages.length ? saved : 0, false); updateDots(); });
+
 // ---------- clock + burn-in protection ----------
 function tickClock() {
   const d = new Date();
-  k("sys", "time").textContent = d.toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" });
-  k("sys", "date").textContent = d.toLocaleDateString("da-DK", { weekday: "short", day: "numeric", month: "short" });
+  setText("time", d.toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" }));
+  setText("date", d.toLocaleDateString("da-DK", { weekday: "short", day: "numeric", month: "short" }));
   tickMedia();
 }
 setInterval(tickClock, 1000); tickClock();
@@ -206,17 +309,14 @@ setInterval(tickClock, 1000); tickClock();
 // Nudge everything a few pixels every minute so static UI doesn't burn into the AMOLED
 setInterval(() => {
   const r = () => Math.round(Math.random() * 6 - 3);
-  $("#deck").style.transform = `translate(${r()}px, ${r()}px)`;
+  pager.style.transform = `translate(${r()}px, ${r()}px)`;
 }, 60_000);
 
 // Dim at night (23–07)
-setInterval(() => { const h = new Date().getHours(); document.body.classList.toggle("dim", h >= 23 || h < 7); }, 30_000);
+const dim = () => { const h = new Date().getHours(); document.body.classList.toggle("dim", h >= 23 || h < 7); };
+setInterval(dim, 30_000); dim();
 
 // ---------- live data ----------
-function connect() {
-  const es = new EventSource("/api/stream");
-  es.onmessage = (e) => { $("#offline").hidden = true; render(JSON.parse(e.data)); };
-  es.onerror = () => { $("#offline").hidden = false; };
-}
-connect();
-window.addEventListener("resize", () => last && render(last));
+const es = new EventSource("/api/stream");
+es.onmessage = (e) => { $("#offline").hidden = true; render(JSON.parse(e.data)); };
+es.onerror = () => { $("#offline").hidden = false; };

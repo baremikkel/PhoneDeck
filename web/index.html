@@ -11,81 +11,204 @@
 </head>
 <body>
   <div id="offline" hidden>Ingen forbindelse til PC'en – prøver igen …</div>
-  <main id="deck">
-    <section class="card metric" id="cpu" style="--accent: var(--cpu)">
-      <header><span class="label">CPU</span><span class="sub" data-k="name"></span></header>
-      <div class="row">
-        <div class="big"><span data-k="load">–</span><small>%</small></div>
-        <div class="facts">
-          <div><span data-k="temp">–</span><small>°C</small></div>
-          <div><span data-k="freq">–</span><small>MHz</small></div>
+
+  <main id="pager">
+    <!-- ============ 1. OVERSIGT ============ -->
+    <section class="page" id="p-overview" data-title="Oversigt">
+      <div class="card metric a-cpu" style="--accent: var(--cpu)">
+        <header><span class="label">CPU</span><span class="sub" data-b="cpu.name"></span></header>
+        <div class="row">
+          <div class="big"><span data-b="cpu.load">–</span><small>%</small></div>
+          <div class="facts">
+            <div><span data-b="cpu.temp" data-temp="cpu">–</span><small>°C</small></div>
+            <div><span data-b="cpu.freq">–</span><small>MHz</small></div>
+          </div>
+        </div>
+        <canvas class="spark" data-chart="cpu"></canvas>
+      </div>
+
+      <div class="card metric a-gpu" style="--accent: var(--gpu)">
+        <header><span class="label">GPU</span><span class="sub" data-b="gpu.name"></span></header>
+        <div class="row">
+          <div class="big"><span data-b="gpu.load">–</span><small>%</small></div>
+          <div class="facts">
+            <div><span data-b="gpu.temp" data-temp="gpu">–</span><small>°C</small></div>
+            <div><span data-b="gpu.power">–</span><small>W</small></div>
+          </div>
+        </div>
+        <div class="bar"><i data-w="gpu.vram"></i></div>
+        <div class="sub tiny" data-b="gpu.vramtxt"></div>
+        <canvas class="spark" data-chart="gpu"></canvas>
+      </div>
+
+      <div class="card media a-media">
+        <div class="art"><img data-art alt=""><div class="noart">♪</div></div>
+        <div class="info">
+          <div class="sub" data-b="m.player"></div>
+          <div class="title" data-b="m.title">Intet afspilles</div>
+          <div class="artist" data-b="m.artist"></div>
+          <div class="progress"><i data-w="m.progress"></i></div>
+          <div class="times"><span data-b="m.pos"></span><span data-b="m.len"></span></div>
+          <div class="controls">
+            <button data-action="media.previous" aria-label="Forrige">⏮</button>
+            <button data-action="media.playpause" class="primary" data-b="m.play" aria-label="Afspil/pause">▶</button>
+            <button data-action="media.next" aria-label="Næste">⏭</button>
+          </div>
         </div>
       </div>
-      <canvas class="spark" data-k="spark"></canvas>
+
+      <div class="card a-claude" style="--accent: var(--claude)">
+        <header><span class="label">Claude</span><span class="sub" data-b="c.reset"></span></header>
+        <div class="big"><span data-b="c.block">–</span><small>tokens · 5 t</small></div>
+        <div class="facts grid2">
+          <div><span data-b="c.today">–</span><small>i dag</small></div>
+          <div><span data-b="c.week">–</span><small>7 dage</small></div>
+        </div>
+        <canvas class="bars" data-chart="claude"></canvas>
+      </div>
+
+      <div class="card strip a-sys">
+        <div><small>RAM</small><span data-b="ram.txt">–</span></div>
+        <div><small>↓ Net</small><span data-b="net.down">–</span></div>
+        <div><small>↑ Net</small><span data-b="net.up">–</span></div>
+        <div><small>Disk</small><span data-b="disk.txt">–</span></div>
+        <div class="hide-narrow"><small>NVMe</small><span data-b="nvme">–</span></div>
+        <div class="clock" data-fullscreen title="Tryk for fuld skærm"><span data-b="time">–</span><small data-b="date"></small></div>
+      </div>
     </section>
 
-    <section class="card metric" id="gpu" style="--accent: var(--gpu)">
-      <header><span class="label">GPU</span><span class="sub" data-k="name"></span></header>
-      <div class="row">
-        <div class="big"><span data-k="load">–</span><small>%</small></div>
-        <div class="facts">
-          <div><span data-k="temp">–</span><small>°C</small></div>
-          <div><span data-k="power">–</span><small>W</small></div>
+    <!-- ============ 2. SYSTEM ============ -->
+    <section class="page" id="p-system" data-title="System">
+      <div class="card a-cpu" style="--accent: var(--cpu)">
+        <header><span class="label">CPU</span><span class="sub" data-b="cpu.name"></span></header>
+        <div class="row">
+          <div class="big xl"><span data-b="cpu.load">–</span><small>%</small></div>
+          <div class="facts">
+            <div><span data-b="cpu.temp" data-temp="cpu">–</span><small>°C</small></div>
+            <div><span data-b="cpu.freq">–</span><small>MHz</small></div>
+          </div>
+        </div>
+        <div class="cores" data-cores></div>
+        <canvas class="spark" data-chart="cpu"></canvas>
+      </div>
+
+      <div class="card a-gpu" style="--accent: var(--gpu)">
+        <header><span class="label">GPU</span><span class="sub" data-b="gpu.name"></span></header>
+        <div class="row">
+          <div class="big xl"><span data-b="gpu.load">–</span><small>%</small></div>
+          <div class="facts">
+            <div><span data-b="gpu.temp" data-temp="gpu">–</span><small>°C hotspot</small></div>
+            <div><span data-b="gpu.edge">–</span><small>°C kant</small></div>
+          </div>
+        </div>
+        <div class="kv">
+          <div><small>Strøm</small><span data-b="gpu.power">–</span><small>W</small></div>
+          <div><small>Clock</small><span data-b="gpu.clock">–</span><small>MHz</small></div>
+          <div><small>Blæser</small><span data-b="gpu.fan">–</span><small>RPM</small></div>
+        </div>
+        <div class="bar"><i data-w="gpu.vram"></i></div>
+        <div class="sub tiny" data-b="gpu.vramtxt"></div>
+        <canvas class="spark" data-chart="gpu"></canvas>
+      </div>
+
+      <div class="card a-mem" style="--accent: var(--ram)">
+        <header><span class="label">Hukommelse</span><span class="sub" data-b="ram.pcttxt"></span></header>
+        <div class="big"><span data-b="ram.used">–</span><small data-b="ram.total"></small></div>
+        <div class="bar"><i data-w="ram.pct"></i></div>
+        <canvas class="spark" data-chart="ram"></canvas>
+      </div>
+
+      <div class="card a-net" style="--accent: var(--net)">
+        <header><span class="label">Netværk</span></header>
+        <div class="kv">
+          <div><small>↓ Ned</small><span data-b="net.down">–</span></div>
+          <div><small>↑ Op</small><span data-b="net.up">–</span></div>
+        </div>
+        <canvas class="spark" data-chart="net"></canvas>
+      </div>
+
+      <div class="card a-disk" style="--accent: var(--disk)">
+        <header><span class="label">Disk</span><span class="sub" data-b="uptime"></span></header>
+        <div class="kv">
+          <div><small>Brugt</small><span data-b="disk.usage">–</span></div>
+          <div><small>I/O</small><span data-b="disk.io">–</span></div>
+          <div><small>NVMe</small><span data-b="nvme">–</span></div>
+        </div>
+        <div class="bar"><i data-w="disk.pct"></i></div>
+      </div>
+    </section>
+
+    <!-- ============ 3. MUSIK ============ -->
+    <section class="page" id="p-music" data-title="Musik">
+      <div class="card media big-media">
+        <div class="art"><img data-art alt=""><div class="noart">♪</div></div>
+        <div class="info">
+          <div class="sub" data-b="m.player"></div>
+          <div class="title" data-b="m.title">Intet afspilles</div>
+          <div class="artist" data-b="m.artist"></div>
+          <div class="album sub" data-b="m.album"></div>
+          <div class="progress"><i data-w="m.progress"></i></div>
+          <div class="times"><span data-b="m.pos"></span><span data-b="m.len"></span></div>
+          <div class="controls">
+            <button data-action="media.previous" aria-label="Forrige">⏮</button>
+            <button data-action="media.playpause" class="primary" data-b="m.play" aria-label="Afspil/pause">▶</button>
+            <button data-action="media.next" aria-label="Næste">⏭</button>
+          </div>
+          <div class="volume">
+            <button data-action="volume.down" aria-label="Lavere">−</button>
+            <div class="bar"><i data-w="vol.pct"></i></div>
+            <button data-action="volume.up" aria-label="Højere">+</button>
+            <button data-action="volume.mute" class="vol" data-b="vol.txt" data-on="vol.muted">–</button>
+          </div>
         </div>
       </div>
-      <div class="bar"><i data-k="vram"></i></div>
-      <div class="sub tiny" data-k="vramtxt"></div>
-      <canvas class="spark" data-k="spark"></canvas>
     </section>
 
-    <section class="card" id="media">
-      <div class="art"><img data-k="art" alt=""><div class="noart">♪</div></div>
-      <div class="info">
-        <div class="sub" data-k="player"></div>
-        <div class="title" data-k="title">Intet afspilles</div>
-        <div class="artist" data-k="artist"></div>
-        <div class="progress"><i data-k="progress"></i></div>
-        <div class="times"><span data-k="pos"></span><span data-k="len"></span></div>
-        <div class="controls">
-          <button data-action="media.previous" aria-label="Forrige">⏮</button>
-          <button data-action="media.playpause" class="primary" data-k="playbtn" aria-label="Afspil/pause">▶</button>
-          <button data-action="media.next" aria-label="Næste">⏭</button>
+    <!-- ============ 4. CLAUDE ============ -->
+    <section class="page" id="p-claude" data-title="Claude" style="--accent: var(--claude)">
+      <div class="card c-main">
+        <header><span class="label">Claude Code · 5-timers vindue</span></header>
+        <div class="big xl"><span data-b="c.block">–</span><small>tokens</small></div>
+        <div class="sub" data-b="c.resetlong"></div>
+        <div class="kv">
+          <div><small>Input</small><span data-b="c.b.in">–</span></div>
+          <div><small>Output</small><span data-b="c.b.out">–</span></div>
+          <div><small>Cache skrevet</small><span data-b="c.b.cw">–</span></div>
+          <div><small>Cache læst</small><span data-b="c.b.cr">–</span></div>
         </div>
       </div>
-    </section>
-
-    <section class="card" id="claude" style="--accent: var(--claude)">
-      <header><span class="label">Claude</span><span class="sub" data-k="reset"></span></header>
-      <div class="row">
-        <div class="big"><span data-k="block">–</span><small>tokens · 5 t</small></div>
+      <div class="card c-stats">
+        <header><span class="label">I dag</span><span class="sub" data-b="c.msgs"></span></header>
+        <div class="kv col">
+          <div><small>Tokens i dag</small><span data-b="c.today">–</span></div>
+          <div><small>Output i dag</small><span data-b="c.out">–</span></div>
+          <div><small>Sidste 7 dage</small><span data-b="c.week">–</span></div>
+        </div>
+        <div class="models" data-models></div>
       </div>
-      <div class="facts grid2">
-        <div><span data-k="today">–</span><small>i dag</small></div>
-        <div><span data-k="week">–</span><small>7 dage</small></div>
-        <div><span data-k="out">–</span><small>output i dag</small></div>
-        <div><span data-k="msgs">–</span><small>svar i dag</small></div>
+      <div class="card c-chart">
+        <header><span class="label">Sidste 24 timer</span><span class="sub">tokens pr. time</span></header>
+        <canvas class="bars" data-chart="claude"></canvas>
+        <div class="sub tiny axis"><span>-24 t</span><span>-12 t</span><span>nu</span></div>
       </div>
-      <canvas class="bars" data-k="hourly"></canvas>
-      <div class="sub tiny axis"><span>-24 t</span><span>nu</span></div>
     </section>
 
-    <section class="card strip" id="sys">
-      <div><small>RAM</small><span data-k="ram">–</span></div>
-      <div><small>↓ Net</small><span data-k="down">–</span></div>
-      <div><small>↑ Net</small><span data-k="up">–</span></div>
-      <div><small>Disk</small><span data-k="disk">–</span></div>
-      <div><small>NVMe</small><span data-k="nvme">–</span></div>
-      <div class="clock" id="clock" title="Tryk for fuld skærm"><span data-k="time">–</span><small data-k="date"></small></div>
-    </section>
-
-    <section class="card buttons" id="buttons">
-      <button data-action="volume.down" aria-label="Lavere lydstyrke">🔉</button>
-      <button data-action="volume.mute" data-k="vol" class="vol">–</button>
-      <button data-action="volume.up" aria-label="Højere lydstyrke">🔊</button>
-      <button data-action="mic.mute" data-k="mic" aria-label="Mikrofon">🎙</button>
-      <span id="custom"></span>
+    <!-- ============ 5. KNAPPER ============ -->
+    <section class="page" id="p-buttons" data-title="Knapper">
+      <div class="tiles" data-tiles>
+        <button class="tile" data-action="volume.down"><b>🔉</b>Lavere</button>
+        <button class="tile" data-action="volume.mute" data-on="vol.muted"><b data-b="vol.icon">🔈</b><span data-b="vol.txt">–</span></button>
+        <button class="tile" data-action="volume.up"><b>🔊</b>Højere</button>
+        <button class="tile" data-action="mic.mute" data-on="mic.muted"><b>🎙</b><span data-b="mic.txt">Mikrofon</span></button>
+        <button class="tile" data-action="media.previous"><b>⏮</b>Forrige</button>
+        <button class="tile" data-action="media.playpause"><b data-b="m.play">▶</b>Afspil/pause</button>
+        <button class="tile" data-action="media.next"><b>⏭</b>Næste</button>
+        <button class="tile" data-fullscreen><b>⛶</b>Fuld skærm</button>
+      </div>
     </section>
   </main>
+
+  <nav id="dots" aria-label="Sider"></nav>
   <script src="app.js"></script>
 </body>
 </html>

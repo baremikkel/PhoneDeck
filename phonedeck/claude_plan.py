@@ -22,6 +22,7 @@ import urllib.request
 CREDENTIALS = os.path.join(os.path.expanduser(os.environ.get("CLAUDE_CONFIG_DIR", "~/.claude")), ".credentials.json")
 URL = "https://api.anthropic.com/api/oauth/usage"
 POLL = 120  # seconds
+CACHE = os.path.expanduser("~/.cache/phonedeck/claude_plan.json")  # percentages only, never the token
 
 
 def _window(d) -> dict | None:
@@ -36,7 +37,26 @@ class ClaudePlan:
         self._lock = threading.Lock()
         self.data: dict = {}
         self._wake = threading.Event()
+        self._backoff = 0
+        # Remember the last answer across restarts so a restart doesn't ask Anthropic again
+        try:
+            with open(CACHE) as f:
+                cached = json.load(f)
+            self.data = cached
+            age = time.time() - cached.get("updated", 0)
+            if age < POLL:
+                self._backoff = int(POLL - age)
+        except (OSError, ValueError):
+            pass
         threading.Thread(target=self._loop, daemon=True).start()
+
+    def _save(self, data: dict) -> None:
+        try:
+            os.makedirs(os.path.dirname(CACHE), exist_ok=True)
+            with open(CACHE, "w") as f:
+                json.dump(data, f)
+        except OSError:
+            pass
 
     def refresh_soon(self) -> None:
         self._wake.set()
@@ -76,6 +96,10 @@ class ClaudePlan:
         }
 
     def _loop(self) -> None:
+        if self._backoff:  # cached numbers are still fresh – don't ask again yet
+            self._wake.wait(self._backoff)
+            self._wake.clear()
+            self._backoff = 0
         while True:
             if self.settings.get("claude", "use_login"):
                 try:
@@ -84,12 +108,11 @@ class ClaudePlan:
                     data = {"error": str(e)}
                 if "error" in data and self.data.get("five_hour"):
                     data = dict(self.data, error=data["error"])  # keep last good numbers
+                elif "error" not in data:
+                    self._save(data)
                 with self._lock:
                     self.data = data
-            else:
-                with self._lock:
-                    self.data = {}
-            wait, self._backoff = max(POLL, getattr(self, "_backoff", 0)), 0
+            wait, self._backoff = max(POLL, self._backoff), 0
             self._wake.wait(wait)
             self._wake.clear()
 

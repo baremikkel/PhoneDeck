@@ -16,7 +16,7 @@
     <!-- ============ 1. OVERSIGT ============ -->
     <section class="page" id="p-overview" data-title="Oversigt">
       <div class="card metric a-cpu" style="--accent: var(--cpu)">
-        <header><span class="label">CPU</span><span class="sub grow" data-b="cpu.name"></span><button class="mini" data-layout-toggle aria-label="CPU og GPU ved siden af / over hinanden"><i class="ic"></i></button></header>
+        <header><span class="label">CPU</span><button class="mini" data-layout-toggle aria-label="CPU og GPU ved siden af / over hinanden"><i class="ic"></i></button><span class="sub grow right" data-b="cpu.name"></span></header>
         <div class="row">
           <div class="big"><span data-b="cpu.load">–</span><small>%</small></div>
           <div class="facts">
@@ -80,7 +80,7 @@
     <!-- ============ 2. SYSTEM ============ -->
     <section class="page" id="p-system" data-title="System">
       <div class="card a-cpu" style="--accent: var(--cpu)">
-        <header><span class="label">CPU</span><span class="sub grow" data-b="cpu.name"></span><button class="mini" data-layout-toggle aria-label="CPU og GPU ved siden af / over hinanden"><i class="ic"></i></button></header>
+        <header><span class="label">CPU</span><button class="mini" data-layout-toggle aria-label="CPU og GPU ved siden af / over hinanden"><i class="ic"></i></button><span class="sub grow right" data-b="cpu.name"></span></header>
         <div class="row">
           <div class="big xl"><span data-b="cpu.load">–</span><small>%</small></div>
           <div class="facts">
@@ -142,6 +142,11 @@
 
     <!-- ============ 3. MUSIK ============ -->
     <section class="page" id="p-music" data-title="Musik">
+      <button class="card next-bar" data-queue-open>
+        <img data-next-art alt="" hidden>
+        <span class="next-txt"><small data-b="q.lbl">Næste</small><span data-b="q.next">–</span></span>
+        <i class="ic" data-icon="queue"></i>
+      </button>
       <div class="card media big-media">
         <canvas class="viz" data-viz hidden></canvas>
         <div class="art"><img data-art alt=""><div class="noart">♪</div></div>
@@ -172,8 +177,17 @@
     <section class="page" id="p-claude" data-title="Claude" style="--accent: var(--claude)">
       <div class="card c-main">
         <header><span class="label">Claude Code · 5-timers vindue</span></header>
-        <div class="big xl"><span data-b="c.block">–</span><small>tokens</small></div>
-        <div class="sub" data-b="c.resetlong"></div>
+        <div class="donut-row">
+          <div class="donut" data-donut-wrap title="Tryk for at sætte grænser">
+            <canvas data-donut></canvas>
+            <div class="donut-center"><b data-b="c.left">–</b><small data-b="c.leftlbl">tilbage</small></div>
+          </div>
+          <div class="donut-info">
+            <div class="big"><span data-b="c.block">–</span><small data-b="c.blockof">tokens</small></div>
+            <div class="sub" data-b="c.resetlong"></div>
+            <div class="legend"><span><i style="background: var(--claude)"></i>5 timer</span><span data-week-legend><i style="background: var(--ram)"></i><span data-b="c.weektxt">uge</span></span></div>
+          </div>
+        </div>
         <div class="kv">
           <div><small>Input</small><span data-b="c.b.in">–</span></div>
           <div><small>Output</small><span data-b="c.b.out">–</span></div>
@@ -230,6 +244,13 @@
   </main>
 
   <nav id="dots" aria-label="Sider"></nav>
+
+  <div id="queue" class="sheet" hidden>
+    <div class="sheet-card">
+      <header><span class="label">Kø</span><span class="sub grow right" data-b="q.count"></span><button class="mini" data-queue-close aria-label="Luk"><i class="ic" data-icon="close"></i></button></header>
+      <ol class="queue-list" data-queue></ol>
+    </div>
+  </div>
   <script src="icons.js"></script>
   <script src="app.js"></script>
 </body>

@@ -138,6 +138,8 @@ class ClaudeUsage:
         models: dict[str, int] = {}
         hourly = [0] * 24  # tokens (input+output+cache write) per hour, oldest first
         window_start = None  # start of the current 5-hour block
+        block_tokens = 0
+        block_max = 0  # biggest 5-hour block in the last 30 days (for reference)
 
         for epoch, model, inp, out, cw, cr in sorted(self.records.values()):
             for bucket, since in ((today, midnight), (last5h, now - 5 * 3600), (last7d, week)):
@@ -156,10 +158,16 @@ class ClaudeUsage:
             # Claude's usage limits reset in 5-hour blocks starting at the first message
             if window_start is None or epoch >= window_start + 5 * 3600:
                 window_start = epoch - (epoch % 3600)
+                block_tokens = 0
+            block_tokens += inp + out + cw
+            if epoch >= now - 30 * 86400:
+                block_max = max(block_max, block_tokens)
 
         reset_in = None
+        block_used = 0
         if window_start is not None and window_start + 5 * 3600 > now:
             reset_in = window_start + 5 * 3600 - now
+            block_used = block_tokens  # tokens in the *current* 5-hour block
 
         return {
             "today": today,
@@ -168,6 +176,8 @@ class ClaudeUsage:
             "models": dict(sorted(models.items(), key=lambda kv: -kv[1])),
             "hourly": hourly,
             "block_reset_in": reset_in,
+            "block_used": block_used,
+            "block_max": block_max,
             "available": os.path.isdir(os.path.join(self.root, "projects")),
             "daily": self.daily_series(),
         }

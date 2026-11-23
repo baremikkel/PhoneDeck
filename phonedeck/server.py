@@ -18,6 +18,8 @@ from .deck import Deck, hotkeys_available, validate
 from .github import GitHub
 from .media import Media
 from .sensors import Sensors
+from .settings import Settings
+from .spotify import Spotify
 from .visualizer import Visualizer
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
@@ -27,8 +29,11 @@ MAX_BODY = 64 * 1024
 class Hub:
     """Samples everything in a background thread and fans out to clients."""
 
-    def __init__(self, interval: float = 1.0):
+    def __init__(self, interval: float = 1.0, port: int = 8765):
         self.interval = interval
+        self.settings = Settings()
+        self.spotify = Spotify(self.settings, port)
+        self._last_title = None
         self.sensors = Sensors()
         gpu_name = load_config().get("gpu", {}).get("name")
         if gpu_name and self.sensors.gpu:
@@ -65,7 +70,13 @@ class Hub:
             "claude": self._claude_summary,
             "github": self.github.state(),
             "buttons": self.deck.public(),
+            "spotify": self.spotify.state(),
+            "claude_budget": self.settings.public()["claude"],
         }
+        title = (state["media"] or {}).get("title")
+        if title != self._last_title:  # new song -> refresh the queue right away
+            self._last_title = title
+            self.spotify.refresh_soon()
         with self.cond:
             self.state = state
             self.version += 1
@@ -170,8 +181,34 @@ def make_handler(hub: Hub, host: str, port: int):
                 if not self._api_ok():
                     return
                 return self._json(hub.apps.list())
+            if path == "/api/settings":
+                if not self._api_ok():
+                    return
+                return self._json({"settings": hub.settings.public(),
+                                   "spotify": hub.spotify.state(),
+                                   "redirect_uri": hub.spotify.redirect_uri,
+                                   "claude": {k: hub.state.get("claude", {}).get(k)
+                                              for k in ("block_used", "block_max", "last7d")}})
+            if path == "/spotify/login":
+                try:
+                    return self._send(302, b"", "text/plain", {"Location": hub.spotify.login_url()})
+                except ValueError as e:
+                    return self._send(400, str(e).encode(), "text/plain; charset=utf-8")
+            if path == "/spotify/callback":
+                err = (query.get("error") or [""])[0]
+                try:
+                    if err:
+                        raise ValueError(f"Spotify afviste: {err}")
+                    hub.spotify.callback((query.get("code") or [""])[0], (query.get("state") or [""])[0])
+                    msg = "ok"
+                except Exception as e:
+                    msg = str(e)
+                return self._send(302, b"", "text/plain",
+                                  {"Location": f"http://localhost:{port}/settings?spotify=" + urllib.parse.quote(msg)})
             if path == "/editor":
                 path = "/editor.html"
+            if path == "/settings":
+                path = "/settings.html"
             return self._static(path)
 
         def _app_icon(self, app_id: str):
@@ -197,9 +234,10 @@ def make_handler(hub: Hub, host: str, port: int):
                 elif self.path == "/api/action":
                     if "button" in body:
                         hub.deck.press(str(body["button"]))
-                    elif body.get("action") == "open.editor":
-                        # open the button editor in the PC's browser
-                        hub.deck.run({"type": "url", "url": f"http://localhost:{port}/editor"})
+                    elif body.get("action") in ("open.editor", "open.settings"):
+                        # open the editor / settings page in the PC's browser
+                        page = "editor" if body["action"] == "open.editor" else "settings"
+                        hub.deck.run({"type": "url", "url": f"http://localhost:{port}/{page}"})
                     else:
                         hub.actions.run(str(body.get("action", "")))
                 elif self.path == "/api/deck":
@@ -210,6 +248,10 @@ def make_handler(hub: Hub, host: str, port: int):
                     saved = hub.deck.reset()
                     hub.poke()
                     return self._json({"ok": True, "buttons": saved})
+                elif self.path == "/api/settings":
+                    return self._json({"ok": True, "settings": hub.settings.update(body)})
+                elif self.path == "/api/spotify/disconnect":
+                    hub.spotify.disconnect()
                 elif self.path == "/api/deck/test":
                     b = validate([{"label": "test", "action": body.get("action")}], hub.apps)[0]
                     hub.deck.run(b["action"])
@@ -275,7 +317,7 @@ def main() -> None:
     p.add_argument("--interval", type=float, default=cfg.get("interval", 1.0))
     args = p.parse_args()
 
-    hub = Hub(args.interval)
+    hub = Hub(args.interval, args.port)
     threading.Thread(target=hub.run, daemon=True).start()
     hub.wait(0, timeout=5)
 
@@ -283,6 +325,7 @@ def main() -> None:
     httpd.daemon_threads = True
     print(f"[phonedeck] kører på http://{args.host}:{args.port}  (Ctrl+C for at stoppe)")
     print(f"[phonedeck] knap-editor: http://localhost:{args.port}/editor")
+    print(f"[phonedeck] indstillinger: http://localhost:{args.port}/settings")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

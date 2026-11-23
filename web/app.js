@@ -164,6 +164,94 @@ function renderActivity(gh, cd) {
   });
 }
 
+// ---------- Claude: donut with what is left of your own limits ----------
+function renderDonut(c, budget) {
+  const used5 = c.block_used || 0;
+  const usedW = c.last7d ? c.last7d.input + c.last7d.output + c.last7d.cache_write : 0;
+  const b5 = budget.budget_5h, bw = budget.budget_week;
+  if (b5) {
+    const left = Math.max(0, b5 - used5);
+    setText("c.left", fmtTok(left));
+    setText("c.leftlbl", `tilbage · ${Math.round((left / b5) * 100)} %`);
+    setText("c.blockof", `/ ${fmtTok(b5)}`);
+  } else {
+    setText("c.left", "–");
+    setText("c.leftlbl", "tryk: sæt grænse");
+    setText("c.blockof", "tokens");
+  }
+  $$("[data-week-legend]").forEach((el) => { el.hidden = !bw; });
+  if (bw) setText("c.weektxt", `uge ${Math.round(Math.max(0, 1 - usedW / bw) * 100)} % tilbage`);
+  $$("canvas[data-donut]").forEach((cv) => {
+    const [ctx, w, h] = prep(cv);
+    if (!ctx) return;
+    const cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2 - 2;
+    const ring = (r, width, frac, color) => {
+      ctx.lineCap = "round";
+      ctx.lineWidth = width;
+      ctx.strokeStyle = css("--line");
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+      if (frac == null) return;
+      // remaining share, drawn clockwise from 12 o'clock
+      const f = Math.max(0, Math.min(1, frac));
+      if (f <= 0) return;
+      ctx.strokeStyle = color;
+      ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + f * Math.PI * 2); ctx.stroke();
+    };
+    const t = Math.max(6, R * 0.16);
+    const remaining5 = b5 ? 1 - used5 / b5 : null;
+    const colour5 = remaining5 != null && remaining5 < 0.15 ? css("--hot")
+      : remaining5 != null && remaining5 < 0.35 ? css("--warn") : css("--claude");
+    ring(R - t / 2, t, remaining5, colour5);
+    if (bw) ring(R - t * 1.9, t * 0.55, 1 - usedW / bw, css("--ram"));
+  });
+}
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("[data-donut-wrap]") || last?.claude_budget?.budget_5h) return;
+  api("/api/action", { action: "open.settings" }).catch(() => {});
+});
+
+// ---------- Spotify: next song + queue ----------
+let queueKey = "";
+function renderSpotify(sp) {
+  const img = $("img[data-next-art]");
+  if (!sp || !sp.connected) {
+    setText("q.lbl", "Næste sang");
+    setText("q.next", sp?.configured ? "Tryk for at forbinde Spotify på computeren"
+      : "Tryk for at sætte Spotify-køen op på computeren");
+    img.hidden = true;
+    return;
+  }
+  const n = sp.next;
+  setText("q.lbl", `Næste · ${sp.queue?.length || 0} i kø`);
+  setText("q.next", n ? `${n.title} – ${n.artist}` : "Køen er tom");
+  if (n?.art) { if (img.getAttribute("src") !== n.art) img.src = n.art; img.hidden = false; } else img.hidden = true;
+  setText("q.count", `${sp.queue?.length || 0} sange`);
+  const key = JSON.stringify(sp.queue);
+  if (key === queueKey) return;
+  queueKey = key;
+  $("[data-queue]").replaceChildren(...(sp.queue || []).map((t, i) => {
+    const li = document.createElement("li");
+    const num = Object.assign(document.createElement("small"), { textContent: String(i + 1) });
+    const art = t.art ? Object.assign(document.createElement("img"), { src: t.art, alt: "", loading: "lazy" })
+      : Object.assign(document.createElement("span"), { className: "noimg" });
+    const txt = document.createElement("div");
+    txt.className = "t";
+    txt.append(Object.assign(document.createElement("b"), { textContent: t.title }),
+      Object.assign(document.createElement("span"), { textContent: t.artist }));
+    const dur = Object.assign(document.createElement("small"), { textContent: fmtTime(t.duration) });
+    li.append(num, art, txt, dur);
+    return li;
+  }));
+}
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-queue-open]")) {
+    if (!last?.spotify?.connected) { api("/api/action", { action: "open.settings" }).catch(() => {}); return; }
+    $("#queue").hidden = false;
+  } else if (e.target.closest("[data-queue-close]") || e.target.id === "queue") {
+    $("#queue").hidden = true;
+  }
+});
+
 // ---------- render ----------
 let last = null;
 let media = { pos: 0, len: 0, playing: false, at: 0 };
@@ -214,6 +302,8 @@ function render(s) {
   renderActivity(s.github, s.claude?.daily);
   renderMedia(s.media);
   renderClaude(s.claude || {});
+  renderDonut(s.claude || {}, s.claude_budget || {});
+  renderSpotify(s.spotify);
   renderAudio(s.audio || {});
   renderButtons(s.buttons || []);
   drawCharts(s);
@@ -264,7 +354,7 @@ function tickMedia() {
 function renderClaude(c) {
   if (!c.available) { setText("c.block", "–"); setText("c.reset", c.error || "ingen data"); return; }
   const sum = (b) => b ? b.input + b.output + b.cache_write : null;
-  setText("c.block", fmtTok(sum(c.last5h)));
+  setText("c.block", fmtTok(c.block_used ?? sum(c.last5h)));
   setText("c.today", fmtTok(sum(c.today)));
   setText("c.week", fmtTok(sum(c.last7d)));
   setText("c.out", fmtTok(c.today?.output));

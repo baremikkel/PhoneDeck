@@ -27,6 +27,8 @@ const ICONS = {
   folder: P("M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"),
   star: P("M12 3.5l2.6 5.3 5.9.9-4.25 4.1 1 5.8L12 16.8 6.75 19.6l1-5.8L3.5 9.7l5.9-.9z"),
   bolt: P("M13 3L5 13.5h6L10 21l8-10.5h-6z"),
+  queue: P("M4 6h12M4 12h12M4 18h8M18 15v6l4-3z"),
+  close: P("M6 6l12 12M18 6L6 18"),
   fullscreen: P("M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"),
 };
 const svg = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;

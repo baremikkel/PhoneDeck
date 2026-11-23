@@ -27,8 +27,8 @@ Swipe til venstre og højre mellem seks sider. Prikkerne nederst viser, hvor du 
 |---|---|
 | **Oversigt** | CPU, GPU, det der spiller, Claude-forbrug og en linje med RAM, net, disk og ur |
 | **System** | CPU med belastning pr. kerne, GPU (hotspot/kant, strøm, clock, blæser, VRAM), RAM, net og disk. CPU/GPU-graferne viser både belastning og temperatur. Knappen i CPU-kortets hjørne stiller CPU og GPU ved siden af eller over hinanden (også på Oversigt) |
-| **Musik** | Stort cover, titel/kunstner/album, afspilning, lydstyrke og en **visualizer**, der kan slås til/fra |
-| **Claude** | Tokens i 5-timers vinduet (input/output/cache), tid til nulstilling, i dag, 7 dage, fordeling pr. model, graf over 24 timer |
+| **Musik** | Stort cover, titel/kunstner/album, afspilning, lydstyrke, en **visualizer**, der kan slås til/fra, og **næste sang** nederst. Tryk for at se hele køen (kræver Spotify-forbindelse, se nedenfor) |
+| **Claude** | **Donut** med hvad der er tilbage af dine grænser (5 timer + uge), tokens i 5-timers vinduet (input/output/cache), tid til nulstilling, i dag, 7 dage, fordeling pr. model, graf over 24 timer |
 | **Aktivitet** | Heatmaps i GitHub-stil for dine GitHub-bidrag og dit Claude Code-forbrug det seneste år |
 | **Knapper** | Et **Stream Deck**: standardknapper (lyd, mikrofon, afspilning, fuld skærm, lås skærm, skærmbillede) plus dine egne. Redigeres i browseren på PC'en |
 
@@ -93,6 +93,19 @@ systemctl --user daemon-reload && systemctl --user enable --now phonedeck
    I Chrome kan du også vælge *Føj til startskærm*, så den åbner som en app i fuld skærm.
 
 > `adb reverse` nulstilles, når kablet tages ud. Kør scriptet igen, eller se idéerne nedenfor.
+
+## Indstillinger (Spotify-kø og Claude-grænser)
+
+Åbn **<http://localhost:8765/settings>** på PC'en.
+
+- **Spotify-kø:** MPRIS viser ikke køen, så den hentes fra Spotifys Web API. Opret en gratis
+  app på [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) med Redirect URI
+  `http://127.0.0.1:8765/spotify/callback`, indsæt Client ID'et, og tryk *Forbind Spotify*.
+  Der bruges PKCE (ingen client secret) og kun læseadgang til afspilleren. Login-tokenet
+  gemmes i `~/.config/phonedeck/spotify_token.json` (kun læsbart for dig).
+- **Claude-grænser:** Anthropic oplyser ikke abonnementets grænser i tokens, så du sætter dit
+  eget estimat pr. 5-timers vindue og evt. pr. uge. Siden viser din største blok de sidste
+  30 dage som hjælp. Donutten på Claude-siden viser, hvor meget der er tilbage.
 
 ## Stream Deck-knapper
 

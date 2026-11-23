@@ -739,11 +739,13 @@ function renderPageSelect() {
     Object.assign(document.createElement("option"), { value: "__new", textContent: "+ Ny side …" }));
   sel.value = editing;
   $("#page-rename").hidden = $("#page-delete").hidden = isHome();
+  if ($("#page-nav")) renderPageNav();
   $("#home-reset").hidden = !isHome();
 }
 function switchTo(id) {
   if (homeDirty && !confirm("Du har ændringer, der ikke er gemt. Skift alligevel?")) { renderPageSelect(); return; }
   editing = id;
+  previewPage = null;
   home = structuredClone(isHome() ? homeLayout : customPages.find((p) => p.id === id));
   $("#grid").value = `${home.cols}x${home.rows}`;
   selItem = -1; selStart = null;
@@ -792,14 +794,65 @@ $("#home-reset").onclick = () => {
   homeSetDirty(); renderHomeGrid(); showPanel();
 };
 
+// ---------- "Gå til side": the same page buttons as the phone's Menu ----------
+// Forside and your own pages open in the grid editor, Knapper opens the Stream Deck tab,
+// and pages that can't be edited here (System, Musik …) are shown in the preview.
+let uiPages = [], uiHidden = [], previewPage = null;
+const NAV_ICONS = { overview: "grid", system: "bolt", buttons: "keyboard", music: "play", "claude-code": "star", github: "globe" };
+function navPages() {
+  const names = Object.fromEntries(PAGE_TARGETS);
+  const custom = customPages.map((p) => ["custom-" + p.id, p.title]);
+  const order = uiPages.filter((id) => !uiHidden.includes(id) && (names[id] || id.startsWith("custom-")));
+  const list = order.map((id) => [id, names[id] || custom.find(([c]) => c === id)?.[1] || id]);
+  const missing = custom.filter(([id]) => !order.includes(id) && !uiHidden.includes(id));
+  const at = list.findIndex(([id]) => id === "buttons");
+  list.splice(at < 0 ? list.length : at, 0, ...missing);
+  return list;
+}
+function currentNav() {
+  if (previewPage) return previewPage;
+  if (location.hash !== "#home") return "buttons";
+  return isHome() ? "overview" : "custom-" + editing;
+}
+function renderPageNav() {
+  const now = currentNav();
+  const items = navPages().map(([id, name]) => {
+    const b = document.createElement("button");
+    b.className = "nav-chip" + (id === now ? " on" : "");
+    b.append(iconEl({ kind: "builtin", value: NAV_ICONS[id] || (id.startsWith("custom-") ? "grid" : "star") }), name);
+    b.onclick = () => goToPage(id);
+    return b;
+  });
+  const settings = Object.assign(document.createElement("a"), { className: "nav-chip", href: "/settings" });
+  settings.append(iconEl({ kind: "builtin", value: "gear" }), "Indstillinger");
+  $("#page-nav").replaceChildren(...items, settings);
+}
+function goToPage(id) {
+  if (id === "buttons") { previewPage = null; location.hash = "#deck"; showTab(); return; }
+  if (id === "overview" || id.startsWith("custom-")) {
+    const target = id === "overview" ? "home" : id.slice(7);
+    if (target !== editing) switchTo(target);
+    if (editing !== target) return;  // cancelled because of unsaved changes
+    previewPage = null;
+    location.hash = "#home"; showTab();
+    return;
+  }
+  previewPage = id;  // System, Musik, Claude …: show it in the preview
+  renderPageNav();
+  sendPreview();
+  $(".preview-wrap").scrollIntoView({ behavior: "smooth", block: "center" });
+  toast(`${Object.fromEntries(PAGE_TARGETS)[id] || id} redigeres ikke her – den vises i forhåndsvisningen. Dens elementer kan sættes på dine sider.`);
+}
+
 function showTab() {
   const tab = location.hash === "#home" ? "home" : "deck";
   document.body.className = "tab-" + tab;
   $$(".tabs a").forEach((a) => a.classList.toggle("on", a.dataset.tab === tab));
   if (tab === "home" && home) { renderPickers(); renderHomeGrid(); showPanel(); }
+  renderPageNav();
   sendPreview();
 }
-window.addEventListener("hashchange", showTab);
+window.addEventListener("hashchange", () => { previewPage = null; showTab(); });
 
 // ---------- live preview (the real dashboard in an iframe) ----------
 function sizePreview() {
@@ -830,7 +883,9 @@ function sendPreview() {
     const frame = $("#preview-frame")?.contentWindow;
     if (!frame || !home) return;
     const msg = { type: "phonedeck-preview" };
-    if (location.hash !== "#home") {
+    if (previewPage) {
+      msg.page = "p-" + previewPage;
+    } else if (location.hash !== "#home") {
       msg.page = "p-buttons";
       msg.buttons = toPublic(deck);
       msg.folder = path.map((f) => f.id).filter(Boolean);
@@ -865,6 +920,7 @@ $("#preview-frame").addEventListener("load", () => setTimeout(sendPreview, 1500)
     }
     home = homeLayout = st.settings.ui.home;
     customPages = st.settings.ui.custom_pages || [];
+    uiPages = st.settings.ui.pages || []; uiHidden = st.settings.ui.hidden || [];
     renderPageSelect();
     PAGE_TARGETS = [...PAGE_TARGETS,
       ...(st.extensions || []).filter((e) => e.page).map((e) => [e.id, e.page.title || e.name]),

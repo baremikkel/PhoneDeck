@@ -141,7 +141,7 @@ Open **<http://localhost:8765/settings>** on the PC (or tap *Menu* on the phone)
 
 ## Editor: pages and Stream Deck buttons
 
-The editor (**<http://localhost:8765/editor>**) has two tabs, and below them a **live
+The editor (**<http://localhost:8765/editor>**) has two tabs, a row of **page buttons** like the phone's Menu (home and your own pages open in the grid editor, *Knapper* opens the Stream Deck, other pages are shown in the preview), and below them a **live
 preview** of the phone that updates while you edit, before you save.
 
 ### Sider (pages)

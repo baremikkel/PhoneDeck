@@ -170,3 +170,11 @@ input:focus, select:focus, .recorder:focus { outline: 2px solid var(--accent); o
 .cat-block { display: flex; flex-direction: column; gap: 5px; }
 .cat-name { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .cat-items { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* "Gå til side" – same page buttons as the phone's Menu */
+.page-nav { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.nav-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px 4px 8px; border-radius: 999px;
+  border: 1px solid var(--line); background: transparent; color: var(--text); font: inherit; font-size: 13px; cursor: pointer; text-decoration: none; }
+.nav-chip .ic { width: 16px; height: 16px; }
+.nav-chip:hover { border-color: var(--muted); }
+.nav-chip.on { border-color: var(--text); font-weight: 600; }

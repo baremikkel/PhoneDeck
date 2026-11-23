@@ -19,8 +19,11 @@ adb wait-for-device
 # localhost:$PORT på telefonen -> localhost:$PORT på PC'en (gennem USB-kablet)
 adb reverse "tcp:$PORT" "tcp:$PORT"
 
-# Hold skærmen tændt mens den lader
-adb shell settings put global stay_on_while_plugged_in 7 || true
+# Hold skærmen tændt mens den lader (OnePlus/OxygenOS kan nægte det – dashboardet
+# holder alligevel skærmen vågen selv, så længe det er åbent)
+if ! adb shell settings put global stay_on_while_plugged_in 7 >/dev/null 2>&1; then
+  echo "Bemærk: telefonen tillod ikke 'hold skærmen tændt' – slå evt. 'Stay awake' til under Developer options."
+fi
 
 # Åbn dashboardet i telefonens standardbrowser
 adb shell am start -a android.intent.action.VIEW -d "http://localhost:$PORT" >/dev/null

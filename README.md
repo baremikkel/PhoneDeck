@@ -16,7 +16,7 @@ PC: python3 -m phonedeck ──(SSE over USB / adb reverse)──► Telefon: ht
      └─ Handlinger: lydstyrke, mute, mikrofon, egne knapper
 ```
 
-Udviklet til en OnePlus 8 Pro + Ubuntu og testet på en Galaxy S23. Alle Android-telefoner og Linux-PC'er
+Udviklet til og testet på en OnePlus 8 Pro + Ubuntu (også testet på en Galaxy S23). Alle Android-telefoner og Linux-PC'er
 burde virke.
 
 ## Funktioner

@@ -14,7 +14,8 @@ function renderGitHub(gh) {
   if (key === heatKey) return;  // only redraw when the data or the size changed
   heatKey = key;
   $$('canvas[data-heat="github"]').forEach((c) =>
-    heatmap(c, gh.days[0].date, gh.days.map((d) => d.level), css("--gh")));
+    heatmap(c, gh.days[0].date, gh.days.map((d) => d.level), css("--gh"),
+      { palette: GH_PALETTE, counts: gh.days.map((d) => d.count), unit: "bidrag" }));
 }
 
 PhoneDeck.register("github", {

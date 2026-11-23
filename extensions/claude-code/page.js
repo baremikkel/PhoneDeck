@@ -143,7 +143,8 @@ function drawClaude(ext) {
   const key = JSON.stringify([cd.counts, layoutGen, window.innerWidth, window.innerHeight]);
   if (key === heatKey) return;
   heatKey = key;
-  $$('canvas[data-heat="claude"]').forEach((c) => heatmap(c, cd.start, quartileLevels(cd.counts), css("--claude")));
+  $$('canvas[data-heat="claude"]').forEach((c) =>
+    heatmap(c, cd.start, quartileLevels(cd.counts), css("--claude"), { counts: cd.counts, unit: "tokens" }));
 }
 
 PhoneDeck.register("claude-code", {

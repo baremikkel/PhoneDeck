@@ -419,3 +419,11 @@ body.stack .grid-page { grid-template-areas: none !important; }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
 
 .vol.mvol { display: grid; place-items: center; min-width: 64px; min-height: 36px; font-size: 15px; }
+
+/* heat-map legend */
+.heat-legend { display: flex; align-items: center; gap: 3px; font-size: 10px; color: var(--muted); flex: none; }
+.heat-legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.heat-legend span:first-child { margin-right: 3px; }
+.heat-legend span:nth-child(7) { margin-left: 3px; }
+.heat-legend .grow { flex: 1; }
+.small .heat-legend, .narrow .heat-legend { display: none; }

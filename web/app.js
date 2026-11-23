@@ -108,35 +108,76 @@ function quartileLevels(counts) {
   return counts.map((v) => v <= 0 ? 0 : v <= a ? 1 : v <= b ? 2 : v <= c ? 3 : 4);
 }
 
-function heatmap(canvas, startIso, levels, color) {
+// GitHub-style calendar: weeks as columns (Monday on top), newest week on the right.
+// Fills the width: shows as many recent weeks as fit at a readable cell size.
+// opts: {palette: [5 colours] | null, counts: [...], unit: "bidrag"} – tap a day to see it.
+const GH_PALETTE = ["#161b22", "#0e4429", "#006d32", "#26a641", "#39d353"];
+const DAYS = ["Man", "", "Ons", "", "Fre", "", ""];
+function heatmap(canvas, startIso, levels, color, opts = {}) {
   const [ctx, w, h] = prep(canvas);
-  if (!ctx || !startIso) return;
+  if (!ctx || !startIso || !levels.length) return;
   const start = parseDay(startIso);
   const offset = (start.getDay() + 6) % 7;            // Monday = 0
-  const weeks = Math.ceil((levels.length + offset) / 7);
-  const top = 13, gap = 2;
-  const cell = Math.max(2, Math.min((w - gap * (weeks - 1)) / weeks, (h - top - gap * 6) / 7));
-  const x0 = (w - (weeks * cell + (weeks - 1) * gap)) / 2;
-  const empty = css("--line");
-  const alpha = ["", "40", "73", "b0", ""];
-  ctx.font = `10px system-ui, sans-serif`;
+  const totalWeeks = Math.ceil((levels.length + offset) / 7);
+  const gap = Math.max(2, Math.min(3, h / 70));
+  const MIN_CELL = 8;
+  // the whole year if it fits at a readable size (like GitHub) – otherwise the latest weeks
+  const fitH = (h - 14 - gap * 6) / 7;
+  let labelW = Math.min(fitH, 99) >= 9 ? 26 : 0;
+  let cell = Math.min(fitH, (w - labelW - gap * (totalWeeks - 1)) / totalWeeks);
+  let weeks = totalWeeks;
+  if (cell < MIN_CELL) {
+    cell = Math.max(3, Math.min(fitH, MIN_CELL));
+    weeks = Math.max(1, Math.min(totalWeeks, Math.floor((w - labelW + gap) / (cell + gap))));
+  }
+  if (cell < 9) labelW = 0;
+  const firstWeek = totalWeeks - weeks;
+  const gridW = weeks * cell + (weeks - 1) * gap;
+  const x0 = labelW + Math.max(0, (w - labelW - gridW) / 2);
+  const top = 14 + Math.max(0, (h - 14 - (7 * cell + 6 * gap)) / 2);  // centred vertically
+  const palette = opts.palette || [css("--line"), color + "40", color + "73", color + "b0", color];
+  ctx.font = `${Math.min(11, Math.max(9, cell * 0.8))}px system-ui, sans-serif`;
+  ctx.textBaseline = "middle";
   ctx.fillStyle = css("--muted");
+  if (labelW) DAYS.forEach((d, row) => { if (d) ctx.fillText(d, 0, top + row * (cell + gap) + cell / 2); });
+  const todayIdx = Math.round((new Date().setHours(12) - start.setHours(12)) / DAY);
+  start.setHours(0);
   let lastMonth = -1;
+  const hits = [];
   levels.forEach((lvl, i) => {
-    const day = new Date(start.getTime() + i * DAY + 3600000 * 3);  // +3h: DST-safe
-    const k = i + offset, col = Math.floor(k / 7), row = k % 7;
+    const k = i + offset, col = Math.floor(k / 7) - firstWeek, row = k % 7;
+    if (col < 0) return;
     const x = x0 + col * (cell + gap), y = top + row * (cell + gap);
+    const day = new Date(start.getTime() + i * DAY + 3600000 * 3);  // +3h: DST-safe
     if (row === 0 && day.getDate() <= 7 && day.getMonth() !== lastMonth && col < weeks - 1) {
       lastMonth = day.getMonth();
       ctx.fillStyle = css("--muted");
-      ctx.fillText(MONTHS[lastMonth], x, 9);
+      ctx.fillText(MONTHS[lastMonth], x, top - 8);
     }
-    ctx.fillStyle = lvl ? color + alpha[lvl] : empty;
+    ctx.fillStyle = palette[Math.max(0, Math.min(4, lvl))];
     ctx.beginPath();
     ctx.roundRect(x, y, cell, cell, Math.min(3, cell / 4));
     ctx.fill();
+    if (i === todayIdx) {  // today
+      ctx.strokeStyle = css("--text");
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    hits.push([x, y, day, opts.counts?.[i]]);
   });
+  canvas._heat = { hits, cell, unit: opts.unit };
 }
+// tap a day -> "12. nov.: 5 bidrag"
+document.addEventListener("click", (e) => {
+  const c = e.target.closest("canvas.heatmap");
+  if (!c?._heat) return;
+  const r = c.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+  const hit = c._heat.hits.find(([x, y]) => px >= x - 1 && px <= x + c._heat.cell + 1 && py >= y - 1 && py <= y + c._heat.cell + 1);
+  if (!hit) return;
+  const [, , day, count] = hit;
+  const label = day.toLocaleDateString("da-DK", { weekday: "short", day: "numeric", month: "short" });
+  toast(count == null ? label : `${label}: ${typeof count === "number" && count >= 1000 ? fmtTok(count) : count} ${c._heat.unit || ""}`.trim());
+});
 
 // ---------- preview inside the editor (/?preview) ----------
 // The editor embeds the dashboard and posts its unsaved drafts here, so you see the

@@ -13,15 +13,10 @@ from pathlib import Path
 
 from .actions import BUILTINS, Actions, audio_state, load_config
 from .apps import Apps
-from .claude_plan import ClaudePlan
-from .claude_usage import ClaudeUsage
 from .deck import Deck, hotkeys_available, validate
-from .github import GitHub
-from .media import Media
+from .extensions import ExtensionManager
 from .sensors import Sensors
 from .settings import Settings
-from .spotify import Spotify
-from .visualizer import Visualizer
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 MAX_BODY = 64 * 1024
@@ -32,42 +27,40 @@ class Hub:
 
     def __init__(self, interval: float = 1.0, port: int = 8765):
         self.interval = interval
+        self.port = port
         self.settings = Settings()
-        self.spotify = Spotify(self.settings, port)
-        self.plan = ClaudePlan(self.settings)
-        self._last_title = None
+        self.cond = threading.Condition()
+        self.state: dict = {}
+        self.version = 0
         self.running: set[str] = set()
         self._running_next = 0.0
+        self._scan_next = 0.0
         self.sensors = Sensors()
         gpu_name = load_config().get("gpu", {}).get("name")
         if gpu_name and self.sensors.gpu:
             self.sensors.gpu.name = gpu_name
-        self.media = Media()
-        self.claude = ClaudeUsage()
-        self.actions = Actions(self.media)
+        self.extensions = ExtensionManager(self, port)
+        self.actions = Actions(self.extensions)
         self.apps = Apps()
         self.deck = Deck(self.actions, self.apps)
-        self.visualizer = Visualizer()
-        self.visualizer.gate = lambda: (self.state.get("media") or {}).get("status") == "Playing"
-        self.github = GitHub(load_config().get("github", {}).get("user"))
-        self.cond = threading.Condition()
-        self.state: dict = {}
-        self.version = 0
-        self._claude_summary: dict = {}
-        self._claude_next = 0.0
+        self.extensions.scan()
+        self._ext_public = self.extensions.public()
+        self._ext_rev = self.extensions.revision
 
     def _tick(self) -> None:
         now = time.time()
-        if now >= self._claude_next:
-            self.deck.reload_if_changed()  # picks up hand edits of buttons.json
+        if now >= self._scan_next:  # extension folders added / removed / changed?
+            self.deck.reload_if_changed()  # also picks up hand edits of buttons.json
             try:
-                self.claude.scan()
-                self._claude_summary = self.claude.summary()
-            except Exception as e:  # never let one source kill the loop
-                self._claude_summary = {"error": str(e)}
-            self._claude_next = now + 15
+                self.extensions.scan()
+            except Exception as e:
+                print(f"[phonedeck] fejl ved scanning af udvidelser: {e}")
+            if self.extensions.revision != self._ext_rev:
+                self._ext_public = self.extensions.public()
+                self._ext_rev = self.extensions.revision
+            self._scan_next = now + 3
 
-        if now >= self._running_next:  # which deck programs are open right now
+        if now >= self._running_next:  # which deck programs have a window open
             try:
                 self.running = self.apps.running(self.deck.app_ids())
             except Exception:
@@ -77,20 +70,12 @@ class Hub:
         state = {
             "time": now,
             "hw": self.sensors.sample(),
-            "media": self.media.state(),
             "audio": audio_state(),
-            "claude": self._claude_summary,
-            "github": self.github.state(),
             "buttons": self.deck.public(self.running),
-            "spotify": self.spotify.state(),
-            "claude_budget": self.settings.public()["claude"],
-            "claude_plan": self.plan.state(),
             "ui": self.settings.public()["ui"],
+            "extensions": self._ext_public,
+            "ext": self.extensions.states(),
         }
-        title = (state["media"] or {}).get("title")
-        if title != self._last_title:  # new song -> refresh the queue right away
-            self._last_title = title
-            self.spotify.refresh_soon()
         with self.cond:
             self.state = state
             self.version += 1
@@ -117,6 +102,39 @@ class Hub:
         with self.cond:
             self.cond.wait_for(lambda: self.version != version, timeout)
             return self.version, self.state
+
+
+class ExtRequest:
+    """Handed to an extension's http_get() so it can answer without knowing the server."""
+
+    def __init__(self, handler):
+        self._h = handler
+        self.headers = handler.headers
+
+    def json(self, obj, code=200):
+        self._h._json(obj, code)
+
+    def send(self, code: int, body: bytes, ctype: str, headers: dict | None = None):
+        self._h._send(code, body, ctype, headers)
+
+    def redirect(self, url: str):
+        self._h._send(302, b"", "text/plain", {"Location": url})
+
+    def stream(self, events):
+        """Server-sent events: `events` yields bytes/str payloads (one per message)."""
+        h = self._h
+        h.send_response(200)
+        h.send_header("Content-Type", "text/event-stream")
+        h.send_header("Cache-Control", "no-cache")
+        h.end_headers()
+        try:
+            for ev in events:
+                data = ev if isinstance(ev, bytes) else str(ev).encode()
+                h.wfile.write(b"data: " + data + b"\n\n")
+                h.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+        h.close_connection = True
 
 
 def make_handler(hub: Hub, host: str, port: int):
@@ -176,13 +194,12 @@ def make_handler(hub: Hub, host: str, port: int):
                 return self._json(hub.state)
             if path == "/api/stream":
                 return self._stream()
-            if path == "/api/spectrum":
-                return self._spectrum()
-            if path == "/api/art":
-                art = hub.media.art()
-                if not art:
-                    return self._send(404, b"", "text/plain")
-                return self._send(200, art[0], art[1], {"Cache-Control": "max-age=86400"})
+            if path.startswith("/ext/"):
+                return self._ext_get(path, query)
+            if path == "/api/extensions":
+                if not self._api_ok():
+                    return
+                return self._json(hub.extensions.public(with_settings=True))
             if path == "/api/appicon":
                 return self._app_icon((query.get("id") or [""])[0])
             if path == "/api/deck":
@@ -199,32 +216,28 @@ def make_handler(hub: Hub, host: str, port: int):
                 if not self._api_ok():
                     return
                 return self._json({"settings": hub.settings.public(),
-                                   "spotify": hub.spotify.state(),
-                                   "redirect_uri": hub.spotify.redirect_uri,
-                                   "plan": hub.plan.state(),
-                                   "claude": {k: hub.state.get("claude", {}).get(k)
-                                              for k in ("block_used", "block_max", "last7d")}})
-            if path == "/spotify/login":
-                try:
-                    return self._send(302, b"", "text/plain", {"Location": hub.spotify.login_url()})
-                except ValueError as e:
-                    return self._send(400, str(e).encode(), "text/plain; charset=utf-8")
-            if path == "/spotify/callback":
-                err = (query.get("error") or [""])[0]
-                try:
-                    if err:
-                        raise ValueError(f"Spotify afviste: {err}")
-                    hub.spotify.callback((query.get("code") or [""])[0], (query.get("state") or [""])[0])
-                    msg = "ok"
-                except Exception as e:
-                    msg = str(e)
-                return self._send(302, b"", "text/plain",
-                                  {"Location": f"http://localhost:{port}/settings?spotify=" + urllib.parse.quote(msg)})
+                                   "extensions": hub.extensions.public(with_settings=True)})
             if path == "/editor":
                 path = "/editor.html"
             if path == "/settings":
                 path = "/settings.html"
             return self._static(path)
+
+        def _ext_get(self, path: str, query: dict):
+            parts = path.split("/", 3)  # ["", "ext", "<id>", "<rest>"]
+            ext_id, rest = (parts[2] if len(parts) > 2 else ""), (parts[3] if len(parts) > 3 else "")
+            backend = hub.extensions.get(ext_id)
+            if backend and hasattr(backend, "http_get"):
+                try:
+                    if backend.http_get(rest, query, ExtRequest(self)) is not False:
+                        return
+                except Exception as e:
+                    return self._json({"error": str(e)}, 500)
+            target = hub.extensions.static_file(ext_id, rest)
+            if not target:
+                return self._send(404, b"Not found", "text/plain")
+            ctype = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
+            self._send(200, target.read_bytes(), ctype, {"Cache-Control": "no-cache"})
 
         def _app_icon(self, app_id: str):
             p = hub.apps.icon_path(app_id)  # only icons of installed apps
@@ -244,8 +257,13 @@ def make_handler(hub: Hub, host: str, port: int):
                 return
             try:
                 body = self._body()
-                if self.path == "/api/viz/keepalive":
-                    hub.visualizer.touch()
+                if self.path.startswith("/api/ext/"):
+                    # /api/ext/<id>/action/<name>
+                    parts = self.path.split("/")
+                    if len(parts) != 6 or parts[4] != "action":
+                        return self._json({"error": "not found"}, 404)
+                    result = hub.extensions.action(parts[3], parts[5], body)
+                    return self._json({"ok": True, **(result or {})})
                 elif self.path == "/api/action":
                     if "button" in body:
                         return self._json({"ok": True, **hub.deck.press(str(body["button"]))})
@@ -264,11 +282,10 @@ def make_handler(hub: Hub, host: str, port: int):
                     hub.poke()
                     return self._json({"ok": True, "buttons": saved})
                 elif self.path == "/api/settings":
-                    saved = hub.settings.update(body)
-                    hub.plan.refresh_soon()
+                    saved, changed = hub.settings.update(body, hub.extensions.validate_settings)
+                    for ext_id in changed:
+                        hub.extensions.settings_changed(ext_id)
                     return self._json({"ok": True, "settings": saved})
-                elif self.path == "/api/spotify/disconnect":
-                    hub.spotify.disconnect()
                 elif self.path == "/api/deck/test":
                     b = validate([{"label": "test", "action": body.get("action")}], hub.apps)[0]
                     hub.deck.run(b["action"])
@@ -287,26 +304,6 @@ def make_handler(hub: Hub, host: str, port: int):
                 return self._send(404, b"Not found", "text/plain")
             ctype = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
             self._send(200, target.read_bytes(), ctype, {"Cache-Control": "no-cache"})
-
-        def _spectrum(self):
-            viz = hub.visualizer
-            self.send_response(200)
-            self.send_header("Content-Type", "text/event-stream")
-            self.send_header("Cache-Control", "no-cache")
-            self.end_headers()
-            if not viz.available:
-                self.wfile.write(b"event: error\ndata: " + json.dumps(viz.error).encode() + b"\n\n")
-                return
-            viz.touch()
-            frame = -1
-            try:
-                while viz.alive():  # ends when the page stops sending keepalives
-                    frame, bands = viz.wait(frame)
-                    self.wfile.write(b"data: " + json.dumps(bands, separators=(",", ":")).encode() + b"\n\n")
-                    self.wfile.flush()
-            except (BrokenPipeError, ConnectionResetError):
-                pass
-            self.close_connection = True
 
         def _stream(self):
             self.send_response(200)
@@ -347,6 +344,8 @@ def main() -> None:
         httpd.serve_forever()
     except KeyboardInterrupt:
         pass
+    finally:
+        hub.extensions.stop_all()
 
 
 if __name__ == "__main__":

@@ -53,16 +53,12 @@ def audio_state() -> dict:
 
 
 class Actions:
-    def __init__(self, media):
-        self.media = media
+    def __init__(self, extensions):
+        self.extensions = extensions  # media.* are handled by the "music" extension
 
     def run(self, action: str) -> None:
-        if action == "media.playpause":
-            self.media.command("PlayPause")
-        elif action == "media.next":
-            self.media.command("Next")
-        elif action == "media.previous":
-            self.media.command("Previous")
+        if action.startswith("media."):
+            self.extensions.action("music", action.removeprefix("media."), {})
         elif action == "volume.up":
             _wpctl("set-volume", "-l", "1.0", SINK, "5%+")
         elif action == "volume.down":

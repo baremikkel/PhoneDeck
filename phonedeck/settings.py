@@ -1,4 +1,8 @@
-"""Settings edited from the browser (/settings), stored as JSON."""
+"""Settings edited from the browser (/settings), stored as JSON.
+
+Core settings live under "ui". Every extension gets its own section under
+"ext" -> "<extension id>", validated against the extension's own settings schema.
+"""
 
 from __future__ import annotations
 
@@ -7,12 +11,16 @@ import os
 import re
 import threading
 
+from .actions import load_config
+
 SETTINGS_PATH = os.path.expanduser(os.environ.get("PHONEDECK_SETTINGS", "~/.config/phonedeck/settings.json"))
 
-PAGES = ["overview", "system", "music", "claude", "activity", "buttons"]
-# Widgets that can be placed on the home page grid
-WIDGETS = {"cpu", "gpu", "ram", "net", "disk", "sys", "media", "claude", "donut", "clock",
-           "github", "button"}
+CORE_PAGES = ["overview", "system", "buttons"]
+# Core widgets; extensions add their own (any id-like name is accepted and simply
+# not shown while the extension providing it isn't installed)
+CORE_WIDGETS = {"cpu", "gpu", "ram", "net", "disk", "sys", "clock", "button"}
+WIDGET_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
+PAGE_RE = WIDGET_RE
 GRIDS = [(4, 2), (4, 3), (6, 3), (6, 4), (8, 4)]
 
 DEFAULT_HOME = {
@@ -27,15 +35,17 @@ DEFAULT_HOME = {
 }
 
 DEFAULTS = {
-    "claude": {"budget_5h": None, "budget_week": None, "use_login": False, "donut_mode": "left"},
-    "spotify": {"client_id": ""},
     "ui": {
-        "pages": PAGES, "hidden": [],
+        "pages": ["overview", "system", "music", "claude-code", "github", "buttons"], "hidden": [],
         "dim": True, "dim_from": 23, "dim_to": 7,
         "pixel_shift": True, "deck_cols": 5, "auto_fullscreen": True,
         "home": DEFAULT_HOME,
     },
+    "ext": {},
 }
+
+# page ids before extensions existed -> extension ids
+OLD_PAGES = {"music": "music", "claude": "claude-code", "activity": "github"}
 
 
 def make_room_for_menu(h: dict) -> dict:
@@ -65,8 +75,8 @@ def validate_home(h) -> dict:
         raise ValueError("ugyldig gitterstørrelse")
     items, taken = [], {(cols - 1, rows - 1)}  # bottom-right = locked menu button
     for it in h.get("items", [])[:48]:
-        t = it.get("type")
-        if t not in WIDGETS:
+        t = str(it.get("type", ""))
+        if t not in CORE_WIDGETS and not WIDGET_RE.match(t):
             raise ValueError(f"ukendt felt: {t}")
         try:
             x, y, w, hh = (int(it[k]) for k in ("x", "y", "w", "h"))
@@ -87,17 +97,37 @@ def validate_home(h) -> dict:
     return {"cols": cols, "rows": rows, "items": items}
 
 
+def _migrate(saved: dict) -> dict:
+    """Bring settings from before the extension system over to the new layout."""
+    ext = saved.setdefault("ext", {})
+    if "claude" in saved:
+        ext.setdefault("claude-code", {}).update(
+            {k: v for k, v in saved.pop("claude").items() if v is not None})
+    if "spotify" in saved:
+        ext.setdefault("spotify", {}).update(saved.pop("spotify"))
+    gh_user = load_config().get("github", {}).get("user")
+    if gh_user and "user" not in ext.get("github", {}):
+        ext.setdefault("github", {})["user"] = gh_user
+    ui = saved.get("ui", {})
+    if "pages" in ui:
+        ui["pages"] = [OLD_PAGES.get(p, p) for p in ui["pages"]]
+    if "hidden" in ui:
+        ui["hidden"] = [OLD_PAGES.get(p, p) for p in ui["hidden"]]
+    return saved
+
+
 class Settings:
     def __init__(self):
         self._lock = threading.Lock()
         self.data = json.loads(json.dumps(DEFAULTS))
         try:
             with open(SETTINGS_PATH) as f:
-                saved = json.load(f)
-            for section, values in DEFAULTS.items():
-                for k in values:
-                    if k in saved.get(section, {}):
-                        self.data[section][k] = saved[section][k]
+                saved = _migrate(json.load(f))
+            for k in DEFAULTS["ui"]:
+                if k in saved.get("ui", {}):
+                    self.data["ui"][k] = saved["ui"][k]
+            if isinstance(saved.get("ext"), dict):
+                self.data["ext"] = saved["ext"]
         except (OSError, ValueError):
             pass
         try:
@@ -109,42 +139,27 @@ class Settings:
         with self._lock:
             return self.data[section][key]
 
+    def ext_values(self, ext_id: str) -> dict:
+        with self._lock:
+            return dict(self.data["ext"].get(ext_id, {}))
+
     def public(self) -> dict:
         with self._lock:
             return json.loads(json.dumps(self.data))
 
-    def update(self, raw: dict) -> dict:
-        """Validate and save. Raises ValueError with a Danish message."""
+    def update(self, raw: dict, ext_validator=None) -> tuple[dict, list[str]]:
+        """Validate and save. Returns (settings, ids of extensions whose settings changed).
+        Raises ValueError with a Danish message."""
         new = self.public()
-        c = raw.get("claude", {})
-        for k in ("budget_5h", "budget_week"):
-            if k in c:
-                v = c[k]
-                if v in (None, "", 0):
-                    new["claude"][k] = None
-                else:
-                    try:
-                        v = int(v)
-                    except (TypeError, ValueError):
-                        raise ValueError("grænsen skal være et tal") from None
-                    if not 1_000 <= v <= 10_000_000_000:
-                        raise ValueError("grænsen skal være mellem 1.000 og 10 mia. tokens")
-                    new["claude"][k] = v
-        if "use_login" in c:
-            new["claude"]["use_login"] = bool(c["use_login"])
-        if "donut_mode" in c:
-            if c["donut_mode"] not in ("left", "used"):
-                raise ValueError("donutten skal vise 'left' eller 'used'")
-            new["claude"]["donut_mode"] = c["donut_mode"]
         u = raw.get("ui", {})
         if "pages" in u:
-            pages = [p for p in u["pages"] if p in PAGES]
-            pages += [p for p in PAGES if p not in pages]  # never lose a page
-            new["ui"]["pages"] = pages
+            pages = [p for p in u["pages"] if isinstance(p, str) and PAGE_RE.match(p)]
+            pages += [p for p in CORE_PAGES if p not in pages]  # core pages can't be lost
+            new["ui"]["pages"] = list(dict.fromkeys(pages))
         if "hidden" in u:
-            hidden = [p for p in u["hidden"] if p in PAGES]
-            if len(hidden) >= len(PAGES):
-                raise ValueError("mindst én side skal være synlig")
+            hidden = [p for p in u["hidden"] if isinstance(p, str) and PAGE_RE.match(p)]
+            if all(p in hidden for p in CORE_PAGES):
+                raise ValueError("mindst én af Forside, System og Knapper skal være synlig")
             new["ui"]["hidden"] = hidden
         for k in ("dim", "pixel_shift", "auto_fullscreen"):
             if k in u:
@@ -162,12 +177,11 @@ class Settings:
             new["ui"]["deck_cols"] = v
         if "home" in u:
             new["ui"]["home"] = validate_home(u["home"])
-        s = raw.get("spotify", {})
-        if "client_id" in s:
-            cid = str(s["client_id"] or "").strip()
-            if cid and not re.fullmatch(r"[0-9a-fA-F]{32}", cid):
-                raise ValueError("Spotify Client ID skal være 32 tegn (0-9, a-f)")
-            new["spotify"]["client_id"] = cid
+        changed_ext = []
+        for ext_id, values in (raw.get("ext") or {}).items():
+            clean = ext_validator(ext_id, values) if ext_validator else {}
+            new["ext"].setdefault(ext_id, {}).update(clean)
+            changed_ext.append(ext_id)
         with self._lock:
             self.data = new
             os.makedirs(os.path.dirname(SETTINGS_PATH), exist_ok=True)
@@ -175,4 +189,4 @@ class Settings:
             with open(tmp, "w") as f:
                 json.dump(new, f, indent=2)
             os.replace(tmp, SETTINGS_PATH)
-        return self.public()
+        return self.public(), changed_ext

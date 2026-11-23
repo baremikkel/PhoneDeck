@@ -5,20 +5,23 @@ from __future__ import annotations
 import argparse
 import json
 import mimetypes
-import os
 import threading
 import time
+import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from .actions import Actions, audio_state, load_config
+from .actions import BUILTINS, Actions, audio_state, load_config
+from .apps import Apps
 from .claude_usage import ClaudeUsage
+from .deck import Deck, hotkeys_available, validate
 from .github import GitHub
-from .visualizer import Visualizer
 from .media import Media
 from .sensors import Sensors
+from .visualizer import Visualizer
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+MAX_BODY = 64 * 1024
 
 
 class Hub:
@@ -33,6 +36,8 @@ class Hub:
         self.media = Media()
         self.claude = ClaudeUsage()
         self.actions = Actions(self.media)
+        self.apps = Apps()
+        self.deck = Deck(self.actions, self.apps)
         self.visualizer = Visualizer()
         self.github = GitHub(load_config().get("github", {}).get("user"))
         self.cond = threading.Condition()
@@ -44,7 +49,7 @@ class Hub:
     def _tick(self) -> None:
         now = time.time()
         if now >= self._claude_next:
-            self.actions.reload_if_changed()
+            self.deck.reload_if_changed()  # picks up hand edits of buttons.json
             try:
                 self.claude.scan()
                 self._claude_summary = self.claude.summary()
@@ -59,12 +64,20 @@ class Hub:
             "audio": audio_state(),
             "claude": self._claude_summary,
             "github": self.github.state(),
-            "buttons": self.actions.public_buttons(),
+            "buttons": self.deck.public(),
         }
         with self.cond:
             self.state = state
             self.version += 1
             self.cond.notify_all()
+
+    def poke(self) -> None:
+        """Push a fresh state right away (e.g. after the deck was edited)."""
+        with self.cond:
+            if self.state:
+                self.state = dict(self.state, buttons=self.deck.public())
+                self.version += 1
+                self.cond.notify_all()
 
     def run(self) -> None:
         while True:
@@ -81,7 +94,12 @@ class Hub:
             return self.version, self.state
 
 
-def make_handler(hub: Hub):
+def make_handler(hub: Hub, host: str, port: int):
+    # Only answer requests addressed to us (blocks DNS-rebinding attacks) …
+    allowed_hosts = {f"localhost:{port}", f"127.0.0.1:{port}", f"[::1]:{port}"}
+    if host not in ("127.0.0.1", "localhost", "::1", "0.0.0.0", ""):
+        allowed_hosts.add(f"{host}:{port}")
+
     class Handler(BaseHTTPRequestHandler):
         server_version = "PhoneDeck"
 
@@ -92,16 +110,43 @@ def make_handler(hub: Hub):
             self.send_response(code)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
+            self.send_header("X-Content-Type-Options", "nosniff")
             for k, v in (extra or {}).items():
                 self.send_header(k, v)
             self.end_headers()
             self.wfile.write(body)
 
         def _json(self, obj, code=200):
-            self._send(code, json.dumps(obj).encode(), "application/json")
+            self._send(code, json.dumps(obj, ensure_ascii=False).encode(), "application/json; charset=utf-8")
 
+        def _host_ok(self) -> bool:
+            if host == "0.0.0.0":
+                return True  # user opted in to LAN access
+            if self.headers.get("Host", "") in allowed_hosts:
+                return True
+            self._send(403, b"Forbidden", "text/plain")
+            return False
+
+        def _api_ok(self) -> bool:
+            """… and only accept API calls from our own pages. A custom header can't be
+            sent cross-site without a CORS preflight, which we never approve."""
+            if self.headers.get("X-PhoneDeck") == "1":
+                return True
+            self._json({"error": "forbidden"}, 403)
+            return False
+
+        def _body(self) -> dict:
+            length = int(self.headers.get("Content-Length") or 0)
+            if length > MAX_BODY:
+                raise ValueError("for stor forespørgsel")
+            return json.loads(self.rfile.read(length) or b"{}")
+
+        # ---------------- GET ----------------
         def do_GET(self):
-            path = self.path.split("?", 1)[0]
+            if not self._host_ok():
+                return
+            url = urllib.parse.urlsplit(self.path)
+            path, query = url.path, urllib.parse.parse_qs(url.query)
             if path == "/api/state":
                 return self._json(hub.state)
             if path == "/api/stream":
@@ -113,21 +158,66 @@ def make_handler(hub: Hub):
                 if not art:
                     return self._send(404, b"", "text/plain")
                 return self._send(200, art[0], art[1], {"Cache-Control": "max-age=86400"})
+            if path == "/api/appicon":
+                return self._app_icon((query.get("id") or [""])[0])
+            if path == "/api/deck":
+                if not self._api_ok():
+                    return
+                return self._json({"buttons": hub.deck.buttons,
+                                   "builtins": {k: list(v) for k, v in BUILTINS.items()},
+                                   "hotkeys": hotkeys_available()})
+            if path == "/api/apps":
+                if not self._api_ok():
+                    return
+                return self._json(hub.apps.list())
+            if path == "/editor":
+                path = "/editor.html"
             return self._static(path)
 
-        def do_POST(self):
-            if self.path == "/api/viz/keepalive":
-                hub.visualizer.touch()
-                return self._json({"ok": True})
-            if self.path != "/api/action":
-                return self._json({"error": "not found"}, 404)
+        def _app_icon(self, app_id: str):
+            p = hub.apps.icon_path(app_id)  # only icons of installed apps
+            if not p or not p.lower().endswith((".png", ".svg")):
+                return self._send(404, b"", "text/plain")
             try:
-                length = min(int(self.headers.get("Content-Length", 0)), 4096)
-                action = json.loads(self.rfile.read(length) or b"{}").get("action", "")
-                hub.actions.run(action)
+                data = Path(p).read_bytes()
+            except OSError:
+                return self._send(404, b"", "text/plain")
+            ctype = "image/svg+xml" if p.lower().endswith(".svg") else "image/png"
+            self._send(200, data, ctype, {"Cache-Control": "max-age=86400",
+                                          "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'"})
+
+        # ---------------- POST ----------------
+        def do_POST(self):
+            if not (self._host_ok() and self._api_ok()):
+                return
+            try:
+                body = self._body()
+                if self.path == "/api/viz/keepalive":
+                    hub.visualizer.touch()
+                elif self.path == "/api/action":
+                    if "button" in body:
+                        hub.deck.press(str(body["button"]))
+                    elif body.get("action") == "open.editor":
+                        # open the button editor in the PC's browser
+                        hub.deck.run({"type": "url", "url": f"http://localhost:{port}/editor"})
+                    else:
+                        hub.actions.run(str(body.get("action", "")))
+                elif self.path == "/api/deck":
+                    saved = hub.deck.save(body.get("buttons"))
+                    hub.poke()
+                    return self._json({"ok": True, "buttons": saved})
+                elif self.path == "/api/deck/reset":
+                    saved = hub.deck.reset()
+                    hub.poke()
+                    return self._json({"ok": True, "buttons": saved})
+                elif self.path == "/api/deck/test":
+                    b = validate([{"label": "test", "action": body.get("action")}], hub.apps)[0]
+                    hub.deck.run(b["action"])
+                else:
+                    return self._json({"error": "not found"}, 404)
                 return self._json({"ok": True})
-            except ValueError:
-                return self._json({"error": "unknown action"}, 400)
+            except ValueError as e:
+                return self._json({"error": str(e)}, 400)
             except Exception as e:
                 return self._json({"error": str(e)}, 500)
 
@@ -189,9 +279,10 @@ def main() -> None:
     threading.Thread(target=hub.run, daemon=True).start()
     hub.wait(0, timeout=5)
 
-    httpd = ThreadingHTTPServer((args.host, args.port), make_handler(hub))
+    httpd = ThreadingHTTPServer((args.host, args.port), make_handler(hub, args.host, args.port))
     httpd.daemon_threads = True
     print(f"[phonedeck] kører på http://{args.host}:{args.port}  (Ctrl+C for at stoppe)")
+    print(f"[phonedeck] knap-editor: http://localhost:{args.port}/editor")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

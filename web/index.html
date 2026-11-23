@@ -16,7 +16,7 @@
     <!-- ============ 1. OVERSIGT ============ -->
     <section class="page" id="p-overview" data-title="Oversigt">
       <div class="card metric a-cpu" style="--accent: var(--cpu)">
-        <header><span class="label">CPU</span><span class="sub" data-b="cpu.name"></span></header>
+        <header><span class="label">CPU</span><span class="sub grow" data-b="cpu.name"></span><button class="mini" data-layout-toggle aria-label="CPU og GPU ved siden af / over hinanden"><i class="ic"></i></button></header>
         <div class="row">
           <div class="big"><span data-b="cpu.load">–</span><small>%</small></div>
           <div class="facts">
@@ -24,7 +24,7 @@
             <div><span data-b="cpu.freq">–</span><small>MHz</small></div>
           </div>
         </div>
-        <canvas class="spark" data-chart="cpu" title="Tryk for at skifte graf"></canvas>
+        <canvas class="spark" data-chart="cpu"></canvas>
       </div>
 
       <div class="card metric a-gpu" style="--accent: var(--gpu)">
@@ -38,7 +38,7 @@
         </div>
         <div class="bar"><i data-w="gpu.vram"></i></div>
         <div class="sub tiny" data-b="gpu.vramtxt"></div>
-        <canvas class="spark" data-chart="gpu" title="Tryk for at skifte graf"></canvas>
+        <canvas class="spark" data-chart="gpu"></canvas>
       </div>
 
       <div class="card media a-media">
@@ -80,7 +80,7 @@
     <!-- ============ 2. SYSTEM ============ -->
     <section class="page" id="p-system" data-title="System">
       <div class="card a-cpu" style="--accent: var(--cpu)">
-        <header><span class="label">CPU</span><span class="sub" data-b="cpu.name"></span></header>
+        <header><span class="label">CPU</span><span class="sub grow" data-b="cpu.name"></span><button class="mini" data-layout-toggle aria-label="CPU og GPU ved siden af / over hinanden"><i class="ic"></i></button></header>
         <div class="row">
           <div class="big xl"><span data-b="cpu.load">–</span><small>%</small></div>
           <div class="facts">
@@ -88,8 +88,9 @@
             <div><span data-b="cpu.freq">–</span><small>MHz</small></div>
           </div>
         </div>
-        <div class="cores" data-cores title="Tryk for lodret/vandret"></div>
-        <canvas class="spark" data-chart="cpu" title="Tryk for at skifte graf"></canvas>
+        <div class="cores" data-cores></div>
+        <canvas class="spark" data-chart="cpu"></canvas>
+        <div class="legend"><span><i style="background: var(--cpu)"></i>belastning</span><span><i style="background: var(--temp)"></i>temperatur</span></div>
       </div>
 
       <div class="card a-gpu" style="--accent: var(--gpu)">
@@ -108,7 +109,8 @@
         </div>
         <div class="bar"><i data-w="gpu.vram"></i></div>
         <div class="sub tiny" data-b="gpu.vramtxt"></div>
-        <canvas class="spark" data-chart="gpu" title="Tryk for at skifte graf"></canvas>
+        <canvas class="spark" data-chart="gpu"></canvas>
+        <div class="legend"><span><i style="background: var(--gpu)"></i>belastning</span><span><i style="background: var(--temp)"></i>temperatur</span></div>
       </div>
 
       <div class="card a-mem" style="--accent: var(--ram)">
@@ -221,22 +223,14 @@
       </div>
     </section>
 
-    <!-- ============ 6. KNAPPER ============ -->
+    <!-- ============ 6. KNAPPER (Stream Deck – redigeres på /editor) ============ -->
     <section class="page" id="p-buttons" data-title="Knapper">
-      <div class="tiles" data-tiles>
-        <button class="tile" data-action="volume.down"><i class="ic" data-icon="volDown"></i>Lavere</button>
-        <button class="tile" data-action="volume.mute" data-on="vol.muted"><i class="ic" data-icon="volMute" data-ib="vol.icon"></i><span data-b="vol.txt">–</span></button>
-        <button class="tile" data-action="volume.up"><i class="ic" data-icon="volUp"></i>Højere</button>
-        <button class="tile" data-action="mic.mute" data-on="mic.muted"><i class="ic" data-icon="mic" data-ib="mic.icon"></i><span data-b="mic.txt">Mikrofon</span></button>
-        <button class="tile" data-action="media.previous"><i class="ic" data-icon="prev"></i>Forrige</button>
-        <button class="tile" data-action="media.playpause"><i class="ic" data-icon="play" data-ib="m.play"></i>Afspil/pause</button>
-        <button class="tile" data-action="media.next"><i class="ic" data-icon="next"></i>Næste</button>
-        <button class="tile" data-fullscreen><i class="ic" data-icon="fullscreen"></i>Fuld skærm</button>
-      </div>
+      <div class="tiles" data-tiles></div>
     </section>
   </main>
 
   <nav id="dots" aria-label="Sider"></nav>
+  <script src="icons.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

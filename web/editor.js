@@ -1,0 +1,366 @@
+"use strict";
+// PhoneDeck – Stream Deck editor (runs in the PC's browser)
+
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+const api = async (path, body) => {
+  const res = await fetch(path, body === undefined
+    ? { headers: { "X-PhoneDeck": "1" } }
+    : { method: "POST", headers: { "Content-Type": "application/json", "X-PhoneDeck": "1" }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+};
+
+// Linux input key codes (what ydotool sends), keyed by KeyboardEvent.code – physical keys,
+// so it works the same on a Danish or US layout.
+const KEYCODES = {
+  Escape: 1, Digit1: 2, Digit2: 3, Digit3: 4, Digit4: 5, Digit5: 6, Digit6: 7, Digit7: 8, Digit8: 9, Digit9: 10,
+  Digit0: 11, Minus: 12, Equal: 13, Backspace: 14, Tab: 15, KeyQ: 16, KeyW: 17, KeyE: 18, KeyR: 19, KeyT: 20,
+  KeyY: 21, KeyU: 22, KeyI: 23, KeyO: 24, KeyP: 25, BracketLeft: 26, BracketRight: 27, Enter: 28,
+  KeyA: 30, KeyS: 31, KeyD: 32, KeyF: 33, KeyG: 34, KeyH: 35, KeyJ: 36, KeyK: 37, KeyL: 38, Semicolon: 39,
+  Quote: 40, Backquote: 41, Backslash: 43, KeyZ: 44, KeyX: 45, KeyC: 46, KeyV: 47, KeyB: 48, KeyN: 49,
+  KeyM: 50, Comma: 51, Period: 52, Slash: 53, NumpadMultiply: 55, Space: 57, CapsLock: 58,
+  F1: 59, F2: 60, F3: 61, F4: 62, F5: 63, F6: 64, F7: 65, F8: 66, F9: 67, F10: 68, NumLock: 69, ScrollLock: 70,
+  Numpad7: 71, Numpad8: 72, Numpad9: 73, NumpadSubtract: 74, Numpad4: 75, Numpad5: 76, Numpad6: 77,
+  NumpadAdd: 78, Numpad1: 79, Numpad2: 80, Numpad3: 81, Numpad0: 82, NumpadDecimal: 83, IntlBackslash: 86,
+  F11: 87, F12: 88, NumpadEnter: 96, NumpadDivide: 98, PrintScreen: 99, Home: 102, ArrowUp: 103, PageUp: 104,
+  ArrowLeft: 105, ArrowRight: 106, End: 107, ArrowDown: 108, PageDown: 109, Insert: 110, Delete: 111, Pause: 119,
+  ContextMenu: 127,
+};
+const MODS = { 29: "Ctrl", 97: "Ctrl", 42: "Shift", 54: "Shift", 56: "Alt", 100: "AltGr", 125: "Super", 126: "Super" };
+const MOD_CODES = { ControlLeft: 29, ControlRight: 97, ShiftLeft: 42, ShiftRight: 54, AltLeft: 56, AltRight: 100, MetaLeft: 125, MetaRight: 126 };
+const SPECIAL = [
+  ["Print Screen", 99], ["Pause", 119], ["Lyd fra/til", 113], ["Lydstyrke ned", 114], ["Lydstyrke op", 115],
+  ["Afspil/pause", 164], ["Næste nummer", 163], ["Forrige nummer", 165],
+  ...Array.from({ length: 12 }, (_, i) => [`F${13 + i}`, 183 + i]),
+];
+const NAMES = Object.fromEntries([
+  ...Object.entries(KEYCODES).map(([code, k]) => [k, code.replace(/^Key|^Digit/, "").replace("Arrow", "Pil ")]),
+  ...SPECIAL.map(([n, k]) => [k, n]),
+  [57, "Mellemrum"], [28, "Enter"], [1, "Esc"], [111, "Delete"], [14, "Backspace"],
+]);
+const comboText = (keys) => keys.map((k) => MODS[k] || NAMES[k] || `#${k}`).join(" + ");
+
+const EMOJI = ["💬", "🌐", "📁", "🎮", "🎵", "📷", "🔒", "⌨️", "🖥️", "📝", "📧", "📅", "⚡", "⭐", "🔧", "🧪", "🚀", "☕", "🎧", "📺"];
+const BUILTIN_ICONS = ["globe", "terminal", "keyboard", "lock", "folder", "star", "bolt", "fullscreen", "play", "next", "prev", "volUp", "mic"];
+
+let deck = [];
+let builtins = {};
+let apps = [];
+let selected = -1;
+let dirty = false;
+
+// ---------- helpers ----------
+function toast(msg, err = false) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.className = err ? "err" : "";
+  t.hidden = false;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => { t.hidden = true; }, 2600);
+}
+function setDirty(v = true) {
+  dirty = v;
+  $("#save").disabled = !v;
+  $("#save").textContent = v ? "Gem ændringer" : "Gemt ✓";
+}
+function iconEl(icon) {
+  if (icon?.kind === "app") {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.src = "/api/appicon?id=" + encodeURIComponent(icon.value);
+    img.onerror = () => img.replaceWith(Object.assign(document.createElement("b"), { textContent: "📦" }));
+    return img;
+  }
+  if (icon?.kind === "builtin") {
+    const i = document.createElement("i");
+    i.className = "ic";
+    drawIcon(i, icon.value);
+    return i;
+  }
+  return Object.assign(document.createElement("b"), { textContent: icon?.value || "⭐" });
+}
+function tileContent(el, b) {
+  const label = document.createElement("span");
+  label.textContent = b.label || "Ny knap";
+  el.replaceChildren(iconEl(b.icon), label);
+}
+
+// ---------- deck grid (drag & drop to reorder) ----------
+let dragFrom = -1;
+function renderDeck() {
+  const tiles = deck.map((b, i) => {
+    const el = document.createElement("div");
+    el.className = "tile" + (i === selected ? " sel" : "");
+    el.draggable = true;
+    el.tabIndex = 0;
+    tileContent(el, b);
+    el.addEventListener("click", () => select(i));
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter") select(i); });
+    el.addEventListener("dragstart", (e) => { dragFrom = i; el.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; });
+    el.addEventListener("dragend", () => { el.classList.remove("dragging"); $$(".drop-before").forEach((x) => x.classList.remove("drop-before")); });
+    el.addEventListener("dragover", (e) => { e.preventDefault(); $$(".drop-before").forEach((x) => x.classList.remove("drop-before")); el.classList.add("drop-before"); });
+    el.addEventListener("drop", (e) => { e.preventDefault(); move(dragFrom, i); });
+    return el;
+  });
+  const add = document.createElement("div");
+  add.className = "tile add";
+  add.append(iconEl({ kind: "builtin", value: "plus" }), Object.assign(document.createElement("span"), { textContent: "Ny knap" }));
+  add.addEventListener("click", addButton);
+  add.addEventListener("dragover", (e) => e.preventDefault());
+  add.addEventListener("drop", (e) => { e.preventDefault(); move(dragFrom, deck.length); });
+  $("#deck").replaceChildren(...tiles, add);
+}
+function move(from, to) {
+  if (from < 0 || from === to) return;
+  const [b] = deck.splice(from, 1);
+  const target = to > from ? to - 1 : to;
+  deck.splice(target, 0, b);
+  if (selected === from) selected = target;
+  else if (selected > from && selected <= target) selected--;
+  else if (selected < from && selected >= target) selected++;
+  setDirty();
+  renderDeck();
+}
+function addButton() {
+  deck.push({ label: "Ny knap", icon: { kind: "emoji", value: "⭐" }, action: { type: "app", app: "" } });
+  setDirty();
+  select(deck.length - 1);
+  $("#label").select();
+}
+
+// ---------- form ----------
+function select(i) {
+  selected = i;
+  renderDeck();
+  $("#form").hidden = i < 0;
+  $("#empty").hidden = i >= 0;
+  if (i < 0) return;
+  const b = deck[i];
+  $("#label").value = b.label;
+  showType(b.action.type);
+  $("#url").value = b.action.type === "url" ? b.action.url : "";
+  $("#command").value = b.action.type === "command" ? commandText(b.action.argv) : "";
+  $("#builtin").value = b.action.type === "builtin" ? b.action.name : Object.keys(builtins)[0];
+  renderApps();
+  renderHotkey();
+  renderIcon();
+  $("#test-msg").textContent = "";
+}
+const cur = () => deck[selected];
+function update(fn) { fn(cur()); setDirty(); renderPreview(); renderDeck(); }
+function renderPreview() { tileContent($("#preview"), cur()); }
+
+function commandText(argv) {
+  if (!argv) return "";
+  return argv[0] === "sh" && argv[1] === "-c" && argv.length === 3 ? argv[2] : argv.map((a) => /\s/.test(a) ? JSON.stringify(a) : a).join(" ");
+}
+
+function showType(type) {
+  $$("#types button").forEach((b) => b.classList.toggle("on", b.dataset.type === type));
+  $$(".type-panel").forEach((p) => p.classList.toggle("on", p.dataset.panel === type));
+  // which icon kinds make sense
+  $('#icon-kinds [data-kind="app"]').hidden = type !== "app";
+}
+
+$("#types").addEventListener("click", (e) => {
+  const t = e.target.closest("button")?.dataset.type;
+  if (!t) return;
+  update((b) => {
+    if (t === "url") b.action = { type: "url", url: $("#url").value || "https://" };
+    if (t === "app") b.action = { type: "app", app: "" };
+    if (t === "hotkey") b.action = { type: "hotkey", keys: [] };
+    if (t === "command") b.action = { type: "command", argv: ["sh", "-c", $("#command").value || ""] };
+    if (t === "builtin") {
+      const n = $("#builtin").value || Object.keys(builtins)[0];
+      b.action = { type: "builtin", name: n };
+      b.icon = { kind: "builtin", value: builtins[n][1] };
+    }
+    if (b.icon.kind === "app" && t !== "app") b.icon = { kind: "emoji", value: t === "url" ? "🌐" : t === "hotkey" ? "⌨️" : "⚡" };
+  });
+  showType(t);
+  renderIcon();
+});
+
+$("#label").addEventListener("input", (e) => update((b) => { b.label = e.target.value; }));
+$("#url").addEventListener("input", (e) => update((b) => { b.action = { type: "url", url: e.target.value.trim() }; }));
+$("#command").addEventListener("input", (e) => update((b) => { b.action = { type: "command", argv: ["sh", "-c", e.target.value] }; }));
+$("#builtin").addEventListener("change", (e) => update((b) => {
+  b.action = { type: "builtin", name: e.target.value };
+  b.label = builtins[e.target.value][0];
+  b.icon = { kind: "builtin", value: builtins[e.target.value][1] };
+  $("#label").value = b.label;
+  renderIcon();
+}));
+
+// ---------- programs ----------
+function renderApps() {
+  const q = $("#app-search").value.trim().toLowerCase();
+  const chosen = cur()?.action.type === "app" ? cur().action.app : "";
+  const list = apps.filter((a) => !q || a.name.toLowerCase().includes(q)).slice(0, 200);
+  $("#app-list").replaceChildren(...list.map((a) => {
+    const row = document.createElement("button");
+    row.className = a.id === chosen ? "on" : "";
+    const img = document.createElement("img");
+    img.alt = ""; img.loading = "lazy";
+    img.src = "/api/appicon?id=" + encodeURIComponent(a.id);
+    img.onerror = () => img.replaceWith(Object.assign(document.createElement("span"), { className: "noicon" }));
+    row.append(img, a.name);
+    row.addEventListener("click", () => {
+      update((b) => {
+        const wasDefault = !b.label || b.label === "Ny knap" || apps.some((x) => x.name === b.label);
+        b.action = { type: "app", app: a.id };
+        b.icon = { kind: "app", value: a.id };
+        if (wasDefault) b.label = a.name;
+      });
+      $("#label").value = cur().label;
+      renderApps();
+      renderIcon();
+    });
+    return row;
+  }));
+}
+$("#app-search").addEventListener("input", renderApps);
+
+// ---------- hotkeys ----------
+function hotkeyKeys() { return cur()?.action.type === "hotkey" ? cur().action.keys : []; }
+function setHotkey(keys) {
+  update((b) => { b.action = { type: "hotkey", keys, text: comboText(keys) }; });
+  renderHotkey();
+}
+function renderHotkey() {
+  const keys = hotkeyKeys();
+  const mods = new Set(keys.filter((k) => MODS[k]));
+  $$("#mods button").forEach((b) => b.classList.toggle("on", mods.has(Number(b.dataset.mod))));
+  const main = keys.filter((k) => !MODS[k]);
+  $("#record").textContent = keys.length ? comboText(keys) : "Klik her og tryk på en tast …";
+  $("#record").classList.remove("listening");
+  if (!main.length && keys.length) $("#record").textContent += "  + …";
+}
+$("#mods").addEventListener("click", (e) => {
+  const m = Number(e.target.closest("button")?.dataset.mod);
+  if (!m) return;
+  const keys = hotkeyKeys();
+  const mods = keys.filter((k) => MODS[k]);
+  const main = keys.filter((k) => !MODS[k]);
+  const next = mods.includes(m) ? mods.filter((k) => k !== m) : [...mods, m];
+  setHotkey([...next, ...main]);
+});
+$("#record").addEventListener("click", () => {
+  $("#record").textContent = "Tryk på din genvej nu …";
+  $("#record").classList.add("listening");
+  $("#record").focus();
+});
+$("#record").addEventListener("keydown", (e) => {
+  if (!$("#record").classList.contains("listening")) return;
+  e.preventDefault();
+  if (MOD_CODES[e.code]) return;  // wait for the real key
+  const code = KEYCODES[e.code];
+  if (!code) { toast("Den tast kan ikke bruges – vælg den evt. på listen", true); return; }
+  const mods = [];
+  if (e.ctrlKey) mods.push(29);
+  if (e.shiftKey) mods.push(42);
+  if (e.altKey && !e.getModifierState("AltGraph")) mods.push(56);
+  if (e.getModifierState("AltGraph")) mods.push(100);
+  if (e.metaKey) mods.push(125);
+  // keep modifiers toggled with the buttons too
+  const existing = hotkeyKeys().filter((k) => MODS[k]);
+  const all = [...new Set([...existing, ...mods])];
+  setHotkey([...all, code]);
+});
+$("#special").addEventListener("change", (e) => {
+  const k = Number(e.target.value);
+  if (!k) return;
+  const mods = hotkeyKeys().filter((x) => MODS[x]);
+  setHotkey([...mods, k]);
+  e.target.value = "";
+});
+
+// ---------- icon ----------
+function renderIcon() {
+  const b = cur();
+  $$("#icon-kinds button").forEach((x) => x.classList.toggle("on", x.dataset.kind === b.icon.kind));
+  $("#emoji").hidden = b.icon.kind !== "emoji";
+  $("#emoji").value = b.icon.kind === "emoji" ? b.icon.value : "";
+  const picks = b.icon.kind === "builtin"
+    ? BUILTIN_ICONS.map((n) => { const x = document.createElement("button"); x.append(iconEl({ kind: "builtin", value: n })); x.title = n; x.onclick = () => update((bb) => { bb.icon = { kind: "builtin", value: n }; }); return x; })
+    : b.icon.kind === "emoji"
+      ? EMOJI.map((em) => { const x = document.createElement("button"); x.textContent = em; x.onclick = () => { update((bb) => { bb.icon = { kind: "emoji", value: em }; }); $("#emoji").value = em; }; return x; })
+      : [];
+  $("#emoji-picks").replaceChildren(...picks);
+  renderPreview();
+}
+$("#icon-kinds").addEventListener("click", (e) => {
+  const k = e.target.closest("button")?.dataset.kind;
+  if (!k) return;
+  update((b) => {
+    if (k === "app" && b.action.type === "app" && b.action.app) b.icon = { kind: "app", value: b.action.app };
+    if (k === "builtin") b.icon = { kind: "builtin", value: b.action.type === "builtin" ? builtins[b.action.name][1] : "star" };
+    if (k === "emoji") b.icon = { kind: "emoji", value: "⭐" };
+  });
+  renderIcon();
+});
+$("#emoji").addEventListener("input", (e) => update((b) => { b.icon = { kind: "emoji", value: e.target.value || "⭐" }; }));
+
+// ---------- test / delete / save / reset ----------
+$("#test").addEventListener("click", async () => {
+  $("#test-msg").textContent = "";
+  try {
+    await api("/api/deck/test", { action: cur().action });
+    $("#test-msg").textContent = "Kørt ✓";
+  } catch (err) {
+    $("#test-msg").textContent = err.message;
+  }
+});
+$("#delete").addEventListener("click", () => {
+  if (!confirm(`Slet knappen "${cur().label}"?`)) return;
+  deck.splice(selected, 1);
+  setDirty();
+  select(-1);
+});
+$("#save").addEventListener("click", async () => {
+  try {
+    const r = await api("/api/deck", { buttons: deck });
+    deck = r.buttons;
+    setDirty(false);
+    renderDeck();
+    toast("Gemt – telefonen er opdateret");
+  } catch (err) {
+    toast(err.message, true);
+  }
+});
+$("#reset").addEventListener("click", async () => {
+  if (!confirm("Erstat alle knapper med standardknapperne?")) return;
+  try {
+    const r = await api("/api/deck/reset", {});
+    deck = r.buttons;
+    setDirty(false);
+    select(-1);
+    toast("Nulstillet til standard");
+  } catch (err) {
+    toast(err.message, true);
+  }
+});
+window.addEventListener("beforeunload", (e) => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); if (dirty) $("#save").click(); }
+});
+
+// ---------- start ----------
+(async () => {
+  try {
+    const [d, a] = await Promise.all([api("/api/deck"), api("/api/apps")]);
+    deck = d.buttons;
+    builtins = d.builtins;
+    apps = a;
+    $("#hotkey-missing").hidden = d.hotkeys;
+    $("#builtin").replaceChildren(...Object.entries(builtins).map(([n, [label]]) => Object.assign(document.createElement("option"), { value: n, textContent: label })));
+    $("#special").append(...SPECIAL.map(([n, k]) => Object.assign(document.createElement("option"), { value: k, textContent: n })));
+    setDirty(false);
+    select(-1);
+  } catch (err) {
+    toast("Kunne ikke hente knapperne: " + err.message, true);
+  }
+})();

@@ -153,7 +153,7 @@ class Sensors:
         if self.gpu is None and shutil.which("nvidia-smi"):
             self.gpu = _NvidiaGpu()
 
-        self.hist = {k: deque(maxlen=HISTORY) for k in ("cpu", "gpu", "ram", "net_down", "net_up")}
+        self.hist = {k: deque(maxlen=HISTORY) for k in ("cpu", "gpu", "ram", "net_down", "net_up", "cpu_temp", "gpu_temp")}
         self._net_prev = psutil.net_io_counters()
         self._disk_prev = psutil.disk_io_counters()
         self._t_prev = time.monotonic()
@@ -195,13 +195,17 @@ class Sensors:
         self.hist["net_down"].append(round(down))
         self.hist["net_up"].append(round(up))
         self.hist["gpu"].append(gpu.get("load") if gpu else None)
+        cpu_temp = self._cpu_temp()
+        self.hist["cpu_temp"].append(round(cpu_temp, 1) if cpu_temp is not None else None)
+        gpu_temp = (gpu.get("temp_hot") or gpu.get("temp")) if gpu else None
+        self.hist["gpu_temp"].append(round(gpu_temp, 1) if gpu_temp is not None else None)
 
         return {
             "cpu": {
                 "name": self.cpu_name,
                 "load": round(cpu, 1),
                 "cores": [round(c) for c in cores],
-                "temp": self._cpu_temp(),
+                "temp": cpu_temp,
                 "freq": round(freq.current) if freq else None,
             },
             "gpu": gpu,

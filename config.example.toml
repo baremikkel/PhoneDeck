@@ -14,19 +14,4 @@ interval = 1.0       # sekunder mellem opdateringer
 [gpu]
 # name = "Radeon RX 5700 XT"   # overstyr det automatisk fundne navn
 
-# Egne knapper ("Stream Deck"). `command` er enten en liste (anbefalet)
-# eller en streng, der køres med `sh -c`.
-[[buttons]]
-label = "Terminal"
-icon = "⌨"
-command = ["gnome-terminal"]
-
-[[buttons]]
-label = "Screenshot"
-icon = "📷"
-command = ["gnome-screenshot", "-i"]
-
-[[buttons]]
-label = "Lås"
-icon = "🔒"
-command = ["loginctl", "lock-session"]
+# Knapper (Stream Deck) redigeres nu i browseren: http://localhost:8765/editor

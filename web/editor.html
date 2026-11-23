@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>PhoneDeck knapper</title>
+  <link rel="stylesheet" href="editor.css">
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>PhoneDeck <span>· Stream Deck</span></h1>
+      <p class="muted">Træk knapperne for at ændre rækkefølgen. Klik på en knap for at redigere den. Ændringer vises på telefonen, når du trykker <b>Gem</b>.</p>
+    </div>
+    <div class="actions">
+      <button id="reset" class="ghost">Nulstil til standard</button>
+      <button id="save" class="primary" disabled>Gem</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="deck-wrap">
+      <div class="phone">
+        <div id="deck" class="deck"></div>
+      </div>
+      <p class="muted small">Sådan ser siden <b>Knapper</b> ud på telefonen (5 pr. række).</p>
+    </section>
+
+    <section id="form" class="form" hidden>
+      <div class="form-head">
+        <div id="preview" class="tile big"></div>
+        <label class="grow">Navn
+          <input id="label" maxlength="40" placeholder="Fx Messenger">
+        </label>
+      </div>
+
+      <div class="field">
+        <span class="field-label">Hvad skal knappen gøre?</span>
+        <div id="types" class="seg">
+          <button data-type="app">Åbn program</button>
+          <button data-type="url">Åbn hjemmeside</button>
+          <button data-type="hotkey">Tastaturgenvej</button>
+          <button data-type="command">Kør kommando</button>
+          <button data-type="builtin">Indbygget</button>
+        </div>
+      </div>
+
+      <div class="type-panel" data-panel="app">
+        <input id="app-search" type="search" placeholder="Søg i dine programmer …">
+        <div id="app-list" class="app-list"></div>
+      </div>
+
+      <div class="type-panel" data-panel="url">
+        <label>Adresse
+          <input id="url" type="url" placeholder="https://www.messenger.com">
+        </label>
+        <p class="muted small">Åbnes i din standardbrowser på computeren.</p>
+      </div>
+
+      <div class="type-panel" data-panel="hotkey">
+        <div id="hotkey-missing" class="warn" hidden>ydotool er ikke installeret, så tastaturgenveje virker ikke endnu.</div>
+        <div class="mods" id="mods">
+          <button data-mod="29">Ctrl</button>
+          <button data-mod="42">Shift</button>
+          <button data-mod="56">Alt</button>
+          <button data-mod="100">AltGr</button>
+          <button data-mod="125">Super</button>
+        </div>
+        <button id="record" class="recorder">Klik her og tryk på en tast …</button>
+        <div class="row">
+          <select id="special">
+            <option value="">… eller vælg en specialtast</option>
+          </select>
+        </div>
+        <p class="muted small">Genvejen sendes til computeren, som om du selv trykkede på tasterne. Super-tasten fanges ofte af GNOME, så slå den til med knappen ovenfor i stedet.</p>
+      </div>
+
+      <div class="type-panel" data-panel="command">
+        <label>Kommando
+          <input id="command" placeholder="fx ~/shortcut_scripts/type_less_than.sh">
+        </label>
+        <p class="muted small">Køres i din hjemmemappe med <code>sh -c</code>. Du kan bruge scripts, <code>gnome-terminal</code>, <code>xdg-open ~/Downloads</code> osv.</p>
+      </div>
+
+      <div class="type-panel" data-panel="builtin">
+        <select id="builtin"></select>
+      </div>
+
+      <div class="field">
+        <span class="field-label">Ikon</span>
+        <div class="icon-row">
+          <div id="icon-kinds" class="seg small">
+            <button data-kind="app">Programikon</button>
+            <button data-kind="builtin">Standardikon</button>
+            <button data-kind="emoji">Emoji</button>
+          </div>
+          <input id="emoji" class="emoji-input" maxlength="8" placeholder="💬">
+        </div>
+        <div id="emoji-picks" class="emoji-picks"></div>
+      </div>
+
+      <div class="form-foot">
+        <button id="test" class="ghost">▶ Test på computeren</button>
+        <span id="test-msg" class="muted small"></span>
+        <span class="grow"></span>
+        <button id="delete" class="danger">Slet knap</button>
+      </div>
+    </section>
+
+    <section id="empty" class="form empty">
+      <p>Vælg en knap til venstre, eller tilføj en ny med <b>+</b>.</p>
+    </section>
+  </main>
+
+  <div id="toast" hidden></div>
+  <script src="icons.js"></script>
+  <script src="editor.js"></script>
+</body>
+</html>

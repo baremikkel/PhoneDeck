@@ -26,11 +26,11 @@ Swipe til venstre og højre mellem seks sider. Prikkerne nederst viser, hvor du 
 | Side | Indhold |
 |---|---|
 | **Oversigt** | CPU, GPU, det der spiller, Claude-forbrug og en linje med RAM, net, disk og ur |
-| **System** | CPU med belastning pr. kerne, GPU (hotspot/kant, strøm, clock, blæser, VRAM), RAM, net og disk. Tryk på en CPU/GPU-graf for at skifte mellem linje og lodrette søjler, og på kernerne for lodret/vandret |
+| **System** | CPU med belastning pr. kerne, GPU (hotspot/kant, strøm, clock, blæser, VRAM), RAM, net og disk. CPU/GPU-graferne viser både belastning og temperatur. Knappen i CPU-kortets hjørne stiller CPU og GPU ved siden af eller over hinanden (også på Oversigt) |
 | **Musik** | Stort cover, titel/kunstner/album, afspilning, lydstyrke og en **visualizer**, der kan slås til/fra |
 | **Claude** | Tokens i 5-timers vinduet (input/output/cache), tid til nulstilling, i dag, 7 dage, fordeling pr. model, graf over 24 timer |
 | **Aktivitet** | Heatmaps i GitHub-stil for dine GitHub-bidrag og dit Claude Code-forbrug det seneste år |
-| **Knapper** | Lydstyrke, mute, mikrofon, afspilning, fuld skærm og dine egne genveje fra `config.toml` |
+| **Knapper** | Et **Stream Deck**: standardknapper (lyd, mikrofon, afspilning, fuld skærm, lås skærm, skærmbillede) plus dine egne. Redigeres i browseren på PC'en |
 
 Medier bruger MPRIS (Spotify, browsere, VLC …), så der skal ingen API-nøgler til.
 Skærmen holdes tændt, mens dashboardet er åbent (Wake Lock API).
@@ -94,6 +94,21 @@ systemctl --user daemon-reload && systemctl --user enable --now phonedeck
 
 > `adb reverse` nulstilles, når kablet tages ud. Kør scriptet igen, eller se idéerne nedenfor.
 
+## Stream Deck-knapper
+
+Åbn **<http://localhost:8765/editor>** i browseren på PC'en, eller tryk *Redigér knapper*
+på telefonen, så åbner editoren på computeren. Her kan du:
+
+- **Åbne et program**: vælg blandt dine installerede programmer (også Steam-spil og snaps). Ikon og navn hentes automatisk.
+- **Åbne en hjemmeside** i standardbrowseren, fx Messenger.
+- **Sende en tastaturgenvej**, fx Ctrl+Shift+T. Kræver [`ydotool`](https://github.com/ReimuNotMoe/ydotool) med `ydotoold` kørende, fordi Wayland ikke tillader andre måder.
+- **Køre en kommando eller et script**, fx `~/shortcut_scripts/mit-script.sh`.
+- **Indbyggede handlinger**: lydstyrke, mute, mikrofon, afspilning og fuld skærm.
+
+Træk knapperne for at ændre rækkefølgen, vælg emoji, standardikon eller programikon, og
+brug *Test på computeren*. Når du trykker **Gem**, opdateres telefonen med det samme.
+Knapperne gemmes i `~/.config/phonedeck/buttons.json`.
+
 ## Konfiguration
 
 ```bash
@@ -101,31 +116,23 @@ mkdir -p ~/.config/phonedeck
 cp config.example.toml ~/.config/phonedeck/config.toml
 ```
 
-Her kan du ændre port og GPU-navn, sætte dit GitHub-brugernavn og tilføje egne
-genvejsknapper. Nye knapper dukker op på telefonen inden for ca. 15 sekunder uden
-genstart:
+Her kan du ændre port og GPU-navn og sætte dit GitHub-brugernavn:
 
 ```toml
 [github]
 user = "dit-brugernavn"
-
-# Åbn en hjemmeside i standardbrowseren
-[[buttons]]
-label = "Messenger"
-icon = "💬"
-command = ["xdg-open", "https://www.messenger.com"]
-
-# Start et program
-[[buttons]]
-label = "Lås"
-icon = "🔒"
-command = ["loginctl", "lock-session"]
 ```
+
+Knapper sat op med `[[buttons]]` i `config.toml` (det gamle format) flyttes automatisk
+over i editoren første gang.
 
 ## Sikkerhed
 
 Serveren lytter som standard kun på `127.0.0.1`, så den kan kun nås fra PC'en selv og
 fra telefonen via USB. Handlinger er en fast liste plus de knapper, du selv definerer.
+API'et afviser forespørgsler fra andre hjemmesider i din browser (alle kald kræver en
+særlig header og den rigtige `Host`), så en ondsindet side kan hverken trykke på knapper
+eller oprette nye.
 Sæt kun `host = "0.0.0.0"`, hvis du stoler på dit netværk, for så kan alle på det styre
 knapperne.
 

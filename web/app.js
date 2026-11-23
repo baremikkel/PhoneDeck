@@ -26,31 +26,6 @@ function setTemp(key, t, warn, hot) {
   });
 }
 
-// ---------- icons (inline SVG, so they look the same everywhere – no emoji) ----------
-const P = (d, fill) => `<path d="${d}"${fill ? ' fill="currentColor" stroke="none"' : ""}/>`;
-const SPEAKER = P("M4 9.5h3.5L12 5.5v13l-4.5-4H4a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z", true);
-const ICONS = {
-  play: P("M8 5.2v13.6a1 1 0 0 0 1.53.85l10.9-6.8a1 1 0 0 0 0-1.7L9.53 4.35A1 1 0 0 0 8 5.2z", true),
-  pause: P("M7 4.5h3a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1zM14 4.5h3a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1z", true),
-  prev: P("M19 6.1v11.8a1 1 0 0 1-1.55.83L9 13.2a1.45 1.45 0 0 1 0-2.4l8.45-5.53A1 1 0 0 1 19 6.1zM5 5.5a1 1 0 0 1 2 0v13a1 1 0 0 1-2 0z", true),
-  next: P("M5 6.1v11.8a1 1 0 0 0 1.55.83L15 13.2a1.45 1.45 0 0 0 0-2.4L6.55 5.27A1 1 0 0 0 5 6.1zM17 5.5a1 1 0 0 1 2 0v13a1 1 0 0 1-2 0z", true),
-  minus: P("M5 12h14"),
-  plus: P("M12 5v14M5 12h14"),
-  volDown: SPEAKER + P("M15.5 9.5a3.5 3.5 0 0 1 0 5"),
-  volMute: SPEAKER + P("M15.5 9.5a3.5 3.5 0 0 1 0 5") + P("M18.5 7a7 7 0 0 1 0 10"),
-  volUp: SPEAKER + P("M15.5 9.5a3.5 3.5 0 0 1 0 5") + P("M18.5 7a7 7 0 0 1 0 10") + P("M21 4.5a10.5 10.5 0 0 1 0 15"),
-  volOff: SPEAKER + P("M16 9.5l5 5M21 9.5l-5 5"),
-  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/>' + P("M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6"),
-  micOff: '<rect x="9" y="3" width="6" height="11" rx="3"/>' + P("M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6M3.5 3.5l17 17"),
-  viz: P("M5 20v-6M9.5 20V8M14 20v-9M18.5 20V4"),
-  fullscreen: P("M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"),
-};
-const svg = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
-function drawIcon(el, name) {
-  if (el.dataset.drawn === name) return;
-  el.dataset.drawn = name;
-  el.innerHTML = svg(name);  // static markup from ICONS only
-}
 const setIcon = (key, name) => $$(`[data-ib="${key}"]`).forEach((el) => drawIcon(el, name));
 $$("[data-icon]").forEach((el) => drawIcon(el, el.dataset.icon));
 
@@ -68,29 +43,19 @@ function prep(canvas) {
   return [ctx, w, h];
 }
 
-function line(ctx, w, h, data, color, max, fill = true) {
+function line(ctx, w, h, data, color, max, fill = true, width = 2) {
   const pts = data.map((v) => v ?? 0);
   if (pts.length < 2) return;
   const n = 90, step = w / (n - 1), x0 = w - (pts.length - 1) * step;
   const y = (v) => h - 2 - (Math.min(v, max) / max) * (h - 4);
   ctx.beginPath();
   pts.forEach((v, i) => i ? ctx.lineTo(x0 + i * step, y(v)) : ctx.moveTo(x0, y(v)));
-  ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.stroke();
+  ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = "round"; ctx.stroke();
   if (!fill) return;
   ctx.lineTo(w, h); ctx.lineTo(x0, h); ctx.closePath();
   const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, color + "55"); g.addColorStop(1, color + "00");
   ctx.fillStyle = g; ctx.fill();
-}
-
-// Same history drawn as vertical bars (one per sample)
-function colBars(ctx, w, h, data, color, max) {
-  const n = 90, slot = w / n, x0 = w - data.length * slot;
-  ctx.fillStyle = color;
-  data.forEach((v, i) => {
-    const bh = Math.max(1, (Math.min(v ?? 0, max) / max) * (h - 2));
-    ctx.fillRect(x0 + i * slot + 0.5, h - bh, Math.max(1, slot - 1.5), bh);
-  });
 }
 
 function bars(ctx, w, h, data, color) {
@@ -112,8 +77,12 @@ function drawCharts(s) {
     switch (c.dataset.chart) {
       case "cpu":
       case "gpu": {
-        const draw = prefs[`chart.${c.dataset.chart}`] === "bars" ? colBars : line;
-        return draw(ctx, w, h, hist[c.dataset.chart] || [], css(`--${c.dataset.chart}`), 100);
+        // load (filled, 0–100 %) + temperature (thin warm line, 20–100 °C)
+        const k = c.dataset.chart;
+        line(ctx, w, h, hist[k] || [], css(`--${k}`), 100);
+        const temps = (hist[`${k}_temp`] || []).map((t) => t == null ? null : Math.max(0, t - 20));
+        line(ctx, w, h, temps, css("--temp"), 80, false, 1.5);
+        return;
       }
       case "ram": return line(ctx, w, h, hist.ram || [], css("--ram"), 100);
       case "net": {
@@ -253,7 +222,6 @@ function render(s) {
 function renderCores(cores) {
   $$("[data-cores]").forEach((box) => {
     if (box.children.length !== cores.length) box.replaceChildren(...cores.map(() => document.createElement("i")));
-    box.classList.toggle("horizontal", prefs.cores === "horizontal");
     cores.forEach((c, i) => { box.children[i].style.setProperty("--v", Math.max(3, c) + "%"); });
   });
 }
@@ -337,48 +305,96 @@ function renderAudio(a) {
   setOn("mic.muted", mic.muted);
 }
 
+// ---------- Stream Deck (buttons come from the PC; edit them at /editor) ----------
+// Built-ins with live state get bindings so they show volume, mute, play/pause …
+const LIVE = {
+  "volume.mute": { icon: "vol.icon", label: "vol.txt", on: "vol.muted" },
+  "mic.mute": { icon: "mic.icon", label: "mic.txt", on: "mic.muted" },
+  "media.playpause": { icon: "m.play" },
+};
+
+function makeIcon(icon) {
+  if (icon?.kind === "app") {
+    const img = document.createElement("img");
+    img.className = "appicon"; img.alt = ""; img.loading = "lazy";
+    img.src = "/api/appicon?id=" + encodeURIComponent(icon.value);
+    return img;
+  }
+  if (icon?.kind === "builtin") {
+    const i = document.createElement("i");
+    i.className = "ic";
+    drawIcon(i, icon.value);
+    return i;
+  }
+  const b = document.createElement("b");
+  b.textContent = icon?.value || "⭐";
+  return b;
+}
+
 let buttonsKey = "";
 function renderButtons(list) {
   const key = JSON.stringify(list);
   if (key === buttonsKey) return;
   buttonsKey = key;
-  const box = $("[data-tiles]");
-  $$("[data-custom]", box).forEach((el) => el.remove());
-  list.forEach((b) => {
+  const tiles = list.map((b) => {
     const el = document.createElement("button");
-    el.className = "tile"; el.dataset.action = b.id; el.dataset.custom = "";
-    const icon = document.createElement("b"); icon.textContent = b.icon;
-    el.append(icon, b.label);
-    box.append(el);
+    el.className = "tile";
+    if (b.builtin === "ui.fullscreen") el.dataset.fullscreen = "";
+    else el.dataset.button = b.id;
+    const icon = makeIcon(b.icon);
+    const label = document.createElement("span");
+    label.textContent = b.label;
+    const live = LIVE[b.builtin];
+    if (live) {
+      if (live.icon && icon.classList.contains("ic")) { icon.dataset.ib = live.icon; delete icon.dataset.drawn; }
+      if (live.label) label.dataset.b = live.label;
+      if (live.on) el.dataset.on = live.on;
+    }
+    el.append(icon, label);
+    return el;
   });
+  const add = document.createElement("button");
+  add.className = "tile add"; add.dataset.action = "open.editor";
+  add.append(makeIcon({ kind: "builtin", value: "plus" }), "Redigér knapper");
+  $("[data-tiles]").replaceChildren(...tiles, add);
+  if (last) { renderAudio(last.audio || {}); renderMedia(last.media); }
 }
 
 // ---------- per-device preferences ----------
 const prefs = (() => { try { return JSON.parse(localStorage.getItem("phonedeck.prefs") || "{}"); } catch { return {}; } })();
 const savePrefs = () => { try { localStorage.setItem("phonedeck.prefs", JSON.stringify(prefs)); } catch { /* ignore */ } };
 
-// Tap a CPU/GPU graph: line <-> vertical bars. Tap the core bars: vertical <-> horizontal.
+// CPU and GPU cards: side by side or on top of each other (button in the CPU header)
+const applyLayout = () => {
+  document.body.classList.toggle("stack", prefs.layout === "stack");
+  $$("[data-layout-toggle]").forEach((b) => drawIcon(b.querySelector(".ic"), prefs.layout === "stack" ? "sideBySide" : "stacked"));
+};
 document.addEventListener("click", (e) => {
-  const chart = e.target.closest('canvas[data-chart="cpu"], canvas[data-chart="gpu"]');
-  if (chart) {
-    const k = `chart.${chart.dataset.chart}`;
-    prefs[k] = prefs[k] === "bars" ? "line" : "bars";
-  } else if (e.target.closest("[data-cores]")) {
-    prefs.cores = prefs.cores === "horizontal" ? "vertical" : "horizontal";
-  } else return;
+  if (!e.target.closest("[data-layout-toggle]")) return;
+  prefs.layout = prefs.layout === "stack" ? "side" : "stack";
   savePrefs();
   navigator.vibrate?.(8);
+  applyLayout();
+  heatKey = "";
   if (last) render(last);
 });
+applyLayout();
 
 // ---------- actions ----------
+const api = (path, body) => fetch(path, {
+  method: "POST",
+  headers: { "Content-Type": "application/json", "X-PhoneDeck": "1" },
+  body: JSON.stringify(body || {}),
+});
+
 document.addEventListener("click", async (e) => {
-  const btn = e.target.closest("[data-action]");
+  const btn = e.target.closest("[data-action], [data-button]");
   if (!btn) return;
   navigator.vibrate?.(12);
+  btn.classList.add("pressed");
+  setTimeout(() => btn.classList.remove("pressed"), 180);
   try {
-    await fetch("/api/action", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: btn.dataset.action }) });
+    await api("/api/action", btn.dataset.button ? { button: btn.dataset.button } : { action: btn.dataset.action });
   } catch { /* offline banner covers this */ }
 });
 
@@ -493,7 +509,7 @@ function updateViz() {
     drawViz(new Array(36).fill(0));
   }
 }
-const vizPing = () => fetch("/api/viz/keepalive", { method: "POST" }).catch(() => {});
+const vizPing = () => api("/api/viz/keepalive").catch(() => {});
 setInterval(() => { if (vizSource) vizPing(); }, 1500);
 document.addEventListener("click", (e) => {
   if (!e.target.closest("[data-viz-toggle]")) return;

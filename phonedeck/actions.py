@@ -1,4 +1,4 @@
-"""Touch actions: volume, mic, media keys and user-defined shortcut buttons."""
+"""Built-in actions (volume, mic, media keys) and config.toml loading."""
 
 from __future__ import annotations
 
@@ -13,6 +13,18 @@ CONFIG_PATH = os.path.expanduser(
 
 SINK = "@DEFAULT_AUDIO_SINK@"
 SOURCE = "@DEFAULT_AUDIO_SOURCE@"
+
+# name -> (Danish label, icon name in the web UI)
+BUILTINS = {
+    "volume.down": ("Lavere", "volDown"),
+    "volume.mute": ("Lyd", "volMute"),
+    "volume.up": ("Højere", "volUp"),
+    "mic.mute": ("Mikrofon", "mic"),
+    "media.previous": ("Forrige", "prev"),
+    "media.playpause": ("Afspil/pause", "play"),
+    "media.next": ("Næste", "next"),
+    "ui.fullscreen": ("Fuld skærm", "fullscreen"),  # handled on the phone itself
+}
 
 
 def load_config() -> dict:
@@ -43,35 +55,6 @@ def audio_state() -> dict:
 class Actions:
     def __init__(self, media):
         self.media = media
-        self.reload()
-
-    def reload_if_changed(self) -> None:
-        """Pick up new/changed buttons in config.toml without a restart."""
-        try:
-            mtime = os.path.getmtime(CONFIG_PATH)
-        except OSError:
-            mtime = None
-        if mtime != self._mtime:
-            self.reload()
-
-    def reload(self) -> None:
-        try:
-            self._mtime = os.path.getmtime(CONFIG_PATH)
-        except OSError:
-            self._mtime = None
-        cfg = load_config()
-        self.buttons = []
-        for i, b in enumerate(cfg.get("buttons", [])):
-            cmd = b.get("command")
-            if isinstance(cmd, str):
-                cmd = ["sh", "-c", cmd]
-            if not cmd or not b.get("label"):
-                continue
-            self.buttons.append({"id": f"custom.{i}", "label": b["label"],
-                                 "icon": b.get("icon", "▶"), "command": cmd})
-
-    def public_buttons(self) -> list[dict]:
-        return [{k: b[k] for k in ("id", "label", "icon")} for b in self.buttons]
 
     def run(self, action: str) -> None:
         if action == "media.playpause":
@@ -88,11 +71,7 @@ class Actions:
             _wpctl("set-mute", SINK, "toggle")
         elif action == "mic.mute":
             _wpctl("set-mute", SOURCE, "toggle")
-        elif action.startswith("custom."):
-            btn = next((b for b in self.buttons if b["id"] == action), None)
-            if btn is None:
-                raise ValueError(action)
-            subprocess.Popen(btn["command"], start_new_session=True,
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        elif action == "ui.fullscreen":
+            pass  # the phone does this itself
         else:
             raise ValueError(action)

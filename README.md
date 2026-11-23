@@ -154,6 +154,8 @@ preview** of the phone that updates while you edit, before you save.
   move it, and drag its corner to resize it.
 - The element list is **grouped by category** (System, AI, Musik, Udvikling, Andet), and
   the Stream Deck buttons by the folder they live in.
+- **Gå til side** (go to page) in the element list places a button that switches the phone
+  to another page, e.g. a Musik button on the home page.
 - **Elements from extensions:** every card on an extension's page (e.g. the music player,
   the Claude donut, the 24-hour chart and the GitHub heatmap) can be placed on the home
   page and your own pages. When you add an extension, its elements show up automatically.

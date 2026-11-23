@@ -18,7 +18,7 @@ SETTINGS_PATH = os.path.expanduser(os.environ.get("PHONEDECK_SETTINGS", "~/.conf
 CORE_PAGES = ["overview", "system", "buttons"]
 # Core widgets; extensions add their own (any id-like name is accepted and simply
 # not shown while the extension providing it isn't installed)
-CORE_WIDGETS = {"cpu", "gpu", "ram", "net", "disk", "sys", "clock", "button", "menu"}
+CORE_WIDGETS = {"cpu", "gpu", "ram", "net", "disk", "sys", "clock", "button", "menu", "goto"}
 WIDGET_RE = re.compile(r"^[a-z0-9][a-z0-9.-]{0,60}$")  # "<extension>.<element>" for page elements
 PAGE_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
 CUSTOM_ID_RE = re.compile(r"^[a-z0-9]{1,12}$")
@@ -100,6 +100,11 @@ def validate_home(h) -> dict:
         item = {"type": t, "x": x, "y": y, "w": w, "h": hh}
         if t == "button":
             item["button"] = str(it.get("button", ""))[:40]
+        if t == "goto":  # "Gå til side": switches the phone to a page
+            page = str(it.get("page", ""))
+            if not PAGE_RE.match(page):
+                raise ValueError("vælg en side til Gå til side-knappen")
+            item["page"] = page
         items.append(item)
     return {"cols": cols, "rows": rows, "items": items}
 

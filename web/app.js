@@ -486,6 +486,14 @@ function buildGrid(page, layout) {
       el = document.createElement("div");
       el.className = "home-btn";
       el.dataset.homeButton = it.button;
+    } else if (it.type === "goto") {
+      // "Gå til side": label and icon are filled in by fillGotoTiles() once the pages exist
+      el = document.createElement("div");
+      el.className = "home-btn";
+      const b = Object.assign(document.createElement("button"), { className: "tile goto" });
+      b.dataset.goto = it.page;
+      b.append(Object.assign(document.createElement("i"), { className: "ic" }), document.createElement("span"));
+      el.append(b);
     } else {
       const html = WIDGET_HTML[it.type] || PhoneDeck.widgets[it.type];
       if (!html) return null;  // element from an extension that isn't installed
@@ -502,6 +510,7 @@ function buildGrid(page, layout) {
     return el;
   }).filter(Boolean));
   $$("[data-icon]", page).forEach((el) => drawIcon(el, el.dataset.icon));
+  fillGotoTiles();
   layoutGen++;
   PhoneDeck.each("rebuilt");  // a grid was rebuilt – extensions refresh their elements
   if (last) fillHomeButtons(last.buttons || []);
@@ -565,7 +574,7 @@ function renderMenuPages() {
     b.className = "tile" + (i === current ? " here" : "");
     b.dataset.goto = id;
     const ic = Object.assign(document.createElement("i"), { className: "ic" });
-    drawIcon(ic, PAGE_ICONS[id] || (id.startsWith("custom-") ? "grid" : "star"));
+    drawIcon(ic, pageIcon(id));
     b.append(ic, Object.assign(document.createElement("span"), { textContent: p.dataset.title || id }));
     return b;
   }));
@@ -718,7 +727,17 @@ let current = 0;
 let ui = { dim: true, dim_from: 23, dim_to: 7, pixel_shift: true };
 let uiKey = "";
 
+function pageIcon(id) { return PAGE_ICONS[id] || (id.startsWith("custom-") ? "grid" : "star"); }
+function fillGotoTiles() {  // names come from the page sections, which may arrive after the grid
+  $$(".tile.goto").forEach((b) => {
+    const id = b.dataset.goto, title = $("#p-" + id)?.dataset.title || id;
+    const span = b.querySelector("span"), ic = b.querySelector(".ic");
+    if (span.textContent !== title) span.textContent = title;
+    if (ic.dataset.page !== id) { ic.dataset.page = id; drawIcon(ic, pageIcon(id)); }
+  });
+}
 function buildDots() {
+  fillGotoTiles();
   $("#dots").replaceChildren(...pages.map((p, i) => {
     const b = document.createElement("button");
     b.setAttribute("aria-label", p.dataset.title);

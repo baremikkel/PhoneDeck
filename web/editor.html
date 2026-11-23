@@ -64,6 +64,7 @@
 
   <main class="deck-only">
     <section class="deck-wrap">
+      <div id="crumbs" class="crumbs"></div>
       <div class="phone">
         <div id="deck" class="deck"></div>
       </div>
@@ -86,6 +87,7 @@
           <button data-type="hotkey">Tastaturgenvej</button>
           <button data-type="command">Kør kommando</button>
           <button data-type="builtin">Indbygget</button>
+          <button data-type="folder">Mappe</button>
         </div>
       </div>
 
@@ -124,6 +126,12 @@
           <input id="command" placeholder="fx ~/shortcut_scripts/type_less_than.sh">
         </label>
         <p class="muted small">Køres i din hjemmemappe med <code>sh -c</code>. Du kan bruge scripts, <code>gnome-terminal</code>, <code>xdg-open ~/Downloads</code> osv.</p>
+      </div>
+
+      <div class="type-panel" data-panel="folder">
+        <p class="muted small">En mappe samler flere knapper. På telefonen åbner den med en <b>Tilbage</b>-knap.
+          Træk knapper ind på mappen for at flytte dem derind, eller dobbeltklik på mappen for at åbne den.</p>
+        <div><button id="open-folder" class="ghost">Åbn mappe →</button></div>
       </div>
 
       <div class="type-panel" data-panel="builtin">

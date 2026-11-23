@@ -308,7 +308,11 @@ function makeTile(b) {
     const el = document.createElement("button");
     el.className = "tile" + (b.running ? " running" : "");
     if (b.color) el.style.setProperty("--btn", b.color);
-    if (b.builtin === "ui.fullscreen") el.dataset.fullscreen = "";
+    if (b.type === "folder") {
+      el.dataset.folder = b.id;  // opened on the phone, nothing runs on the PC
+      el.classList.add("folder");
+      el.dataset.count = (b.buttons || []).length;
+    } else if (b.builtin === "ui.fullscreen") el.dataset.fullscreen = "";
     else el.dataset.button = b.id;
     const icon = makeIcon(b.icon);
     const label = document.createElement("span");
@@ -323,16 +327,45 @@ function makeTile(b) {
     return el;
 }
 
+// ---------- folders: the Knapper page shows one folder at a time ----------
+let folderPath = [];  // ids of the opened folders, outermost first
+const findButton = (list, id) => {
+  for (const b of list || []) {
+    if (b.id === id) return b;
+    const inner = b.type === "folder" && findButton(b.buttons, id);
+    if (inner) return inner;
+  }
+  return null;
+};
+
 let buttonsKey = "";
 function renderButtons(list) {
-  const key = JSON.stringify(list);
+  const key = JSON.stringify([list, folderPath]);
   if (key === buttonsKey) return;
   buttonsKey = key;
-  const tiles = list.map(makeTile);
+  // walk down the opened folders (a folder that was deleted on the PC closes itself)
+  let level = list, trail = [];
+  for (const id of folderPath) {
+    const f = level.find((b) => b.id === id && b.type === "folder");
+    if (!f) break;
+    trail.push(f);
+    level = f.buttons || [];
+  }
+  folderPath = trail.map((f) => f.id);
+  const tiles = level.map(makeTile);
+  if (trail.length) {
+    const back = document.createElement("button");
+    back.className = "tile back";
+    back.dataset.folderBack = "";
+    back.append(makeIcon({ kind: "builtin", value: "prev" }),
+      Object.assign(document.createElement("span"), { textContent: trail.length > 1 ? trail[trail.length - 2].label : "Tilbage" }));
+    tiles.unshift(back);
+  }
   const add = document.createElement("button");
   add.className = "tile add"; add.dataset.action = "open.editor";
   add.append(makeIcon({ kind: "builtin", value: "plus" }), "Redigér knapper");
-  $("[data-tiles]").replaceChildren(...tiles, add);
+  setText("deck.path", trail.map((f) => f.label).join(" › "));
+  $("[data-tiles]").replaceChildren(...tiles, ...(trail.length ? [] : [add]));
   fillHomeButtons(list);
   if (last) { renderAudio(last.audio || {}); PhoneDeck.render(last); }
 }
@@ -417,7 +450,7 @@ function renderHome(home) {
 }
 function fillHomeButtons(list) {
   $$("[data-home-button]").forEach((slot) => {
-    const b = list.find((x) => x.id === slot.dataset.homeButton);
+    const b = findButton(list, slot.dataset.homeButton);
     slot.replaceChildren(b ? makeTile(b) : Object.assign(document.createElement("div"), { className: "tile missing", textContent: "Knap slettet" }));
   });
 }
@@ -471,6 +504,31 @@ setInterval(() => {
     });
   }
 }, 1000);
+
+document.addEventListener("click", (e) => {
+  const open = e.target.closest("[data-folder]");
+  const back = e.target.closest("[data-folder-back]");
+  if (!open && !back) return;
+  navigator.vibrate?.(10);
+  if (back) folderPath.pop();
+  else {
+    // a folder placed on the home page opens on the Knapper page
+    const fromHome = !!open.closest("#p-overview");
+    const trail = fromHome ? pathTo(last?.buttons || [], open.dataset.folder) : [...folderPath, open.dataset.folder];
+    folderPath = trail || [open.dataset.folder];
+    if (fromHome) goTo(pages.findIndex((p) => p.id === "p-buttons"));
+  }
+  if (last) renderButtons(last.buttons || []);
+});
+function pathTo(list, id, trail = []) {
+  for (const b of list) {
+    if (b.type !== "folder") continue;
+    if (b.id === id) return [...trail, b.id];
+    const inner = pathTo(b.buttons || [], id, [...trail, b.id]);
+    if (inner) return inner;
+  }
+  return null;
+}
 
 // ---------- per-device preferences ----------
 const prefs = (() => { try { return JSON.parse(localStorage.getItem("phonedeck.prefs") || "{}"); } catch { return {}; } })();
@@ -563,7 +621,7 @@ function updateDots() {
   if (i === current && $("#dots .on")) return;
   current = i;
   $$("#dots button").forEach((b, j) => b.classList.toggle("on", j === i));
-  if (pages[i]) store.set("phonedeck.page", pages[i].id);
+  if (pages[i] && uiKey) store.set("phonedeck.page", pages[i].id);  // not before the saved page is restored
   PhoneDeck.each("page", pages[i]?.id);
 }
 function applyUi(next) {

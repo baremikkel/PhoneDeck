@@ -26,6 +26,8 @@ if ! adb shell settings put global stay_on_while_plugged_in 7 >/dev/null 2>&1; t
 fi
 
 # Åbn dashboardet i telefonens standardbrowser
-adb shell am start -a android.intent.action.VIEW -d "http://localhost:$PORT" >/dev/null
+# (application_id makes Chrome reuse the same tab instead of opening a new one each time)
+adb shell am start -a android.intent.action.VIEW -d "http://localhost:$PORT" \
+  --es com.android.browser.application_id phonedeck >/dev/null
 
 echo "Klar ✔  Tryk på uret på telefonen for fuld skærm."

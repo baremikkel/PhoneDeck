@@ -25,6 +25,13 @@
     .hint { font-size: 12px; color: var(--muted); }
     label.check { flex-direction: row; align-items: flex-start; gap: 10px; color: var(--text); font-size: 14px; }
     label.check input { width: 18px; height: 18px; margin-top: 2px; flex: none; }
+    label.check input.num { width: 64px; height: auto; display: inline-block; padding: 4px 8px; margin: 0 4px; }
+    .pages { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+    .pages li { display: flex; align-items: center; gap: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; }
+    .pages li.off { opacity: .5; }
+    .pages li .name { flex: 1; }
+    .pages li button { padding: 2px 10px; }
+    .pages input { width: 18px; height: 18px; }
     @media (max-width: 640px) { .two { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -37,6 +44,25 @@
   </header>
 
   <div class="settings">
+    <section class="form">
+      <h2>Sider</h2>
+      <p class="muted" style="margin:0">Vælg hvilke sider telefonen viser, og i hvilken rækkefølge du swiper igennem dem.
+        Forsiden kan du bygge selv under <a href="/editor#home">Forside</a>.</p>
+      <ol id="pages" class="pages"></ol>
+      <div class="btns"><button id="save-pages" class="primary">Gem</button><span id="pages-msg" class="hint"></span></div>
+    </section>
+
+    <section class="form">
+      <h2>Visning</h2>
+      <label class="check"><input type="checkbox" id="dim"><span><b>Dæmp skærmen om natten</b>
+        <span class="hint">fra kl. <input id="dim-from" type="number" min="0" max="23" class="num"> til kl. <input id="dim-to" type="number" min="0" max="23" class="num"></span></span></label>
+      <label class="check"><input type="checkbox" id="shift"><span><b>Flyt indholdet lidt hvert minut</b><br>
+        <span class="hint">Beskytter AMOLED-skærmen mod indbrænding.</span></span></label>
+      <label>Knapper pr. række på Knapper-siden
+        <select id="deck-cols"><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select>
+      </label>
+      <div class="btns"><button id="save-view" class="primary">Gem</button></div>
+    </section>
     <section class="form">
       <h2>Spotify-kø <span id="sp-status" class="badge">…</span></h2>
       <p class="muted" style="margin:0">Musiksiden kan vise <b>næste sang</b> og hele køen. Køen findes kun i Spotifys
@@ -109,6 +135,23 @@
     clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, 3000);
   }
   let maxBlock = 0;
+  const PAGE_NAMES = { overview: "Forside", system: "System", music: "Musik", claude: "Claude", activity: "Aktivitet", buttons: "Knapper (Stream Deck)" };
+  let pageOrder = [], hidden = new Set();
+  function renderPages() {
+    $("#pages").replaceChildren(...pageOrder.map((id, i) => {
+      const li = document.createElement("li");
+      li.className = hidden.has(id) ? "off" : "";
+      const cb = Object.assign(document.createElement("input"), { type: "checkbox", checked: !hidden.has(id), title: "Vis siden" });
+      cb.onchange = () => { cb.checked ? hidden.delete(id) : hidden.add(id); renderPages(); };
+      const name = Object.assign(document.createElement("span"), { className: "name", textContent: `${i + 1}. ${PAGE_NAMES[id]}` });
+      const up = Object.assign(document.createElement("button"), { textContent: "↑", disabled: i === 0, title: "Flyt op" });
+      const down = Object.assign(document.createElement("button"), { textContent: "↓", disabled: i === pageOrder.length - 1, title: "Flyt ned" });
+      up.onclick = () => { [pageOrder[i - 1], pageOrder[i]] = [pageOrder[i], pageOrder[i - 1]]; renderPages(); };
+      down.onclick = () => { [pageOrder[i + 1], pageOrder[i]] = [pageOrder[i], pageOrder[i + 1]]; renderPages(); };
+      li.append(cb, name, up, down);
+      return li;
+    }));
+  }
 
   function showSpotify(sp, cid) {
     const st = $("#sp-status");
@@ -122,6 +165,10 @@
   async function load() {
     const d = await api("/api/settings");
     $("#redirect").textContent = d.redirect_uri;
+    const ui = d.settings.ui;
+    pageOrder = [...ui.pages]; hidden = new Set(ui.hidden); renderPages();
+    $("#dim").checked = ui.dim; $("#dim-from").value = ui.dim_from; $("#dim-to").value = ui.dim_to;
+    $("#shift").checked = ui.pixel_shift; $("#deck-cols").value = String(ui.deck_cols);
     $("#client-id").value = d.settings.spotify.client_id || "";
     $("#b5").value = d.settings.claude.budget_5h || "";
     $("#bw").value = d.settings.claude.budget_week || "";
@@ -143,6 +190,17 @@
       const r = await api("/api/settings", { spotify: { client_id: $("#client-id").value } });
       showSpotify({ connected: false }, r.settings.spotify.client_id);
       toast("Gemt – tryk nu Forbind Spotify");
+    } catch (e) { toast(e.message, true); }
+  };
+  $("#save-pages").onclick = async () => {
+    try { await api("/api/settings", { ui: { pages: pageOrder, hidden: [...hidden] } }); toast("Gemt – telefonen er opdateret"); }
+    catch (e) { toast(e.message, true); }
+  };
+  $("#save-view").onclick = async () => {
+    try {
+      await api("/api/settings", { ui: { dim: $("#dim").checked, dim_from: +$("#dim-from").value, dim_to: +$("#dim-to").value,
+        pixel_shift: $("#shift").checked, deck_cols: +$("#deck-cols").value } });
+      toast("Gemt – telefonen er opdateret");
     } catch (e) { toast(e.message, true); }
   };
   $("#use-login").onchange = async (e) => {

@@ -21,16 +21,16 @@ burde virke.
 
 ## Funktioner
 
-Swipe til venstre og højre mellem seks sider. Prikkerne nederst viser, hvor du er, og den side, du sidst så, huskes.
+Swipe til venstre og højre mellem seks sider. Prikkerne nederst viser, hvor du er, og den side, du sidst så, huskes. Hvilke sider der vises, og i hvilken rækkefølge, vælger du under *Indstillinger → Sider*.
 
 | Side | Indhold |
 |---|---|
-| **Oversigt** | CPU, GPU, det der spiller, Claude-forbrug og en linje med RAM, net, disk og ur |
+| **Forside** | Byg den selv på et fast gitter (4×2 til 8×4) med CPU, GPU, RAM, net, disk, musik, Claude, donut, ur, GitHub-heatmap og **genvejsknapper** fra dit Stream Deck. Standard: CPU, GPU, musik, Claude og en systemlinje |
 | **System** | CPU med belastning pr. kerne, GPU (hotspot/kant, strøm, clock, blæser, VRAM), RAM, net og disk. CPU/GPU-graferne viser både belastning og temperatur. Knappen i CPU-kortets hjørne stiller CPU og GPU ved siden af eller over hinanden (også på Oversigt) |
 | **Musik** | Stort cover, titel/kunstner/album, afspilning, lydstyrke, en **visualizer**, der kan slås til/fra, og **næste sang** nederst. Tryk for at se hele køen (kræver Spotify-forbindelse, se nedenfor) |
 | **Claude** | **Donut** med hvad der er tilbage af dine grænser (5 timer + uge), tokens i 5-timers vinduet (input/output/cache), tid til nulstilling, i dag, 7 dage, fordeling pr. model, graf over 24 timer |
 | **Aktivitet** | Heatmaps i GitHub-stil for dine GitHub-bidrag og dit Claude Code-forbrug det seneste år |
-| **Knapper** | Et **Stream Deck**: standardknapper (lyd, mikrofon, afspilning, fuld skærm, lås skærm, skærmbillede) plus dine egne. Redigeres i browseren på PC'en |
+| **Knapper** | Et **Stream Deck**: standardknapper (lyd, mikrofon, afspilning, fuld skærm, lås skærm, skærmbillede) plus dine egne, med valgfri farve. Programmer, der allerede kører, markeres som **Aktiv**. Redigeres i browseren på PC'en |
 
 Medier bruger MPRIS (Spotify, browsere, VLC …), så der skal ingen API-nøgler til.
 Skærmen holdes tændt, mens dashboardet er åbent (Wake Lock API).
@@ -94,9 +94,12 @@ systemctl --user daemon-reload && systemctl --user enable --now phonedeck
 
 > `adb reverse` nulstilles, når kablet tages ud. Kør scriptet igen, eller se idéerne nedenfor.
 
-## Indstillinger (Spotify-kø og Claude-grænser)
+## Indstillinger
 
 Åbn **<http://localhost:8765/settings>** på PC'en.
+
+- **Sider:** slå sider til og fra, og bestem rækkefølgen.
+- **Visning:** nattedæmpning (selvvalgte timer), pixel-flytning mod indbrænding og antal knapper pr. række.
 
 - **Spotify-kø:** MPRIS viser ikke køen, så den hentes fra Spotifys Web API. Opret en gratis
   app på [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) med Redirect URI
@@ -112,7 +115,13 @@ systemctl --user daemon-reload && systemctl --user enable --now phonedeck
   - **Eget estimat:** sæt selv en grænse i tokens pr. 5-timers vindue og evt. pr. uge. Siden
     viser din største blok de sidste 30 dage som hjælp.
 
-## Stream Deck-knapper
+## Forside og Stream Deck-knapper
+
+I editoren (**<http://localhost:8765/editor>**) er der to faner:
+
+- **Forside:** vælg et gitter, klik på et tomt felt og derefter på et andet for at markere et område, og vælg hvad der skal stå der, enten en widget eller en knap fra dit Stream Deck. Felter kan flyttes, gøres større eller mindre og fjernes.
+- **Knapper (Stream Deck):** se nedenfor.
+
 
 Åbn **<http://localhost:8765/editor>** i browseren på PC'en, eller tryk *Redigér knapper*
 på telefonen, så åbner editoren på computeren. Her kan du:

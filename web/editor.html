@@ -4,23 +4,65 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <title>PhoneDeck knapper</title>
+  <title>PhoneDeck editor</title>
   <link rel="stylesheet" href="editor.css">
 </head>
 <body>
   <header class="top">
     <div>
-      <h1>PhoneDeck <span>· Stream Deck</span></h1>
-      <p class="muted">Træk knapperne for at ændre rækkefølgen. Klik på en knap for at redigere den. Ændringer vises på telefonen, når du trykker <b>Gem</b>.</p>
+      <h1>PhoneDeck <span>· Editor</span></h1>
+      <nav class="tabs"><a href="#deck" data-tab="deck">Knapper (Stream Deck)</a><a href="#home" data-tab="home">Forside</a></nav>
+      <p class="muted deck-only">Træk knapperne for at ændre rækkefølgen. Klik på en knap for at redigere den. Ændringer vises på telefonen, når du trykker <b>Gem</b>.</p>
+      <p class="muted home-only">Byg forsiden på et fast gitter: klik på et tomt felt og derefter på et andet for at markere et område, og vælg hvad der skal stå der. Knapper fra dit Stream Deck kan bruges som genveje.</p>
     </div>
-    <div class="actions">
+    <div class="actions deck-only">
       <a href="/settings" class="muted" style="align-self:center">Indstillinger</a>
       <button id="reset" class="ghost">Nulstil til standard</button>
       <button id="save" class="primary" disabled>Gem</button>
     </div>
   </header>
 
-  <main>
+  <main class="home-only home-main">
+    <section>
+      <div class="row-ctl">
+        <label>Gitter
+          <select id="grid">
+            <option value="4x2">4 × 2 (store felter)</option>
+            <option value="4x3">4 × 3</option>
+            <option value="6x3">6 × 3</option>
+            <option value="6x4">6 × 4</option>
+            <option value="8x4">8 × 4 (mange små felter)</option>
+          </select>
+        </label>
+        <span class="grow"></span>
+        <button id="home-reset" class="ghost">Standardforside</button>
+        <button id="home-save" class="primary" disabled>Gem forside</button>
+      </div>
+      <div class="phone"><div id="home-grid" class="home-grid"></div></div>
+      <p class="muted small" id="home-hint">Klik på et tomt felt for at starte en markering.</p>
+    </section>
+    <section class="form" id="home-panel">
+      <div id="home-pick" hidden>
+        <span class="field-label">Hvad skal stå i det markerede område?</span>
+        <div id="widget-list" class="widget-list"></div>
+        <span class="field-label" style="margin-top:12px">… eller en genvej fra dit Stream Deck</span>
+        <div id="button-list" class="widget-list"></div>
+        <button id="pick-cancel" class="ghost" style="margin-top:12px">Annullér</button>
+      </div>
+      <div id="home-sel" hidden>
+        <span class="field-label">Valgt felt</span>
+        <h3 id="sel-name" style="margin:4px 0 12px"></h3>
+        <div class="move-grid">
+          <span>Flyt</span><button data-mv="-1,0">←</button><button data-mv="0,-1">↑</button><button data-mv="0,1">↓</button><button data-mv="1,0">→</button>
+          <span>Størrelse</span><button data-sz="-1,0">smallere</button><button data-sz="1,0">bredere</button><button data-sz="0,-1">lavere</button><button data-sz="0,1">højere</button>
+        </div>
+        <button id="sel-remove" class="danger" style="margin-top:14px">Fjern felt</button>
+      </div>
+      <p id="home-empty" class="muted">Markér et område i gitteret, eller klik på et felt for at flytte, ændre eller fjerne det.</p>
+    </section>
+  </main>
+
+  <main class="deck-only">
     <section class="deck-wrap">
       <div class="phone">
         <div id="deck" class="deck"></div>
@@ -99,6 +141,11 @@
           <input id="emoji" class="emoji-input" maxlength="8" placeholder="💬">
         </div>
         <div id="emoji-picks" class="emoji-picks"></div>
+      </div>
+
+      <div class="field">
+        <span class="field-label">Farve</span>
+        <div id="colors" class="colors"></div>
       </div>
 
       <div class="form-foot">

@@ -36,6 +36,8 @@ class Hub:
         self.spotify = Spotify(self.settings, port)
         self.plan = ClaudePlan(self.settings)
         self._last_title = None
+        self.running: set[str] = set()
+        self._running_next = 0.0
         self.sensors = Sensors()
         gpu_name = load_config().get("gpu", {}).get("name")
         if gpu_name and self.sensors.gpu:
@@ -64,6 +66,13 @@ class Hub:
                 self._claude_summary = {"error": str(e)}
             self._claude_next = now + 15
 
+        if now >= self._running_next:  # which deck programs are open right now
+            try:
+                self.running = self.apps.running(self.deck.app_ids())
+            except Exception:
+                self.running = set()
+            self._running_next = now + 4
+
         state = {
             "time": now,
             "hw": self.sensors.sample(),
@@ -71,10 +80,11 @@ class Hub:
             "audio": audio_state(),
             "claude": self._claude_summary,
             "github": self.github.state(),
-            "buttons": self.deck.public(),
+            "buttons": self.deck.public(self.running),
             "spotify": self.spotify.state(),
             "claude_budget": self.settings.public()["claude"],
             "claude_plan": self.plan.state(),
+            "ui": self.settings.public()["ui"],
         }
         title = (state["media"] or {}).get("title")
         if title != self._last_title:  # new song -> refresh the queue right away
@@ -89,7 +99,7 @@ class Hub:
         """Push a fresh state right away (e.g. after the deck was edited)."""
         with self.cond:
             if self.state:
-                self.state = dict(self.state, buttons=self.deck.public())
+                self.state = dict(self.state, buttons=self.deck.public(self.running))
                 self.version += 1
                 self.cond.notify_all()
 

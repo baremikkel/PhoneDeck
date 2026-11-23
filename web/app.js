@@ -277,6 +277,7 @@ let media = { pos: 0, len: 0, playing: false, at: 0 };
 
 function render(s) {
   last = s;
+  applyUi(s.ui);
   const hw = s.hw || {};
 
   const cpu = hw.cpu || {};
@@ -440,14 +441,10 @@ function makeIcon(icon) {
   return b;
 }
 
-let buttonsKey = "";
-function renderButtons(list) {
-  const key = JSON.stringify(list);
-  if (key === buttonsKey) return;
-  buttonsKey = key;
-  const tiles = list.map((b) => {
+function makeTile(b) {
     const el = document.createElement("button");
-    el.className = "tile";
+    el.className = "tile" + (b.running ? " running" : "");
+    if (b.color) el.style.setProperty("--btn", b.color);
     if (b.builtin === "ui.fullscreen") el.dataset.fullscreen = "";
     else el.dataset.button = b.id;
     const icon = makeIcon(b.icon);
@@ -461,12 +458,113 @@ function renderButtons(list) {
     }
     el.append(icon, label);
     return el;
-  });
+}
+
+let buttonsKey = "";
+function renderButtons(list) {
+  const key = JSON.stringify(list);
+  if (key === buttonsKey) return;
+  buttonsKey = key;
+  const tiles = list.map(makeTile);
   const add = document.createElement("button");
   add.className = "tile add"; add.dataset.action = "open.editor";
   add.append(makeIcon({ kind: "builtin", value: "plus" }), "Redigér knapper");
   $("[data-tiles]").replaceChildren(...tiles, add);
+  fillHomeButtons(list);
   if (last) { renderAudio(last.audio || {}); renderMedia(last.media); }
+}
+
+// ---------- customisable home page: a fixed grid of widgets (set up at /editor#home) ----------
+// Static markup only – every value is filled in through the same data-b bindings as elsewhere.
+const WIDGET_HTML = {
+  cpu: `<div class="card" style="--accent: var(--cpu)">
+    <header><span class="label">CPU</span><span class="sub grow right" data-b="cpu.name"></span></header>
+    <div class="row"><div class="big"><span data-b="cpu.load">–</span><small>%</small></div>
+      <div class="facts"><div><span data-b="cpu.temp" data-temp="cpu">–</span><small>°C</small></div><div><span data-b="cpu.freq">–</span><small>MHz</small></div></div></div>
+    <canvas class="spark" data-chart="cpu"></canvas></div>`,
+  gpu: `<div class="card" style="--accent: var(--gpu)">
+    <header><span class="label">GPU</span><span class="sub grow right" data-b="gpu.name"></span></header>
+    <div class="row"><div class="big"><span data-b="gpu.load">–</span><small>%</small></div>
+      <div class="facts"><div><span data-b="gpu.temp" data-temp="gpu">–</span><small>°C</small></div><div><span data-b="gpu.power">–</span><small>W</small></div></div></div>
+    <div class="bar"><i data-w="gpu.vram"></i></div>
+    <canvas class="spark" data-chart="gpu"></canvas></div>`,
+  ram: `<div class="card" style="--accent: var(--ram)">
+    <header><span class="label">RAM</span><span class="sub" data-b="ram.pcttxt"></span></header>
+    <div class="big"><span data-b="ram.used">–</span><small data-b="ram.total"></small></div>
+    <div class="bar"><i data-w="ram.pct"></i></div><canvas class="spark" data-chart="ram"></canvas></div>`,
+  net: `<div class="card" style="--accent: var(--net)">
+    <header><span class="label">Netværk</span></header>
+    <div class="kv"><div><small>↓ Ned</small><span data-b="net.down">–</span></div><div><small>↑ Op</small><span data-b="net.up">–</span></div></div>
+    <canvas class="spark" data-chart="net"></canvas></div>`,
+  disk: `<div class="card" style="--accent: var(--disk)">
+    <header><span class="label">Disk</span><span class="sub" data-b="nvme"></span></header>
+    <div class="kv"><div><small>Brugt</small><span data-b="disk.usage">–</span></div><div><small>I/O</small><span data-b="disk.io">–</span></div></div>
+    <div class="bar"><i data-w="disk.pct"></i></div></div>`,
+  sys: `<div class="card strip">
+    <div><small>RAM</small><span data-b="ram.txt">–</span></div>
+    <div><small>↓ Net</small><span data-b="net.down">–</span></div>
+    <div><small>↑ Net</small><span data-b="net.up">–</span></div>
+    <div class="hide-narrow"><small>Disk</small><span data-b="disk.txt">–</span></div>
+    <div class="clock" data-fullscreen><span data-b="time">–</span><small data-b="date"></small></div></div>`,
+  media: `<div class="card media">
+    <div class="art"><img data-art alt=""><div class="noart">♪</div></div>
+    <div class="info"><div class="title" data-b="m.title">Intet afspilles</div><div class="artist" data-b="m.artist"></div>
+      <div class="progress"><i data-w="m.progress"></i></div>
+      <div class="controls"><button data-action="media.previous" aria-label="Forrige"><i class="ic" data-icon="prev"></i></button>
+        <button data-action="media.playpause" class="primary" aria-label="Afspil/pause"><i class="ic" data-icon="play" data-ib="m.play"></i></button>
+        <button data-action="media.next" aria-label="Næste"><i class="ic" data-icon="next"></i></button></div></div></div>`,
+  claude: `<div class="card" style="--accent: var(--claude)">
+    <header><span class="label">Claude</span><span class="sub" data-b="c.reset"></span></header>
+    <div class="big"><span data-b="c.block">–</span><small>tokens · 5 t</small></div>
+    <div class="facts grid2"><div><span data-b="c.today">–</span><small>i dag</small></div><div><span data-b="c.week">–</span><small>7 dage</small></div></div>
+    <canvas class="bars" data-chart="claude"></canvas></div>`,
+  donut: `<div class="card donut-card" style="--accent: var(--claude)">
+    <div class="donut" data-donut-wrap><canvas data-donut></canvas>
+      <div class="donut-center"><b data-b="c.left">–</b><small data-b="c.leftlbl">tilbage</small></div></div>
+    <div class="sub center" data-b="c.fivetxt">Claude · 5 timer</div></div>`,
+  clock: `<div class="card clock-card" data-fullscreen><b data-b="time">–</b><span data-b="datelong"></span></div>`,
+  github: `<div class="card heat" style="--accent: var(--gh)">
+    <header><span class="label">GitHub</span><span class="sub"><b data-b="gh.total">–</b> bidrag · <b data-b="gh.streak">–</b> dage i træk</span></header>
+    <canvas class="heatmap" data-heat="github"></canvas></div>`,
+};
+
+let homeKey = "";
+function renderHome(home) {
+  if (!home) return;
+  const key = JSON.stringify(home);
+  if (key === homeKey) return;
+  homeKey = key;
+  const page = $("#p-overview");
+  page.style.gridTemplateColumns = `repeat(${home.cols}, 1fr)`;
+  page.style.gridTemplateRows = `repeat(${home.rows}, 1fr)`;
+  page.replaceChildren(...home.items.map((it) => {
+    let el;
+    if (it.type === "button") {
+      el = document.createElement("div");
+      el.className = "home-btn";
+      el.dataset.homeButton = it.button;
+    } else {
+      const t = document.createElement("template");
+      t.innerHTML = WIDGET_HTML[it.type] || "<div class='card'></div>";  // static strings above
+      el = t.content.firstElementChild;
+    }
+    el.classList.add("w-" + it.type);
+    if (it.w * it.h <= 2) el.classList.add("small");
+    if (it.w === 1) el.classList.add("narrow");
+    el.style.gridColumn = `${it.x + 1} / span ${it.w}`;
+    el.style.gridRow = `${it.y + 1} / span ${it.h}`;
+    return el;
+  }));
+  $$("[data-icon]", page).forEach((el) => drawIcon(el, el.dataset.icon));
+  heatKey = "";
+  artKey = undefined;
+  if (last) { fillHomeButtons(last.buttons || []); }
+}
+function fillHomeButtons(list) {
+  $$("[data-home-button]").forEach((slot) => {
+    const b = list.find((x) => x.id === slot.dataset.homeButton);
+    slot.replaceChildren(b ? makeTile(b) : Object.assign(document.createElement("div"), { className: "tile missing", textContent: "Knap slettet" }));
+  });
 }
 
 // ---------- per-device preferences ----------
@@ -530,23 +628,26 @@ document.addEventListener("visibilitychange", keepAwake);
 document.addEventListener("pointerdown", keepAwake, { passive: true });
 setInterval(keepAwake, 30_000);
 
-// ---------- pages ----------
+// ---------- pages (order, visibility and display options come from the PC's settings) ----------
 const pager = $("#pager");
-const pages = $$(".page");
+let pages = $$(".page");
 const store = {
   get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
   set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } },
 };
 let current = 0;
+let ui = { dim: true, dim_from: 23, dim_to: 7, pixel_shift: true };
+let uiKey = "";
 
-$("#dots").replaceChildren(...pages.map((p, i) => {
-  const b = document.createElement("button");
-  b.setAttribute("aria-label", p.dataset.title);
-  b.append(document.createElement("i"));
-  b.addEventListener("click", () => goTo(i));
-  return b;
-}));
-
+function buildDots() {
+  $("#dots").replaceChildren(...pages.map((p, i) => {
+    const b = document.createElement("button");
+    b.setAttribute("aria-label", p.dataset.title);
+    b.append(document.createElement("i"));
+    b.addEventListener("click", () => goTo(i));
+    return b;
+  }));
+}
 function goTo(i, smooth = true) {
   pager.scrollTo({ left: i * pager.clientWidth, behavior: smooth ? "smooth" : "instant" });
 }
@@ -555,38 +656,65 @@ function updateDots() {
   if (i === current && $("#dots .on")) return;
   current = i;
   $$("#dots button").forEach((b, j) => b.classList.toggle("on", j === i));
-  store.set("phonedeck.page", String(i));
+  if (pages[i]) store.set("phonedeck.page", pages[i].id);
+}
+function applyUi(next) {
+  if (!next) return;
+  const key = JSON.stringify(next);
+  if (key === uiKey) return;
+  const firstTime = !uiKey;
+  uiKey = key;
+  const keepId = firstTime ? store.get("phonedeck.page") : pages[current]?.id;
+  ui = next;
+  for (const name of next.pages) {
+    const el = $("#p-" + name);
+    if (!el) continue;
+    pager.append(el);  // re-order
+    el.hidden = next.hidden.includes(name);
+  }
+  pages = $$(".page").filter((p) => !p.hidden);
+  buildDots();
+  document.documentElement.style.setProperty("--deck-cols", next.deck_cols || 5);
+  if (!next.pixel_shift) pager.style.transform = "";
+  renderHome(next.home);
+  dim();
+  const idx = Math.max(0, pages.findIndex((p) => p.id === keepId));
+  requestAnimationFrame(() => { goTo(idx, false); current = -1; updateDots(); updateViz(); });
 }
 pager.addEventListener("scroll", updateDots, { passive: true });
 window.addEventListener("resize", () => { goTo(current, false); if (last) render(last); });
-
-const saved = Number(store.get("phonedeck.page"));
-requestAnimationFrame(() => { goTo(Number.isInteger(saved) && saved < pages.length ? saved : 0, false); updateDots(); });
+buildDots();
+requestAnimationFrame(updateDots);
 
 // ---------- clock + burn-in protection ----------
 function tickClock() {
   const d = new Date();
   setText("time", d.toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" }));
   setText("date", d.toLocaleDateString("da-DK", { weekday: "short", day: "numeric", month: "short" }));
+  setText("datelong", d.toLocaleDateString("da-DK", { weekday: "long", day: "numeric", month: "long" }));
   tickMedia();
 }
 setInterval(tickClock, 1000); tickClock();
 
 // Nudge everything a few pixels every minute so static UI doesn't burn into the AMOLED
 setInterval(() => {
+  if (!ui.pixel_shift) return;
   const r = () => Math.round(Math.random() * 6 - 3);
   pager.style.transform = `translate(${r()}px, ${r()}px)`;
 }, 60_000);
 
-// Dim at night (23–07)
-const dim = () => { const h = new Date().getHours(); document.body.classList.toggle("dim", h >= 23 || h < 7); };
+// Dim at night (hours from the settings; may wrap past midnight)
+function dim() {
+  const h = new Date().getHours(), f = ui.dim_from, t = ui.dim_to;
+  const night = f > t ? (h >= f || h < t) : (h >= f && h < t);
+  document.body.classList.toggle("dim", !!ui.dim && f !== t && night);
+}
 setInterval(dim, 30_000); dim();
 
 // ---------- music visualizer ----------
 // Only listens while it is switched on AND the music page is on screen.
 let vizSource = null;
 const vizCanvas = $("canvas[data-viz]");
-const musicIndex = pages.findIndex((p) => p.id === "p-music");
 
 function drawViz(levels) {
   const [ctx, w, h] = prep(vizCanvas);
@@ -605,7 +733,7 @@ function drawViz(levels) {
 }
 
 function updateViz() {
-  const want = prefs.viz && current === musicIndex && document.visibilityState === "visible";
+  const want = prefs.viz && pages[current]?.id === "p-music" && document.visibilityState === "visible";
   $$("[data-viz-toggle]").forEach((b) => b.classList.toggle("on", !!prefs.viz));
   vizCanvas.hidden = !prefs.viz;
   if (want && !vizSource) {
@@ -631,6 +759,16 @@ pager.addEventListener("scroll", () => requestAnimationFrame(updateViz), { passi
 setTimeout(updateViz, 300);
 
 // ---------- live data ----------
-const es = new EventSource("/api/stream");
-es.onmessage = (e) => { $("#offline").hidden = true; render(JSON.parse(e.data)); };
-es.onerror = () => { $("#offline").hidden = false; };
+// Only stay connected while this tab is visible: browsers allow just 6 connections per
+// server, so forgotten background tabs must not hog them.
+let es = null;
+function connect() {
+  if (es || document.visibilityState !== "visible") return;
+  es = new EventSource("/api/stream");
+  es.onmessage = (e) => { $("#offline").hidden = true; render(JSON.parse(e.data)); };
+  es.onerror = () => { $("#offline").hidden = false; };
+}
+function disconnect() { if (es) { es.close(); es = null; } }
+document.addEventListener("visibilitychange", () => (document.visibilityState === "visible" ? connect() : disconnect()));
+window.addEventListener("pagehide", disconnect);
+connect();

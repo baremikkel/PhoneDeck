@@ -14,68 +14,7 @@
 
   <main id="pager">
     <!-- ============ 1. OVERSIGT ============ -->
-    <section class="page" id="p-overview" data-title="Oversigt">
-      <div class="card metric a-cpu" style="--accent: var(--cpu)">
-        <header><span class="label">CPU</span><button class="mini" data-layout-toggle aria-label="CPU og GPU ved siden af / over hinanden"><i class="ic"></i></button><span class="sub grow right" data-b="cpu.name"></span></header>
-        <div class="row">
-          <div class="big"><span data-b="cpu.load">–</span><small>%</small></div>
-          <div class="facts">
-            <div><span data-b="cpu.temp" data-temp="cpu">–</span><small>°C</small></div>
-            <div><span data-b="cpu.freq">–</span><small>MHz</small></div>
-          </div>
-        </div>
-        <canvas class="spark" data-chart="cpu"></canvas>
-      </div>
-
-      <div class="card metric a-gpu" style="--accent: var(--gpu)">
-        <header><span class="label">GPU</span><span class="sub" data-b="gpu.name"></span></header>
-        <div class="row">
-          <div class="big"><span data-b="gpu.load">–</span><small>%</small></div>
-          <div class="facts">
-            <div><span data-b="gpu.temp" data-temp="gpu">–</span><small>°C</small></div>
-            <div><span data-b="gpu.power">–</span><small>W</small></div>
-          </div>
-        </div>
-        <div class="bar"><i data-w="gpu.vram"></i></div>
-        <div class="sub tiny" data-b="gpu.vramtxt"></div>
-        <canvas class="spark" data-chart="gpu"></canvas>
-      </div>
-
-      <div class="card media a-media">
-        <div class="art"><img data-art alt=""><div class="noart">♪</div></div>
-        <div class="info">
-          <div class="sub" data-b="m.player"></div>
-          <div class="title" data-b="m.title">Intet afspilles</div>
-          <div class="artist" data-b="m.artist"></div>
-          <div class="progress"><i data-w="m.progress"></i></div>
-          <div class="times"><span data-b="m.pos"></span><span data-b="m.len"></span></div>
-          <div class="controls">
-            <button data-action="media.previous" aria-label="Forrige"><i class="ic" data-icon="prev"></i></button>
-            <button data-action="media.playpause" class="primary" aria-label="Afspil/pause"><i class="ic" data-icon="play" data-ib="m.play"></i></button>
-            <button data-action="media.next" aria-label="Næste"><i class="ic" data-icon="next"></i></button>
-          </div>
-        </div>
-      </div>
-
-      <div class="card a-claude" style="--accent: var(--claude)">
-        <header><span class="label">Claude</span><span class="sub" data-b="c.reset"></span></header>
-        <div class="big"><span data-b="c.block">–</span><small>tokens · 5 t</small></div>
-        <div class="facts grid2">
-          <div><span data-b="c.today">–</span><small>i dag</small></div>
-          <div><span data-b="c.week">–</span><small>7 dage</small></div>
-        </div>
-        <canvas class="bars" data-chart="claude"></canvas>
-      </div>
-
-      <div class="card strip a-sys">
-        <div><small>RAM</small><span data-b="ram.txt">–</span></div>
-        <div><small>↓ Net</small><span data-b="net.down">–</span></div>
-        <div><small>↑ Net</small><span data-b="net.up">–</span></div>
-        <div><small>Disk</small><span data-b="disk.txt">–</span></div>
-        <div class="hide-narrow"><small>NVMe</small><span data-b="nvme">–</span></div>
-        <div class="clock" data-fullscreen title="Tryk for fuld skærm"><span data-b="time">–</span><small data-b="date"></small></div>
-      </div>
-    </section>
+    <section class="page" id="p-overview" data-title="Forside"><!-- built from the home layout (/editor#home) --></section>
 
     <!-- ============ 2. SYSTEM ============ -->
     <section class="page" id="p-system" data-title="System">

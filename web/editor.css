@@ -22,6 +22,28 @@ code { background: var(--tile); padding: 1px 5px; border-radius: 4px; }
 .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 24px; }
 .top p { margin: 6px 0 0; max-width: 640px; }
 .actions { display: flex; gap: 10px; }
+.tabs { display: flex; gap: 4px; margin-top: 12px; }
+.tabs a { color: var(--muted); text-decoration: none; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); }
+.tabs a.on { color: #001018; background: var(--accent); border-color: transparent; font-weight: 600; }
+body.tab-deck .home-only, body.tab-home .deck-only { display: none !important; }
+.home-main { grid-template-columns: minmax(480px, 760px) minmax(300px, 1fr); }
+.row-ctl { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 12px; }
+.row-ctl label { flex-direction: row; align-items: center; gap: 8px; }
+.row-ctl select { width: auto; }
+.home-grid { position: relative; display: grid; gap: 6px; aspect-ratio: 905 / 380; }
+.home-grid .cell { border: 1px dashed #2a2a33; border-radius: 10px; cursor: pointer; }
+.home-grid .cell:hover { background: #ffffff08; }
+.home-grid .cell.sel { background: #4cc2ff33; border-color: var(--accent); border-style: solid; }
+.home-grid .w { border-radius: 12px; background: var(--card); border: 1px solid #34343f; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px; font-size: 13px; cursor: pointer; z-index: 1; overflow: hidden; padding: 4px; text-align: center; }
+.home-grid .w .ic, .home-grid .w img, .home-grid .w b { width: 24px; height: 24px; font-size: 20px; line-height: 24px; color: var(--text); }
+.home-grid .w.on { outline: 2px solid var(--accent); outline-offset: 1px; }
+.home-grid .w small { color: var(--muted); font-size: 11px; }
+.widget-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.widget-list button { display: inline-flex; gap: 6px; align-items: center; }
+.widget-list img, .widget-list .ic { width: 18px; height: 18px; }
+.move-grid { display: grid; grid-template-columns: 70px repeat(4, minmax(0, 1fr)); gap: 6px; align-items: center; color: var(--muted); }
+#home-panel h3 { font-size: 18px; }
 
 button {
   font: inherit; color: var(--text); background: var(--tile); border: 1px solid var(--line);
@@ -108,3 +130,12 @@ input:focus, select:focus, .recorder:focus { outline: 2px solid var(--accent); o
   background: #1c1c22; border: 1px solid var(--line); padding: 10px 16px; border-radius: 12px;
 }
 #toast.err { border-color: #5a2020; color: #ffb3b3; }
+
+.colors { display: flex; gap: 8px; flex-wrap: wrap; }
+.colors button { width: 30px; height: 30px; padding: 0; border-radius: 50%; border: 2px solid transparent; }
+.colors button.on { border-color: #fff; }
+.colors button.none { background: var(--tile); border-color: var(--line); position: relative; }
+.colors button.none.on { border-color: #fff; }
+.colors button.none::after { content: ""; position: absolute; left: 4px; right: 4px; top: 50%; height: 2px; background: var(--muted); transform: rotate(-45deg); }
+.tile[style*="--btn"] { background: color-mix(in srgb, var(--btn) 26%, #0d0d10); border-color: color-mix(in srgb, var(--btn) 60%, transparent); color: var(--text); }
+.home-grid .w.tile { aspect-ratio: auto; cursor: pointer; }

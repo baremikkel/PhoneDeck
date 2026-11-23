@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -113,7 +114,11 @@ def validate(raw: list, apps) -> list[dict]:
         if not bid or bid in seen:
             bid = uuid.uuid4().hex[:10]
         seen.add(bid)
-        out.append({"id": bid, "label": label, "icon": _clean_icon(b.get("icon")), "action": action})
+        color = str(b.get("color") or "")
+        if color and not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
+            color = ""
+        out.append({"id": bid, "label": label, "icon": _clean_icon(b.get("icon")), "action": action,
+                    "color": color})
     return out
 
 
@@ -167,10 +172,16 @@ class Deck:
         return self.save(_default_buttons())
 
     # ---- for the phone: no commands, just what it needs to draw ----
-    def public(self) -> list[dict]:
+    def app_ids(self) -> list[str]:
+        return [b["action"]["app"] for b in self.buttons if b["action"]["type"] == "app"]
+
+    def public(self, running: set[str] | None = None) -> list[dict]:
         out = []
         for b in self.buttons:
-            p = {"id": b["id"], "label": b["label"], "icon": b["icon"], "type": b["action"]["type"]}
+            p = {"id": b["id"], "label": b["label"], "icon": b["icon"], "type": b["action"]["type"],
+                 "color": b.get("color", "")}
+            if b["action"]["type"] == "app":
+                p["running"] = b["action"]["app"] in (running or ())
             if b["action"]["type"] == "builtin":
                 p["builtin"] = b["action"]["name"]
             out.append(p)

@@ -43,6 +43,7 @@ const NAMES = Object.fromEntries([
 ]);
 const comboText = (keys) => keys.map((k) => MODS[k] || NAMES[k] || `#${k}`).join(" + ");
 
+const COLORS = ["", "#ff5c5c", "#ff9f43", "#f5c84c", "#1ed760", "#2ec4b6", "#4cc2ff", "#7c6cff", "#b18cff", "#ff6bb5", "#9aa0a6"];
 const EMOJI = ["💬", "🌐", "📁", "🎮", "🎵", "📷", "🔒", "⌨️", "🖥️", "📝", "📧", "📅", "⚡", "⭐", "🔧", "🧪", "🚀", "☕", "🎧", "📺"];
 const BUILTIN_ICONS = ["globe", "terminal", "keyboard", "lock", "folder", "star", "bolt", "fullscreen", "play", "next", "prev", "volUp", "mic"];
 
@@ -83,6 +84,7 @@ function iconEl(icon) {
   return Object.assign(document.createElement("b"), { textContent: icon?.value || "⭐" });
 }
 function tileContent(el, b) {
+  if (b.color) el.style.setProperty("--btn", b.color); else el.style.removeProperty("--btn");
   const label = document.createElement("span");
   label.textContent = b.label || "Ny knap";
   el.replaceChildren(iconEl(b.icon), label);
@@ -147,6 +149,7 @@ function select(i) {
   renderApps();
   renderHotkey();
   renderIcon();
+  renderColors();
   $("#test-msg").textContent = "";
 }
 const cur = () => deck[selected];
@@ -304,6 +307,19 @@ $("#icon-kinds").addEventListener("click", (e) => {
 });
 $("#emoji").addEventListener("input", (e) => update((b) => { b.icon = { kind: "emoji", value: e.target.value || "⭐" }; }));
 
+// ---------- colour ----------
+function renderColors() {
+  const curColor = cur().color || "";
+  $("#colors").replaceChildren(...COLORS.map((c) => {
+    const b = document.createElement("button");
+    b.className = (c ? "" : "none ") + (c === curColor ? "on" : "");
+    b.title = c || "Ingen farve";
+    if (c) b.style.background = c;
+    b.onclick = () => { update((x) => { x.color = c; }); renderColors(); };
+    return b;
+  }));
+}
+
 // ---------- test / delete / save / reset ----------
 $("#test").addEventListener("click", async () => {
   $("#test-msg").textContent = "";
@@ -343,10 +359,159 @@ $("#reset").addEventListener("click", async () => {
     toast(err.message, true);
   }
 });
-window.addEventListener("beforeunload", (e) => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+window.addEventListener("beforeunload", (e) => { if (dirty || homeDirty) { e.preventDefault(); e.returnValue = ""; } });
 document.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); if (dirty) $("#save").click(); }
 });
+
+// ================= home page layout =================
+const WIDGETS = {
+  cpu: ["CPU", "bolt"], gpu: ["GPU", "bolt"], ram: ["RAM", "folder"], net: ["Netværk", "globe"],
+  disk: ["Disk", "folder"], sys: ["Systemlinje (RAM, net, disk, ur)", "keyboard"], media: ["Musik", "play"],
+  claude: ["Claude-forbrug", "star"], donut: ["Claude-donut", "star"], clock: ["Ur", "lock"], github: ["GitHub-heatmap", "globe"],
+};
+let home = null, homeDirty = false, selItem = -1, selStart = null;
+
+function homeSetDirty(v = true) {
+  homeDirty = v;
+  $("#home-save").disabled = !v;
+  $("#home-save").textContent = v ? "Gem forside" : "Gemt ✓";
+}
+function occupied(except = -1) {
+  const m = new Set();
+  home.items.forEach((it, i) => {
+    if (i === except) return;
+    for (let x = it.x; x < it.x + it.w; x++) for (let y = it.y; y < it.y + it.h; y++) m.add(`${x},${y}`);
+  });
+  return m;
+}
+function fits(it, except) {
+  if (it.x < 0 || it.y < 0 || it.w < 1 || it.h < 1 || it.x + it.w > home.cols || it.y + it.h > home.rows) return false;
+  const occ = occupied(except);
+  for (let x = it.x; x < it.x + it.w; x++) for (let y = it.y; y < it.y + it.h; y++) if (occ.has(`${x},${y}`)) return false;
+  return true;
+}
+function widgetLabel(it) {
+  if (it.type === "button") {
+    const b = deck.find((x) => x.id === it.button);
+    return b ? [b.label, b.icon] : ["(slettet knap)", { kind: "emoji", value: "⚠️" }];
+  }
+  const [name, icon] = WIDGETS[it.type] || [it.type, "star"];
+  return [name, { kind: "builtin", value: icon }];
+}
+function renderHomeGrid() {
+  const g = $("#home-grid");
+  g.style.gridTemplateColumns = `repeat(${home.cols}, 1fr)`;
+  g.style.gridTemplateRows = `repeat(${home.rows}, 1fr)`;
+  const occ = occupied();
+  const els = [];
+  for (let y = 0; y < home.rows; y++) for (let x = 0; x < home.cols; x++) {
+    if (occ.has(`${x},${y}`)) continue;
+    const c = document.createElement("div");
+    c.className = "cell" + (selStart && selStart.x === x && selStart.y === y ? " sel" : "");
+    c.style.gridColumn = `${x + 1}`; c.style.gridRow = `${y + 1}`;
+    c.onclick = () => cellClick(x, y);
+    els.push(c);
+  }
+  home.items.forEach((it, i) => {
+    const w = document.createElement("div");
+    w.className = "w" + (i === selItem ? " on" : "");
+    w.style.gridColumn = `${it.x + 1} / span ${it.w}`; w.style.gridRow = `${it.y + 1} / span ${it.h}`;
+    const [name, icon] = widgetLabel(it);
+    if (it.type === "button") { const b = deck.find((x) => x.id === it.button); if (b?.color) w.style.setProperty("--btn", b.color); w.classList.add("tile"); }
+    w.append(iconEl(icon), Object.assign(document.createElement("span"), { textContent: name }),
+      Object.assign(document.createElement("small"), { textContent: `${it.w}×${it.h}` }));
+    w.onclick = () => { selItem = i; selStart = null; showPanel(); renderHomeGrid(); };
+    els.push(w);
+  });
+  g.replaceChildren(...els);
+}
+function cellClick(x, y) {
+  selItem = -1;
+  if (!selStart) { selStart = { x, y }; $("#home-hint").textContent = "Klik på et andet tomt felt for at gøre området større – eller vælg en widget nu."; }
+  else {
+    const it = { x: Math.min(selStart.x, x), y: Math.min(selStart.y, y), w: Math.abs(x - selStart.x) + 1, h: Math.abs(y - selStart.y) + 1 };
+    if (!fits(it)) { toast("Området overlapper et andet felt", true); selStart = null; renderHomeGrid(); showPanel(); return; }
+    selStart = it;
+  }
+  renderHomeGrid(); showPanel();
+  // highlight the whole pending rectangle
+  if (selStart?.w) $$("#home-grid .cell").forEach((c) => {
+    const cx = +c.style.gridColumn - 1, cy = +c.style.gridRow - 1;
+    if (cx >= selStart.x && cx < selStart.x + selStart.w && cy >= selStart.y && cy < selStart.y + selStart.h) c.classList.add("sel");
+  });
+}
+function showPanel() {
+  $("#home-pick").hidden = !selStart;
+  $("#home-sel").hidden = selItem < 0;
+  $("#home-empty").hidden = !!selStart || selItem >= 0;
+  if (selItem >= 0) $("#sel-name").textContent = widgetLabel(home.items[selItem])[0];
+  if (!selStart) $("#home-hint").textContent = "Klik på et tomt felt for at starte en markering.";
+}
+function addWidget(type, button) {
+  const r = selStart.w ? selStart : { ...selStart, w: 1, h: 1 };
+  const it = { type, x: r.x, y: r.y, w: r.w, h: r.h };
+  if (button) it.button = button;
+  home.items.push(it);
+  selStart = null; selItem = home.items.length - 1;
+  homeSetDirty(); renderHomeGrid(); showPanel();
+}
+function renderPickers() {
+  $("#widget-list").replaceChildren(...Object.entries(WIDGETS).map(([t, [name, icon]]) => {
+    const b = document.createElement("button");
+    b.append(iconEl({ kind: "builtin", value: icon }), name);
+    b.onclick = () => addWidget(t);
+    return b;
+  }));
+  $("#button-list").replaceChildren(...deck.map((d) => {
+    const b = document.createElement("button");
+    b.append(iconEl(d.icon), d.label);
+    b.onclick = () => addWidget("button", d.id);
+    return b;
+  }));
+}
+$("#pick-cancel").onclick = () => { selStart = null; renderHomeGrid(); showPanel(); };
+$("#sel-remove").onclick = () => { home.items.splice(selItem, 1); selItem = -1; homeSetDirty(); renderHomeGrid(); showPanel(); };
+$$("[data-mv], [data-sz]").forEach((btn) => btn.addEventListener("click", () => {
+  const it = home.items[selItem];
+  const [dx, dy] = (btn.dataset.mv || btn.dataset.sz).split(",").map(Number);
+  const next = btn.dataset.mv ? { ...it, x: it.x + dx, y: it.y + dy } : { ...it, w: it.w + dx, h: it.h + dy };
+  if (!fits(next, selItem)) { toast("Der er ikke plads", true); return; }
+  home.items[selItem] = next; homeSetDirty(); renderHomeGrid();
+}));
+$("#grid").onchange = (e) => {
+  const [c, r] = e.target.value.split("x").map(Number);
+  const kept = home.items.filter((it) => it.x + it.w <= c && it.y + it.h <= r);
+  if (kept.length < home.items.length && !confirm(`${home.items.length - kept.length} felt(er) passer ikke i det nye gitter og bliver fjernet. Fortsæt?`)) {
+    e.target.value = `${home.cols}x${home.rows}`; return;
+  }
+  home = { cols: c, rows: r, items: kept }; selItem = -1; selStart = null;
+  homeSetDirty(); renderHomeGrid(); showPanel();
+};
+$("#home-save").onclick = async () => {
+  try {
+    const r = await api("/api/settings", { ui: { home } });
+    home = r.settings.ui.home; homeSetDirty(false); renderHomeGrid();
+    toast("Forsiden er gemt – telefonen er opdateret");
+  } catch (err) { toast(err.message, true); }
+};
+$("#home-reset").onclick = () => {
+  if (!confirm("Erstat forsiden med standardforsiden?")) return;
+  home = { cols: 8, rows: 4, items: [
+    { type: "cpu", x: 0, y: 0, w: 2, h: 3 }, { type: "gpu", x: 2, y: 0, w: 2, h: 3 },
+    { type: "media", x: 4, y: 0, w: 2, h: 3 }, { type: "claude", x: 6, y: 0, w: 2, h: 3 },
+    { type: "sys", x: 0, y: 3, w: 8, h: 1 }] };
+  $("#grid").value = "8x4"; selItem = -1; selStart = null;
+  homeSetDirty(); renderHomeGrid(); showPanel();
+};
+
+function showTab() {
+  const tab = location.hash === "#home" ? "home" : "deck";
+  document.body.className = "tab-" + tab;
+  $$(".tabs a").forEach((a) => a.classList.toggle("on", a.dataset.tab === tab));
+  if (tab === "home" && home) { renderPickers(); renderHomeGrid(); showPanel(); }
+}
+window.addEventListener("hashchange", showTab);
 
 // ---------- start ----------
 (async () => {
@@ -360,6 +525,11 @@ document.addEventListener("keydown", (e) => {
     $("#special").append(...SPECIAL.map(([n, k]) => Object.assign(document.createElement("option"), { value: k, textContent: n })));
     setDirty(false);
     select(-1);
+    const st = await api("/api/settings");
+    home = st.settings.ui.home;
+    $("#grid").value = `${home.cols}x${home.rows}`;
+    homeSetDirty(false);
+    showTab();
   } catch (err) {
     toast("Kunne ikke hente knapperne: " + err.message, true);
   }

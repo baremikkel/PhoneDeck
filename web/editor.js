@@ -446,14 +446,18 @@ const WIDGETS = {
   disk: ["Disk", "folder"], sys: ["Systemlinje (RAM, net, disk, ur)", "keyboard"], clock: ["Ur", "lock"],
 };
 let home = null, homeDirty = false, selItem = -1, selStart = null;
+let editing = "home";          // "home" or the id of one of your own pages
+let homeLayout = null;         // the saved home page (kept while a custom page is edited)
+let customPages = [];          // [{id, title, cols, rows, items}]
+const isHome = () => editing === "home";
 
 function homeSetDirty(v = true) {
   homeDirty = v;
   $("#home-save").disabled = !v;
-  $("#home-save").textContent = v ? "Gem forside" : "Gemt ✓";
+  $("#home-save").textContent = v ? (isHome() ? "Gem forside" : "Gem side") : "Gemt ✓";
 }
 function occupied(except = -1) {
-  const m = new Set([`${home.cols - 1},${home.rows - 1}`]);  // locked menu button
+  const m = new Set(isHome() ? [`${home.cols - 1},${home.rows - 1}`] : []);  // locked menu button (home only)
   home.items.forEach((it, i) => {
     if (i === except) return;
     for (let x = it.x; x < it.x + it.w; x++) for (let y = it.y; y < it.y + it.h; y++) m.add(`${x},${y}`);
@@ -492,6 +496,7 @@ function renderHomeGrid() {
   lock.className = "w locked";
   lock.title = "Låst: åbner indstillinger og editor";
   lock.style.gridColumn = `${home.cols}`; lock.style.gridRow = `${home.rows}`;
+  if (!isHome()) lock.hidden = true;
   lock.append(iconEl({ kind: "builtin", value: "gear" }), Object.assign(document.createElement("span"), { textContent: "Menu" }),
     Object.assign(document.createElement("small"), { textContent: "🔒 låst" }));
   els.push(lock);
@@ -564,7 +569,7 @@ $$("[data-mv], [data-sz]").forEach((btn) => btn.addEventListener("click", () => 
 $("#grid").onchange = (e) => {
   const [c, r] = e.target.value.split("x").map(Number);
   const kept = home.items.filter((it) => it.x + it.w <= c && it.y + it.h <= r
-    && !(it.x <= c - 1 && c - 1 < it.x + it.w && it.y <= r - 1 && r - 1 < it.y + it.h));
+    && !(isHome() && it.x <= c - 1 && c - 1 < it.x + it.w && it.y <= r - 1 && r - 1 < it.y + it.h));
   if (kept.length < home.items.length && !confirm(`${home.items.length - kept.length} felt(er) passer ikke i det nye gitter og bliver fjernet. Fortsæt?`)) {
     e.target.value = `${home.cols}x${home.rows}`; return;
   }
@@ -573,11 +578,71 @@ $("#grid").onchange = (e) => {
 };
 $("#home-save").onclick = async () => {
   try {
-    const r = await api("/api/settings", { ui: { home } });
-    home = r.settings.ui.home; homeSetDirty(false); renderHomeGrid();
+    if (isHome()) {
+      const r = await api("/api/settings", { ui: { home } });
+      home = homeLayout = r.settings.ui.home;
+    } else {
+      const pages = customPages.map((p) => (p.id === editing ? { ...p, ...home } : p));
+      const r = await api("/api/settings", { ui: { custom_pages: pages } });
+      customPages = r.settings.ui.custom_pages;
+      home = structuredClone(customPages.find((p) => p.id === editing));
+    }
+    homeSetDirty(false); renderHomeGrid();
     toast("Forsiden er gemt – telefonen er opdateret");
   } catch (err) { toast(err.message, true); }
 };
+// ---------- your own pages ----------
+function renderPageSelect() {
+  const sel = $("#page-select");
+  sel.replaceChildren(
+    Object.assign(document.createElement("option"), { value: "home", textContent: "Forside" }),
+    ...customPages.map((p) => Object.assign(document.createElement("option"), { value: p.id, textContent: p.title })),
+    Object.assign(document.createElement("option"), { value: "__new", textContent: "+ Ny side …" }));
+  sel.value = editing;
+  $("#page-rename").hidden = $("#page-delete").hidden = isHome();
+  $("#home-reset").hidden = !isHome();
+}
+function switchTo(id) {
+  if (homeDirty && !confirm("Du har ændringer, der ikke er gemt. Skift alligevel?")) { renderPageSelect(); return; }
+  editing = id;
+  home = structuredClone(isHome() ? homeLayout : customPages.find((p) => p.id === id));
+  $("#grid").value = `${home.cols}x${home.rows}`;
+  selItem = -1; selStart = null;
+  homeSetDirty(false); renderPageSelect(); renderHomeGrid(); showPanel();
+}
+async function saveCustomPages(pages, msg) {
+  const r = await api("/api/settings", { ui: { custom_pages: pages } });
+  customPages = r.settings.ui.custom_pages;
+  toast(msg);
+}
+$("#page-select").onchange = async (e) => {
+  if (e.target.value !== "__new") return switchTo(e.target.value);
+  const title = (prompt("Navn på den nye side:", "Min side") || "").trim();
+  if (!title) { renderPageSelect(); return; }
+  const id = Math.random().toString(36).slice(2, 8);
+  try {
+    await saveCustomPages([...customPages, { id, title, cols: 6, rows: 3, items: [] }], `Siden "${title}" er oprettet`);
+    homeDirty = false;
+    switchTo(id);
+  } catch (err) { toast(err.message, true); renderPageSelect(); }
+};
+$("#page-rename").onclick = async () => {
+  const p = customPages.find((x) => x.id === editing);
+  const title = (prompt("Nyt navn:", p.title) || "").trim();
+  if (!title) return;
+  try { await saveCustomPages(customPages.map((x) => (x.id === editing ? { ...x, title } : x)), "Omdøbt"); renderPageSelect(); }
+  catch (err) { toast(err.message, true); }
+};
+$("#page-delete").onclick = async () => {
+  const p = customPages.find((x) => x.id === editing);
+  if (!confirm(`Slet siden "${p.title}"?`)) return;
+  try {
+    await saveCustomPages(customPages.filter((x) => x.id !== editing), "Siden er slettet");
+    homeDirty = false;
+    switchTo("home");
+  } catch (err) { toast(err.message, true); }
+};
+
 $("#home-reset").onclick = () => {
   if (!confirm("Erstat forsiden med standardforsiden?")) return;
   home = { cols: 8, rows: 4, items: [
@@ -612,7 +677,9 @@ window.addEventListener("hashchange", showTab);
     for (const ext of st.extensions || []) {
       for (const w of ext.widgets || []) WIDGETS[w.type] = [`${w.name} (${ext.name})`, w.icon || "star"];
     }
-    home = st.settings.ui.home;
+    home = homeLayout = st.settings.ui.home;
+    customPages = st.settings.ui.custom_pages || [];
+    renderPageSelect();
     $("#grid").value = `${home.cols}x${home.rows}`;
     homeSetDirty(false);
     showTab();

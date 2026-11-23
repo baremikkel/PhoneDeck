@@ -120,6 +120,12 @@ systemctl --user daemon-reload && systemctl --user enable --now phonedeck
 I editoren (**<http://localhost:8765/editor>**) er der to faner:
 
 - **Forside:** vælg et gitter, klik på et tomt felt og derefter på et andet for at markere et område, og vælg hvad der skal stå der, enten en widget eller en knap fra dit Stream Deck. Felter kan flyttes, gøres større eller mindre og fjernes.
+- **Egne sider:** vælg *+ Ny side …* i sidevælgeren for at lave flere sider med dit eget gitter.
+  De kan omdøbes, slettes og sorteres under Indstillinger → Sider.
+- **Elementer fra udvidelser:** alle kort på en udvidelses side (fx musikafspilleren, Claude-donutten,
+  24-timers grafen og GitHub-heatmappet) kan sættes på Forsiden og dine egne sider. Tilføjer du en
+  udvidelse, kommer dens elementer automatisk med. En udvidelse markerer et kort med
+  `data-widget="navn"` og `data-widget-name="Visningsnavn"` i sin `page.html`.
 - **Knapper (Stream Deck):** se nedenfor.
 
 

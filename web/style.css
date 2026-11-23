@@ -427,3 +427,25 @@ body.stack .grid-page { grid-template-areas: none !important; }
 .heat-legend span:nth-child(7) { margin-left: 3px; }
 .heat-legend .grow { flex: 1; }
 .small .heat-legend, .narrow .heat-legend { display: none; }
+
+/* ---------- Claude donut: show less the smaller its box is ---------- */
+/* the boxes size themselves (container queries) – works on any page and grid size */
+.c-main, .donut-card { container-type: inline-size; container-name: donut; }
+.grid-page > .c-main, .grid-page > .donut-card { container-type: size; }
+.c-main .donut-row { min-height: 0; }
+@container donut (max-height: 260px) { .c-main .kv { display: none; } }
+@container donut (max-width: 520px) { .c-main .donut-info .legend { display: none; } }
+@container donut (max-width: 400px) { .c-main .donut-info .sub { display: none; } .c-main .donut-info .big { font-size: 26px; } }
+@container donut (max-width: 300px) {
+  .c-main .donut-info { display: none; }
+  .c-main .donut-row { justify-content: center; }
+  .c-main > header .label { font-size: 12px; }
+}
+@container donut (max-height: 170px) {
+  .c-main > header { display: none; }
+  .c-main .donut-info .legend, .c-main .donut-info .sub { display: none; }
+}
+@container donut (max-height: 150px) { .donut-card > .sub { display: none; } }
+@container donut (max-width: 130px) { .donut-center small { display: none; } .donut-center b { font-size: 15px; } }
+@container donut (max-height: 110px) { .donut-center small { display: none; } .donut-center b { font-size: 15px; } }
+@container donut (min-height: 300px) { .c-main .donut { max-height: 230px; } .c-main .donut-center b { font-size: 30px; } }

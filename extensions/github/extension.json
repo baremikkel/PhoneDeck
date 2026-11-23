@@ -4,7 +4,7 @@
   "category": "Udvikling",
   "description": "Dit GitHub-bidrags-heatmap fra den offentlige profilside (intet token).",
   "page": {"title": "GitHub"},
-  "widgets": [{"type": "github", "name": "GitHub-heatmap", "icon": "globe"}],
+  "widgets": [{"type": "github", "name": "GitHub (kompakt)", "icon": "globe"}],
   "settings": [
     {"key": "user", "label": "GitHub-brugernavn", "type": "text", "default": "",
      "pattern": "[A-Za-z0-9-]{1,39}", "pattern_help": "kun bogstaver, tal og bindestreg",

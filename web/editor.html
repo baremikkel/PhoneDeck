@@ -13,7 +13,7 @@
       <h1>PhoneDeck <span>· Editor</span></h1>
       <nav class="tabs"><a href="#deck" data-tab="deck">Knapper (Stream Deck)</a><a href="#home" data-tab="home">Sider</a></nav>
       <p class="muted deck-only">Træk knapperne for at ændre rækkefølgen. Klik på en knap for at redigere den. Ændringer vises på telefonen, når du trykker <b>Gem</b>.</p>
-      <p class="muted home-only">Byg Forsiden og dine egne sider på et fast gitter: klik på et tomt felt og derefter på et andet for at markere et område, og vælg hvad der skal stå der. Knapper fra dit Stream Deck kan bruges som genveje.</p>
+      <p class="muted home-only">Byg Forsiden og dine egne sider på et fast gitter. Træk hen over tomme felter for at markere et område, eller træk et element fra listen direkte ind. Træk i et element for at flytte det, og i hjørnet for at ændre størrelsen. Knapper fra dit Stream Deck kan bruges som genveje.</p>
     </div>
     <div class="actions deck-only">
       <a href="/settings" class="muted" style="align-self:center">Indstillinger</a>
@@ -46,7 +46,8 @@
         <button id="home-save" class="primary" disabled>Gem forside</button>
       </div>
       <div class="phone"><div id="home-grid" class="home-grid"></div></div>
-      <p class="muted small" id="home-hint">Klik på et tomt felt for at starte en markering.</p>
+      <p class="muted small" id="home-hint">Træk hen over tomme felter for at markere et område, eller træk et element fra listen ind i gitteret.
+        Træk i et element for at flytte det, og i hjørnet for at ændre størrelsen.</p>
     </section>
     <section class="form" id="home-panel">
       <div id="home-pick" hidden>

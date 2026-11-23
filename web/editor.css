@@ -44,6 +44,17 @@ body.tab-deck .home-only, body.tab-home .deck-only { display: none !important; }
 .widget-list img, .widget-list .ic { width: 18px; height: 18px; }
 .move-grid { display: grid; grid-template-columns: 70px repeat(4, minmax(0, 1fr)); gap: 6px; align-items: center; color: var(--muted); }
 #home-panel h3 { font-size: 18px; }
+.home-grid { touch-action: none; user-select: none; }
+.home-grid .w[data-i] { cursor: grab; position: relative; }
+.home-grid .w.dragging { cursor: grabbing; opacity: .85; outline: 2px dashed var(--accent); z-index: 3; }
+.home-grid .w.bad { outline-color: var(--danger); }
+.home-grid .cell.bad { background: #ff5c5c33; border-color: var(--danger); }
+.home-grid .resize {
+  position: absolute; right: 3px; bottom: 3px; width: 14px; height: 14px; cursor: nwse-resize;
+  border-right: 3px solid #6b6b78; border-bottom: 3px solid #6b6b78; border-radius: 0 0 4px 0;
+}
+.home-grid .w:hover .resize { border-color: var(--accent); }
+.widget-list button[draggable="true"] { cursor: grab; }
 .home-grid .w.locked { border-style: dashed; cursor: not-allowed; color: var(--muted); background: transparent; }
 
 button {

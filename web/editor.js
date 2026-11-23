@@ -489,7 +489,7 @@ function renderHomeGrid() {
     const c = document.createElement("div");
     c.className = "cell" + (selStart && selStart.x === x && selStart.y === y ? " sel" : "");
     c.style.gridColumn = `${x + 1}`; c.style.gridRow = `${y + 1}`;
-    c.onclick = () => cellClick(x, y);
+    c.dataset.x = x; c.dataset.y = y;
     els.push(c);
   }
   const lock = document.createElement("div");
@@ -508,7 +508,10 @@ function renderHomeGrid() {
     if (it.type === "button") { const b = allButtons().find((x) => x.id === it.button); if (b?.color) w.style.setProperty("--btn", b.color); w.classList.add("tile"); }
     w.append(iconEl(icon), Object.assign(document.createElement("span"), { textContent: name }),
       Object.assign(document.createElement("small"), { textContent: `${it.w}×${it.h}` }));
-    w.onclick = () => { selItem = i; selStart = null; showPanel(); renderHomeGrid(); };
+    w.dataset.i = i;
+    w.title = "Træk for at flytte · træk i hjørnet for at ændre størrelse";
+    const handle = Object.assign(document.createElement("span"), { className: "resize", title: "Træk for at ændre størrelse" });
+    w.append(handle);
     els.push(w);
   });
   g.replaceChildren(...els);
@@ -528,12 +531,112 @@ function cellClick(x, y) {
     if (cx >= selStart.x && cx < selStart.x + selStart.w && cy >= selStart.y && cy < selStart.y + selStart.h) c.classList.add("sel");
   });
 }
+// ---------- mouse: drag to move, drag the corner to resize, drag over empty cells to select ----------
+function cellAt(e) {
+  const r = $("#home-grid").getBoundingClientRect();
+  const x = Math.floor(((e.clientX - r.left) / r.width) * home.cols);
+  const y = Math.floor(((e.clientY - r.top) / r.height) * home.rows);
+  return { x: Math.max(0, Math.min(home.cols - 1, x)), y: Math.max(0, Math.min(home.rows - 1, y)) };
+}
+let drag = null;  // {mode: "move"|"resize"|"select", i, start, off, el, next}
+$("#home-grid").addEventListener("pointerdown", (e) => {
+  if (e.button !== 0) return;
+  const w = e.target.closest(".w[data-i]");
+  const cell = e.target.closest(".cell");
+  const at = cellAt(e);
+  if (w) {
+    const i = +w.dataset.i, it = home.items[i];
+    const mode = e.target.closest(".resize") ? "resize" : "move";
+    drag = { mode, i, start: at, off: { x: at.x - it.x, y: at.y - it.y }, el: w, next: { ...it }, moved: false };
+    w.classList.add("dragging");
+  } else if (cell) {
+    drag = { mode: "select", start: at, next: { x: at.x, y: at.y, w: 1, h: 1 }, moved: false };
+    markSelection(drag.next);
+  } else return;
+  $("#home-grid").setPointerCapture(e.pointerId);
+  e.preventDefault();
+});
+$("#home-grid").addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  const at = cellAt(e);
+  if (at.x !== drag.start.x || at.y !== drag.start.y) drag.moved = true;
+  if (drag.mode === "select") {
+    drag.next = { x: Math.min(drag.start.x, at.x), y: Math.min(drag.start.y, at.y),
+                  w: Math.abs(at.x - drag.start.x) + 1, h: Math.abs(at.y - drag.start.y) + 1 };
+    markSelection(drag.next, !fits(drag.next));
+    return;
+  }
+  const it = home.items[drag.i];
+  const next = drag.mode === "move"
+    ? { ...it, x: Math.max(0, Math.min(home.cols - it.w, at.x - drag.off.x)), y: Math.max(0, Math.min(home.rows - it.h, at.y - drag.off.y)) }
+    : { ...it, w: Math.max(1, at.x - it.x + 1), h: Math.max(1, at.y - it.y + 1) };
+  const ok = fits(next, drag.i);
+  drag.el.classList.toggle("bad", !ok);
+  if (ok) drag.next = next;
+  // live preview
+  drag.el.style.gridColumn = `${(ok ? next : drag.next).x + 1} / span ${(ok ? next : drag.next).w}`;
+  drag.el.style.gridRow = `${(ok ? next : drag.next).y + 1} / span ${(ok ? next : drag.next).h}`;
+  const small = drag.el.querySelector("small");
+  if (small) small.textContent = `${drag.next.w}×${drag.next.h}`;
+});
+$("#home-grid").addEventListener("pointerup", () => {
+  if (!drag) return;
+  const d = drag;
+  drag = null;
+  if (d.mode === "select") {
+    if (!fits(d.next)) { toast("Området overlapper et andet felt", true); selStart = null; renderHomeGrid(); showPanel(); return; }
+    selItem = -1;
+    selStart = d.next;
+    renderHomeGrid(); showPanel(); markSelection(selStart);
+    $("#home-hint").textContent = "Vælg hvad der skal stå i det markerede område – eller træk et element fra listen herind.";
+    return;
+  }
+  if (d.moved) {
+    home.items[d.i] = d.next;
+    homeSetDirty();
+  }
+  selItem = d.i;  // a click (no movement) just selects it
+  selStart = null;
+  renderHomeGrid(); showPanel();
+});
+function markSelection(r, bad = false) {
+  $$("#home-grid .cell").forEach((c) => {
+    const cx = +c.dataset.x, cy = +c.dataset.y;
+    const inside = cx >= r.x && cx < r.x + r.w && cy >= r.y && cy < r.y + r.h;
+    c.classList.toggle("sel", inside && !bad);
+    c.classList.toggle("bad", inside && bad);
+  });
+}
+// drop an element from the list onto an empty cell (or onto a marked area)
+$("#home-grid").addEventListener("dragover", (e) => {
+  if (e.dataTransfer.types.includes("text/phonedeck-widget")) { e.preventDefault(); markSelection(dropArea(e)); }
+});
+$("#home-grid").addEventListener("dragleave", () => markSelection({ x: -1, y: -1, w: 0, h: 0 }));
+$("#home-grid").addEventListener("drop", (e) => {
+  const raw = e.dataTransfer.getData("text/phonedeck-widget");
+  if (!raw) return;
+  e.preventDefault();
+  const w = JSON.parse(raw);
+  const area = dropArea(e);
+  if (!fits(area)) { toast("Der er ikke plads her", true); renderHomeGrid(); return; }
+  home.items.push({ type: w.type, ...(w.button ? { button: w.button } : {}), ...area });
+  selStart = null; selItem = home.items.length - 1;
+  homeSetDirty(); renderHomeGrid(); showPanel();
+});
+function dropArea(e) {
+  // dropped inside the marked area -> fill it; otherwise 2×1 if there is room, else 1×1
+  const at = cellAt(e);
+  if (selStart?.w && at.x >= selStart.x && at.x < selStart.x + selStart.w && at.y >= selStart.y && at.y < selStart.y + selStart.h) return { ...selStart };
+  const wide = { x: at.x, y: at.y, w: 2, h: 1 };
+  return fits(wide) ? wide : { x: at.x, y: at.y, w: 1, h: 1 };
+}
+
 function showPanel() {
   $("#home-pick").hidden = !selStart;
   $("#home-sel").hidden = selItem < 0;
   $("#home-empty").hidden = !!selStart || selItem >= 0;
   if (selItem >= 0) $("#sel-name").textContent = widgetLabel(home.items[selItem])[0];
-  if (!selStart) $("#home-hint").textContent = "Klik på et tomt felt for at starte en markering.";
+  if (!selStart) $("#home-hint").textContent = "Træk hen over tomme felter for at markere et område – eller træk et element fra listen ind i gitteret.";
 }
 function addWidget(type, button) {
   const r = selStart.w ? selStart : { ...selStart, w: 1, h: 1 };
@@ -548,12 +651,16 @@ function renderPickers() {
     const b = document.createElement("button");
     b.append(iconEl({ kind: "builtin", value: icon }), name);
     b.onclick = () => addWidget(t);
+    b.draggable = true;
+    b.ondragstart = (e) => { e.dataTransfer.setData("text/phonedeck-widget", JSON.stringify({ type: t })); };
     return b;
   }));
   $("#button-list").replaceChildren(...allButtons().map((d) => {
     const b = document.createElement("button");
     b.append(iconEl(d.icon), d.label);
     b.onclick = () => addWidget("button", d.id);
+    b.draggable = true;
+    b.ondragstart = (e) => { e.dataTransfer.setData("text/phonedeck-widget", JSON.stringify({ type: "button", button: d.id })); };
     return b;
   }));
 }

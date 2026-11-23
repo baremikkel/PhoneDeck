@@ -32,7 +32,7 @@ DEFAULTS = {
     "ui": {
         "pages": PAGES, "hidden": [],
         "dim": True, "dim_from": 23, "dim_to": 7,
-        "pixel_shift": True, "deck_cols": 5,
+        "pixel_shift": True, "deck_cols": 5, "auto_fullscreen": True,
         "home": DEFAULT_HOME,
     },
 }
@@ -146,7 +146,7 @@ class Settings:
             if len(hidden) >= len(PAGES):
                 raise ValueError("mindst én side skal være synlig")
             new["ui"]["hidden"] = hidden
-        for k in ("dim", "pixel_shift"):
+        for k in ("dim", "pixel_shift", "auto_fullscreen"):
             if k in u:
                 new["ui"][k] = bool(u[k])
         for k in ("dim_from", "dim_to"):

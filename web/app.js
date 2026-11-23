@@ -617,14 +617,40 @@ document.addEventListener("click", (e) => {
 });
 
 // short pop-up message at the bottom of the screen
-function toast(msg) {
+function toast(msg, ms = 2200) {
   const t = $("#toast");
   t.textContent = msg;
   t.hidden = false;
   t.classList.remove("show"); void t.offsetWidth; t.classList.add("show");
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => { t.hidden = true; }, 2200);
+  if (ms) toast.timer = setTimeout(() => { t.hidden = true; }, ms);
 }
+
+// ---------- automatic fullscreen ----------
+// After 10 s outside fullscreen we try to enter it. Browsers only allow that from a tap,
+// so if the attempt is refused we show a notice and the next tap anywhere does it.
+let notFullFor = 0, fsArmed = false;
+function enterFullscreen() {
+  return document.documentElement.requestFullscreen?.({ navigationUI: "hide" }) ?? Promise.reject();
+}
+document.addEventListener("pointerdown", () => {
+  if (!fsArmed) return;
+  fsArmed = false;
+  enterFullscreen().then(() => { $("#toast").hidden = true; keepAwake(); }).catch(() => {});
+}, { capture: true });
+setInterval(() => {
+  if (ui.auto_fullscreen === false || document.fullscreenElement || document.visibilityState !== "visible") {
+    notFullFor = 0;
+    return;
+  }
+  notFullFor += 1;
+  if (notFullFor === 10) {
+    enterFullscreen().catch(() => {
+      fsArmed = true;
+      toast("Fuld skærm – tryk hvor som helst på skærmen", 0);
+    });
+  }
+}, 1000);
 
 // ---------- per-device preferences ----------
 const prefs = (() => { try { return JSON.parse(localStorage.getItem("phonedeck.prefs") || "{}"); } catch { return {}; } })();

@@ -65,8 +65,9 @@ _load_counter = 0
 class Context:
     """What an extension's backend gets to work with."""
 
-    def __init__(self, ext_id: str, folder: Path, manager: "ExtensionManager"):
+    def __init__(self, ext_id: str, folder: Path, manager: "ExtensionManager", manifest: dict | None = None):
         self.id = ext_id
+        self.manifest = manifest or {}
         self.dir = folder
         self._manager = manager
         self.hub = manager.hub
@@ -75,7 +76,8 @@ class Context:
         self.cache_dir = Path(os.path.expanduser(f"~/.cache/phonedeck/{ext_id}"))
 
     def settings(self) -> dict:
-        return self._manager.settings_for(self.id)
+        # pass the manifest along: while the backend is being created it isn't registered yet
+        return self._manager.settings_for(self.id, self.manifest)
 
     def other(self, ext_id: str):
         """Another extension's backend (or None), e.g. Spotify reading the music player."""
@@ -198,7 +200,7 @@ class ExtensionManager:
                 module = importlib.util.module_from_spec(spec)
                 sys.modules[name] = module
                 spec.loader.exec_module(module)
-                ext.ctx = Context(manifest["id"], folder, self)
+                ext.ctx = Context(manifest["id"], folder, self, manifest)
                 ext.backend = module.Extension(ext.ctx)
             except Exception as e:
                 ext.error = f"{type(e).__name__}: {e}"
@@ -257,11 +259,13 @@ class ExtensionManager:
                 traceback.print_exc()
 
     # ---------- settings ----------
-    def settings_for(self, ext_id: str) -> dict:
-        ext = self.loaded.get(ext_id)
+    def settings_for(self, ext_id: str, manifest: dict | None = None) -> dict:
+        if manifest is None:
+            ext = self.loaded.get(ext_id)
+            manifest = ext.manifest if ext else {}
         saved = self.hub.settings.ext_values(ext_id)
         out = {}
-        for field in (ext.manifest.get("settings", []) if ext else []):
+        for field in manifest.get("settings", []):
             if "key" in field and field.get("type") in ("text", "number", "bool", "select"):
                 out[field["key"]] = saved.get(field["key"], field.get("default"))
         return out

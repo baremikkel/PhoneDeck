@@ -53,7 +53,7 @@ class GitHub:
     def __init__(self, user: str | None, stopped=None):
         self.stopped = stopped or threading.Event()
         self.user = user
-        self.data: dict | None = None if user else {"error": "Sæt [github] user i config.toml"}
+        self.data: dict | None = None if user else {"error": "Sæt dit GitHub-brugernavn under Indstillinger"}
         self._lock = threading.Lock()
         if user:
             threading.Thread(target=self._loop, daemon=True).start()

@@ -34,6 +34,8 @@ class Visualizer:
         self.frame = 0
         self._last_seen = 0.0
         self._running = False
+        # set by the server: True while the music player is actually playing
+        self.gate = lambda: True
         self._lock = threading.Lock()
         if self.available:
             freqs = np.fft.rfftfreq(WINDOW, 1 / RATE)
@@ -96,6 +98,8 @@ class Visualizer:
                 # so the bars look the same at low and high volume
                 peak = max(float(db.max()), peak - 0.08, -75.0)
                 level = np.clip((db - (peak - RANGE_DB)) / RANGE_DB, 0, 1)
+                if not self.gate():
+                    level = np.zeros(BANDS, dtype=np.float32)  # only show the music, not other sounds
                 # fast attack, slow release – looks like a real analyser
                 smooth = np.where(level > smooth, level, smooth * 0.82 + level * 0.18)
                 with self.cond:

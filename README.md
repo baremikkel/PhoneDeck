@@ -30,7 +30,7 @@ Swipe til venstre og højre mellem seks sider. Prikkerne nederst viser, hvor du 
 | **Musik** | Stort cover, titel/kunstner/album, afspilning, lydstyrke, en **visualizer**, der kan slås til/fra, og **næste sang** nederst. Tryk for at se hele køen (kræver Spotify-forbindelse, se nedenfor) |
 | **Claude** | **Donut** med hvad der er tilbage af dine grænser (5 timer + uge), tokens i 5-timers vinduet (input/output/cache), tid til nulstilling, i dag, 7 dage, fordeling pr. model, graf over 24 timer |
 | **Aktivitet** | Heatmaps i GitHub-stil for dine GitHub-bidrag og dit Claude Code-forbrug det seneste år |
-| **Knapper** | Et **Stream Deck**: standardknapper (lyd, mikrofon, afspilning, fuld skærm, lås skærm, skærmbillede) plus dine egne, med valgfri farve. Programmer, der allerede kører, markeres som **Aktiv**, og et tryk viser blot en kort besked om, at programmet allerede er åbent. Redigeres i browseren på PC'en |
+| **Knapper** | Et **Stream Deck**: standardknapper (lyd, mikrofon, afspilning, fuld skærm, lås skærm, skærmbillede) plus dine egne, med valgfri farve. Programmer med et åbent vindue markeres som **Aktiv**, og et tryk viser blot en kort besked om, at programmet allerede er åbent (se *Aktiv-markering* nedenfor). Redigeres i browseren på PC'en |
 
 Medier bruger MPRIS (Spotify, browsere, VLC …), så der skal ingen API-nøgler til.
 Skærmen holdes tændt, mens dashboardet er åbent (Wake Lock API).
@@ -42,7 +42,7 @@ pixels hvert minut, og skærmen dæmpes automatisk kl. 23–07.
 
 Visualizeren viser de rigtige frekvenser fra den lyd, PC'en afspiller. Lyden opfanges
 med `pw-record` fra PipeWire og analyseres med numpy. Det hele foregår lokalt, og kun
-søjlehøjderne sendes til telefonen, aldrig selve lyden. Optagelsen kører kun, mens
+søjlehøjderne sendes til telefonen, aldrig selve lyden. Søjlerne vises kun, mens musikken spiller, så andre lyde (Discord, systemlyde …) ikke får den til at bevæge sig, når musikken er sat på pause. Optagelsen kører kun, mens
 visualizeren er slået til **og** musiksiden er åben. Telefonen sender løbende et
 "jeg kigger stadig"-signal, og uden det stopper PC'en optagelsen inden for 4 sekunder.
 
@@ -135,6 +135,21 @@ på telefonen, så åbner editoren på computeren. Her kan du:
 Træk knapperne for at ændre rækkefølgen, vælg emoji, standardikon eller programikon, og
 brug *Test på computeren*. Når du trykker **Gem**, opdateres telefonen med det samme.
 Knapperne gemmes i `~/.config/phonedeck/buttons.json`.
+
+### Aktiv-markering
+
+Et program er **Aktiv**, når det har et åbent vindue, ikke bare når det kører i baggrunden:
+
+- **Programmer under XWayland** (Discord, Spotify, VS Code, Steam-spil …) tjekker PhoneDeck selv med `xdotool`.
+- **Rene Wayland-programmer** (fx Spotifast og Firefox) kan GNOME ikke vise for andre programmer. Installér den lille
+  udvidelse i `gnome-extension/`, så får PhoneDeck svaret fra GNOME selv:
+
+  ```bash
+  ./scripts/install-gnome-helper.sh
+  ```
+
+  Log derefter ud og ind igen. Udvidelsen gør kun én ting: den svarer på D-Bus med hvilke programmer, der har et vindue.
+  Uden den regnes Wayland-programmer som aktive, så længe de kører.
 
 ## Konfiguration
 

@@ -6,6 +6,7 @@ import configparser
 import glob
 import os
 import re
+import shutil
 import subprocess
 import time
 from shlex import split as _shlex
@@ -111,7 +112,54 @@ class Apps:
             names.add(wm.lower().split("_")[-1])
         return {n for n in names if n and n not in ("steam", "sh", "python3", "java")}, None
 
+    # ---------- "Aktiv" = the program has a window open ----------
+    @staticmethod
+    def _helper_windows() -> set[str] | None:
+        """Desktop ids of apps with an open window, from the optional PhoneDeck GNOME
+        extension (gnome-extension/). None when the extension isn't installed."""
+        try:
+            r = subprocess.run(["gdbus", "call", "--session", "--dest", "org.phonedeck.Helper",
+                                "--object-path", "/org/phonedeck/Helper",
+                                "--method", "org.phonedeck.Helper.WindowApps"],
+                               capture_output=True, text=True, timeout=2)
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        if r.returncode != 0:
+            return None
+        return {x.lower() for x in re.findall(r"'([^']*)'", r.stdout)}
+
+    @staticmethod
+    def _x_env() -> dict:
+        env = dict(os.environ)
+        env.setdefault("DISPLAY", ":0")
+        if "XAUTHORITY" not in env:  # GNOME's XWayland keeps its auth file here
+            auth = glob.glob(f"/run/user/{os.getuid()}/.mutter-Xwaylandauth.*")
+            if auth:
+                env["XAUTHORITY"] = auth[0]
+        return env
+
+    def _x_visible(self, classes: set[str]) -> bool:
+        if not shutil.which("xdotool"):
+            return True  # can't tell – assume the window is there
+        env = self._x_env()
+        for cls in classes:
+            out = subprocess.run(["xdotool", "search", "--onlyvisible", "--class", cls],
+                                 capture_output=True, text=True, timeout=2, env=env).stdout
+            if out.strip():
+                return True
+        return False
+
+    @staticmethod
+    def _is_x11(pid: int) -> bool:
+        """Programs started without WAYLAND_DISPLAY (Electron apps, Steam, …) draw via XWayland."""
+        try:
+            with open(f"/proc/{pid}/environ", "rb") as f:
+                return b"WAYLAND_DISPLAY=" not in f.read()
+        except OSError:
+            return False
+
     def running(self, app_ids: list[str]) -> set[str]:
+        """Apps from the list that have a window open right now."""
         sigs = {}
         for app_id in app_ids:
             app = self.get(app_id)
@@ -121,21 +169,50 @@ class Apps:
                 sigs[app_id] = app["sig"]
         if not sigs:
             return set()
-        names, cmdlines = set(), []
-        for p in psutil.process_iter(["name", "cmdline"]):
-            names.add((p.info["name"] or "").lower())
+        by_name: dict[str, int] = {}
+        steam_pids: list[tuple[str, int]] = []
+        for p in psutil.process_iter(["pid", "name", "cmdline"]):
+            by_name.setdefault((p.info["name"] or "").lower(), p.info["pid"])
             cmd = p.info["cmdline"] or []
             if cmd:
-                names.add(os.path.basename(cmd[0]).lower())
+                by_name.setdefault(os.path.basename(cmd[0]).lower(), p.info["pid"])
                 if any("AppId=" in c for c in cmd):
-                    cmdlines.append(" ".join(cmd))
+                    steam_pids.append((" ".join(cmd), p.info["pid"]))
+        helper = self._helper_windows()
         out = set()
         for app_id, (procs, steam_id) in sigs.items():
-            if steam_id and any(f"AppId={steam_id}" in c for c in cmdlines):
-                out.add(app_id)
-            elif procs & names:
-                out.add(app_id)
+            if steam_id:
+                pid = next((pid for c, pid in steam_pids if f"AppId={steam_id}" in c), None)
+            else:
+                pid = next((by_name[n] for n in procs if n in by_name), None)
+            if pid is None:
+                continue  # not running at all
+            if helper is not None:  # exact answer from GNOME
+                if app_id.lower() in helper or (steam_id and any(steam_id in h for h in helper)):
+                    out.add(app_id)
+            elif self._is_x11(pid):  # XWayland: we can see its windows ourselves
+                classes = set(procs) | ({f"steam_app_{steam_id}"} if steam_id else set())
+                wm = self._wm_class(app_id)
+                if wm:
+                    classes.add(wm)
+                if self._x_visible(classes):
+                    out.add(app_id)
+            else:
+                out.add(app_id)  # native Wayland without the helper: best guess
         return out
+
+    def _wm_class(self, app_id: str) -> str | None:
+        app = self.get(app_id)
+        if not app:
+            return None
+        if "wm" not in app:
+            cp = configparser.RawConfigParser(strict=False, interpolation=None)
+            try:
+                cp.read(app["path"], encoding="utf-8")
+                app["wm"] = cp["Desktop Entry"].get("StartupWMClass")
+            except (configparser.Error, KeyError, UnicodeDecodeError):
+                app["wm"] = None
+        return app["wm"]
 
     def launch(self, app_id: str) -> None:
         app = self.get(app_id)

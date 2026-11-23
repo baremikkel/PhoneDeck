@@ -1,0 +1,7 @@
+{
+  "uuid": "phonedeck-helper@phonedeck",
+  "name": "PhoneDeck helper",
+  "description": "Tells PhoneDeck which programs have an open window, so the Stream Deck can mark them as active. Read-only: it only reports app ids over D-Bus.",
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
+  "url": "https://github.com/baremikkel/PhoneDeck"
+}

@@ -48,6 +48,7 @@ class Hub:
         self.apps = Apps()
         self.deck = Deck(self.actions, self.apps)
         self.visualizer = Visualizer()
+        self.visualizer.gate = lambda: (self.state.get("media") or {}).get("status") == "Playing"
         self.github = GitHub(load_config().get("github", {}).get("user"))
         self.cond = threading.Condition()
         self.state: dict = {}

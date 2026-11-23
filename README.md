@@ -280,6 +280,47 @@ control the buttons.
 - [ ] Windows support (LibreHardwareMonitor)
 - [ ] Minimal Android ROM (LineageOS without Google) in kiosk mode
 
+### Extension ideas
+
+Extensions that would make sense on a desk deck (each one a folder in `extensions/`):
+
+**AI**
+- [ ] ChatGPT / OpenAI usage and limits, next to Claude Code
+- [ ] Local models: Ollama status, loaded model, VRAM use, tokens/s
+
+**Udvikling (development)**
+- [ ] GitHub notifications, open PRs and review requests, CI status for your repos
+- [ ] Docker containers: running/stopped, CPU/RAM, start/stop/restart buttons
+- [ ] Git status of your project folders (branch, uncommitted changes, ahead/behind)
+- [ ] systemd services: status and restart buttons
+- [ ] Pomodoro / focus timer with session history
+
+**Kommunikation (communication)**
+- [ ] Discord: mute/deafen, current voice channel, who is talking
+- [ ] Unread counts for mail, Slack, Messenger etc.
+- [ ] Today's calendar (Google / CalDAV) with a countdown to the next meeting
+
+**Musik og lyd (music and audio)**
+- [ ] Audio mixer: volume per app (PipeWire) and switching output/input device
+- [ ] Spotify: like the current song, playlists, search and add to queue
+- [ ] Microphone level meter and push-to-talk button
+
+**System**
+- [ ] Network: ping/latency, public IP, VPN on/off (Tailscale, WireGuard)
+- [ ] Battery of connected devices (headset, mouse, controller via UPower)
+- [ ] Clipboard history and screenshot gallery
+- [ ] Disk space per drive and SMART health
+- [ ] Night light, do-not-disturb and dark/light theme toggles for GNOME
+
+**Hjem og andet (home and other)**
+- [ ] Home Assistant: lights, scenes, sensors and buttons
+- [ ] Weather and rain radar
+- [ ] OBS Studio: scenes, start/stop recording and streaming, live indicator
+- [ ] Steam: friends online, current game, recently played
+- [ ] Twitch: followed channels that are live
+- [ ] Stocks / crypto ticker (read-only)
+- [ ] Notes / to-do list synced with a local file
+
 ## License
 
 MIT

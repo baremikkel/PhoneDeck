@@ -75,6 +75,12 @@ main { display: grid; grid-template-columns: minmax(420px, 640px) minmax(360px, 
 .tile.dragging { opacity: .35; }
 .tile.drop-before::before { content: ""; position: absolute; left: -6px; top: 10%; bottom: 10%; width: 3px; border-radius: 2px; background: var(--accent); }
 .tile.add { border-style: dashed; background: transparent; cursor: pointer; }
+.tile.back { border-style: dashed; background: transparent; cursor: pointer; }
+.tile.folder { box-shadow: 4px -4px 0 -1px #1c1c22, 4px -4px 0 0 #34343f; }
+.tile.folder::after { content: attr(data-count); position: absolute; top: 5px; right: 5px; min-width: 18px; padding: 0 5px;
+  border-radius: 999px; background: #2c2c36; color: var(--text); font-size: 10px; font-weight: 600; text-align: center; }
+.crumbs { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+.crumbs a { color: var(--accent); text-decoration: none; }
 .tile.big { width: 84px; flex: none; cursor: default; }
 
 /* form */

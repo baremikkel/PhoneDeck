@@ -48,6 +48,9 @@ const EMOJI = ["💬", "🌐", "📁", "🎮", "🎵", "📷", "🔒", "⌨️",
 const BUILTIN_ICONS = ["globe", "terminal", "keyboard", "lock", "folder", "star", "bolt", "fullscreen", "play", "next", "prev", "volUp", "mic"];
 
 let deck = [];
+let path = [];  // folders opened in the editor, outermost first
+const level = () => (path.length ? path[path.length - 1].buttons : deck);
+const allButtons = (list = deck) => list.flatMap((b) => [b, ...(b.action?.type === "folder" ? allButtons(b.buttons || []) : [])]);
 let builtins = {};
 let apps = [];
 let selected = -1;
@@ -93,18 +96,28 @@ function tileContent(el, b) {
 // ---------- deck grid (drag & drop to reorder) ----------
 let dragFrom = -1;
 function renderDeck() {
-  const tiles = deck.map((b, i) => {
+  const tiles = level().map((b, i) => {
     const el = document.createElement("div");
     el.className = "tile" + (i === selected ? " sel" : "");
     el.draggable = true;
     el.tabIndex = 0;
     tileContent(el, b);
     el.addEventListener("click", () => select(i));
+    if (b.action?.type === "folder") {
+      el.classList.add("folder");
+      el.dataset.count = (b.buttons || []).length;
+      el.addEventListener("dblclick", () => openFolder(b));
+    }
     el.addEventListener("keydown", (e) => { if (e.key === "Enter") select(i); });
     el.addEventListener("dragstart", (e) => { dragFrom = i; el.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; });
     el.addEventListener("dragend", () => { el.classList.remove("dragging"); $$(".drop-before").forEach((x) => x.classList.remove("drop-before")); });
     el.addEventListener("dragover", (e) => { e.preventDefault(); $$(".drop-before").forEach((x) => x.classList.remove("drop-before")); el.classList.add("drop-before"); });
-    el.addEventListener("drop", (e) => { e.preventDefault(); move(dragFrom, i); });
+    el.addEventListener("drop", (e) => {
+      e.preventDefault();
+      // dropping onto a folder puts the button inside it
+      if (b.action?.type === "folder" && dragFrom !== i) moveTo(dragFrom, b.buttons || (b.buttons = []));
+      else move(dragFrom, i);
+    });
     return el;
   });
   const add = document.createElement("div");
@@ -112,24 +125,72 @@ function renderDeck() {
   add.append(iconEl({ kind: "builtin", value: "plus" }), Object.assign(document.createElement("span"), { textContent: "Ny knap" }));
   add.addEventListener("click", addButton);
   add.addEventListener("dragover", (e) => e.preventDefault());
-  add.addEventListener("drop", (e) => { e.preventDefault(); move(dragFrom, deck.length); });
+  add.addEventListener("drop", (e) => { e.preventDefault(); move(dragFrom, level().length); });
+  if (path.length) {
+    const back = document.createElement("div");
+    back.className = "tile back";
+    back.append(iconEl({ kind: "builtin", value: "prev" }), Object.assign(document.createElement("span"), { textContent: "Tilbage" }));
+    back.addEventListener("click", () => { path.pop(); select(-1); });
+    // drop on "Tilbage" = move the button out of this folder
+    back.addEventListener("dragover", (e) => e.preventDefault());
+    back.addEventListener("drop", (e) => { e.preventDefault(); moveTo(dragFrom, path.length > 1 ? path[path.length - 2].buttons : deck); });
+    tiles.unshift(back);
+  }
   $("#deck").replaceChildren(...tiles, add);
+  renderCrumbs();
 }
 function move(from, to) {
   if (from < 0 || from === to) return;
-  const [b] = deck.splice(from, 1);
+  const [b] = level().splice(from, 1);
   const target = to > from ? to - 1 : to;
-  deck.splice(target, 0, b);
+  level().splice(target, 0, b);
   if (selected === from) selected = target;
   else if (selected > from && selected <= target) selected--;
   else if (selected < from && selected >= target) selected++;
   setDirty();
   renderDeck();
 }
-function addButton() {
-  deck.push({ label: "Ny knap", icon: { kind: "emoji", value: "⭐" }, action: { type: "app", app: "" } });
+function openFolder(f) {
+  f.buttons = f.buttons || [];
+  path.push(f);
+  select(-1);
+}
+function reopen() {  // keep the same folders open after the list was reloaded from the server
+  const ids = path.map((f) => f.id);
+  path = [];
+  let list = deck;
+  for (const id of ids) {
+    const f = list.find((b) => b.id === id && b.action?.type === "folder");
+    if (!f) break;
+    path.push(f);
+    list = f.buttons;
+  }
+}
+function moveTo(from, target) {
+  if (from < 0) return;
+  const [b] = level().splice(from, 1);
+  if (b === path[path.length - 1] || target === b.buttons) { level().splice(from, 0, b); return; }
+  target.push(b);
+  selected = -1;
   setDirty();
-  select(deck.length - 1);
+  select(-1);
+  toast(`"${b.label}" er flyttet`);
+}
+function renderCrumbs() {
+  const crumbs = [Object.assign(document.createElement("a"), { textContent: "Alle knapper", href: "#deck" })];
+  crumbs[0].onclick = (e) => { e.preventDefault(); path = []; select(-1); };
+  path.forEach((f, i) => {
+    const a = Object.assign(document.createElement("a"), { textContent: f.label, href: "#deck" });
+    a.onclick = (e) => { e.preventDefault(); path = path.slice(0, i + 1); select(-1); };
+    crumbs.push(document.createTextNode(" › "), a);
+  });
+  $("#crumbs").replaceChildren(...crumbs);
+}
+
+function addButton() {
+  level().push({ label: "Ny knap", icon: { kind: "emoji", value: "⭐" }, action: { type: "app", app: "" } });
+  setDirty();
+  select(level().length - 1);
   $("#label").select();
 }
 
@@ -140,7 +201,7 @@ function select(i) {
   $("#form").hidden = i < 0;
   $("#empty").hidden = i >= 0;
   if (i < 0) return;
-  const b = deck[i];
+  const b = level()[i];
   $("#label").value = b.label;
   showType(b.action.type);
   $("#url").value = b.action.type === "url" ? b.action.url : "";
@@ -152,7 +213,7 @@ function select(i) {
   renderColors();
   $("#test-msg").textContent = "";
 }
-const cur = () => deck[selected];
+const cur = () => level()[selected];
 function update(fn) { fn(cur()); setDirty(); renderPreview(); renderDeck(); }
 function renderPreview() { tileContent($("#preview"), cur()); }
 
@@ -176,12 +237,22 @@ $("#types").addEventListener("click", (e) => {
     if (t === "app") b.action = { type: "app", app: "" };
     if (t === "hotkey") b.action = { type: "hotkey", keys: [] };
     if (t === "command") b.action = { type: "command", argv: ["sh", "-c", $("#command").value || ""] };
+    if (t === "folder") {
+      b.action = { type: "folder" };
+      b.buttons = b.buttons || [];
+      if (b.icon.kind === "app") b.icon = { kind: "builtin", value: "folder" };
+    }
     if (t === "builtin") {
       const n = $("#builtin").value || Object.keys(builtins)[0];
       b.action = { type: "builtin", name: n };
       b.icon = { kind: "builtin", value: builtins[n][1] };
     }
     if (b.icon.kind === "app" && t !== "app") b.icon = { kind: "emoji", value: t === "url" ? "🌐" : t === "hotkey" ? "⌨️" : "⚡" };
+    if (t !== "folder" && b.buttons?.length && !confirm(`Mappen indeholder ${b.buttons.length} knap(per), som slettes. Fortsæt?`)) {
+      b.action = { type: "folder" };
+      return;
+    }
+    if (t !== "folder") delete b.buttons;
   });
   showType(t);
   renderIcon();
@@ -330,9 +401,11 @@ $("#test").addEventListener("click", async () => {
     $("#test-msg").textContent = err.message;
   }
 });
+$("#open-folder").addEventListener("click", () => openFolder(cur()));
 $("#delete").addEventListener("click", () => {
-  if (!confirm(`Slet knappen "${cur().label}"?`)) return;
-  deck.splice(selected, 1);
+  const n = cur().buttons?.length || 0;
+  if (!confirm(n ? `Slet mappen "${cur().label}" og de ${n} knapper i den?` : `Slet knappen "${cur().label}"?`)) return;
+  level().splice(selected, 1);
   setDirty();
   select(-1);
 });
@@ -340,6 +413,7 @@ $("#save").addEventListener("click", async () => {
   try {
     const r = await api("/api/deck", { buttons: deck });
     deck = r.buttons;
+    reopen();
     setDirty(false);
     renderDeck();
     toast("Gemt – telefonen er opdateret");
@@ -352,6 +426,7 @@ $("#reset").addEventListener("click", async () => {
   try {
     const r = await api("/api/deck/reset", {});
     deck = r.buttons;
+    path = [];
     setDirty(false);
     select(-1);
     toast("Nulstillet til standard");
@@ -393,7 +468,7 @@ function fits(it, except) {
 }
 function widgetLabel(it) {
   if (it.type === "button") {
-    const b = deck.find((x) => x.id === it.button);
+    const b = allButtons().find((x) => x.id === it.button);
     return b ? [b.label, b.icon] : ["(slettet knap)", { kind: "emoji", value: "⚠️" }];
   }
   const [name, icon] = WIDGETS[it.type] || [`${it.type} (udvidelse ikke installeret)`, "star"];
@@ -425,7 +500,7 @@ function renderHomeGrid() {
     w.className = "w" + (i === selItem ? " on" : "");
     w.style.gridColumn = `${it.x + 1} / span ${it.w}`; w.style.gridRow = `${it.y + 1} / span ${it.h}`;
     const [name, icon] = widgetLabel(it);
-    if (it.type === "button") { const b = deck.find((x) => x.id === it.button); if (b?.color) w.style.setProperty("--btn", b.color); w.classList.add("tile"); }
+    if (it.type === "button") { const b = allButtons().find((x) => x.id === it.button); if (b?.color) w.style.setProperty("--btn", b.color); w.classList.add("tile"); }
     w.append(iconEl(icon), Object.assign(document.createElement("span"), { textContent: name }),
       Object.assign(document.createElement("small"), { textContent: `${it.w}×${it.h}` }));
     w.onclick = () => { selItem = i; selStart = null; showPanel(); renderHomeGrid(); };
@@ -470,7 +545,7 @@ function renderPickers() {
     b.onclick = () => addWidget(t);
     return b;
   }));
-  $("#button-list").replaceChildren(...deck.map((d) => {
+  $("#button-list").replaceChildren(...allButtons().map((d) => {
     const b = document.createElement("button");
     b.append(iconEl(d.icon), d.label);
     b.onclick = () => addWidget("button", d.id);

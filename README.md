@@ -132,6 +132,11 @@ på telefonen, så åbner editoren på computeren. Her kan du:
 - **Køre en kommando eller et script**, fx `~/shortcut_scripts/mit-script.sh`.
 - **Indbyggede handlinger**: lydstyrke, mute, mikrofon, afspilning og fuld skærm.
 
+- **Mapper**: vælg *Mappe* som handling. På telefonen åbner mappen med en **Tilbage**-knap.
+  I editoren dobbeltklikker du på en mappe for at åbne den. Træk en knap ind på mappen for at
+  flytte den derind, eller på *Tilbage* for at flytte den ud. Mapper kan ligge op til 3 niveauer
+  inde i hinanden, og en mappe kan også lægges på forsiden.
+
 Træk knapperne for at ændre rækkefølgen, vælg emoji, standardikon eller programikon, og
 brug *Test på computeren*. Når du trykker **Gem**, opdateres telefonen med det samme.
 Knapperne gemmes i `~/.config/phonedeck/buttons.json`.

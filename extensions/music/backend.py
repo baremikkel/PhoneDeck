@@ -16,6 +16,7 @@ class Extension:
         self.viz.gate = lambda: (self._media_state or {}).get("status") == "Playing"
 
     def state(self):
+        self.media.source = self.ctx.settings().get("source") or "spotify"
         self._media_state = self.media.state()
         return {"media": self._media_state}
 

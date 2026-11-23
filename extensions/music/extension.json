@@ -7,6 +7,8 @@
   "widgets": [{"type": "media", "name": "Musik", "icon": "play"}],
   "settings": [
     {"type": "info", "html": "Lydstyrken på musiksiden ændrer kun afspillerens egen lydstyrke – ikke resten af computeren."},
+    {"key": "source", "label": "Vis afspillere", "type": "select", "default": "spotify",
+     "options": [["spotify", "Kun Spotify (også Spotifast)"], ["no_browser", "Alle undtagen browsere (YouTube osv.)"], ["all", "Alle afspillere"]]},
     {"key": "volume_step", "label": "Lydstyrke-trin (%)", "type": "number", "default": 5, "min": 1, "max": 25}
   ]
 }

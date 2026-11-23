@@ -39,9 +39,21 @@ class Media:
                                   iface, method, args, GLib.VariantType(sig) if sig else None,
                                   Gio.DBusCallFlags.NONE, 1000, None)
 
+    # which players to show (set by the extension from its "source" setting)
+    source = "spotify"
+    BROWSERS = ("firefox", "chromium", "chrome", "brave", "edge", "opera", "vivaldi", "plasma-browser-integration")
+
+    def _wanted(self, name: str) -> bool:
+        short = name[len(PREFIX):].lower()
+        if self.source == "spotify":
+            return "spotify" in short or "spotifast" in short or "spotifyd" in short
+        if self.source == "no_browser":
+            return not any(b in short for b in self.BROWSERS)
+        return True
+
     def _players(self) -> list[str]:
         names = self._call("org.freedesktop.DBus", "org.freedesktop.DBus", "ListNames").unpack()[0]
-        return [n for n in names if n.startswith(PREFIX)]
+        return [n for n in names if n.startswith(PREFIX) and self._wanted(n)]
 
     def _props(self, name: str) -> dict:
         return self._call(name, "org.freedesktop.DBus.Properties", "GetAll",

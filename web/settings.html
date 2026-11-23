@@ -56,6 +56,8 @@
       <h2>Visning</h2>
       <label class="check"><input type="checkbox" id="dim"><span><b>Dæmp skærmen om natten</b>
         <span class="hint">fra kl. <input id="dim-from" type="number" min="0" max="23" class="num"> til kl. <input id="dim-to" type="number" min="0" max="23" class="num"></span></span></label>
+      <label class="check"><input type="checkbox" id="autofs"><span><b>Gå automatisk i fuld skærm</b><br>
+        <span class="hint">Efter 10 sekunder uden fuld skærm. Browseren kræver et tryk, så du får en besked, og næste tryk aktiverer den.</span></span></label>
       <label class="check"><input type="checkbox" id="shift"><span><b>Flyt indholdet lidt hvert minut</b><br>
         <span class="hint">Beskytter AMOLED-skærmen mod indbrænding.</span></span></label>
       <label>Knapper pr. række på Knapper-siden
@@ -175,6 +177,7 @@
     pageOrder = [...ui.pages]; hidden = new Set(ui.hidden); renderPages();
     $("#dim").checked = ui.dim; $("#dim-from").value = ui.dim_from; $("#dim-to").value = ui.dim_to;
     $("#shift").checked = ui.pixel_shift; $("#deck-cols").value = String(ui.deck_cols);
+    $("#autofs").checked = ui.auto_fullscreen !== false;
     $("#client-id").value = d.settings.spotify.client_id || "";
     $("#b5").value = d.settings.claude.budget_5h || "";
     $("#bw").value = d.settings.claude.budget_week || "";
@@ -206,7 +209,7 @@
   $("#save-view").onclick = async () => {
     try {
       await api("/api/settings", { ui: { dim: $("#dim").checked, dim_from: +$("#dim-from").value, dim_to: +$("#dim-to").value,
-        pixel_shift: $("#shift").checked, deck_cols: +$("#deck-cols").value } });
+        pixel_shift: $("#shift").checked, deck_cols: +$("#deck-cols").value, auto_fullscreen: $("#autofs").checked } });
       toast("Gemt – telefonen er opdateret");
     } catch (e) { toast(e.message, true); }
   };

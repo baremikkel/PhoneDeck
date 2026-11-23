@@ -378,6 +378,8 @@ function makeTile(b) {
       el.dataset.folder = b.id;  // opened on the phone, nothing runs on the PC
       el.classList.add("folder");
       el.dataset.count = (b.buttons || []).length;
+    } else if (b.type === "page") {
+      el.dataset.goto = b.page;  // switches page on the phone, nothing runs on the PC
     } else if (b.builtin === "ui.fullscreen") el.dataset.fullscreen = "";
     else el.dataset.button = b.id;
     const icon = makeIcon(b.icon);
@@ -616,6 +618,15 @@ document.addEventListener("click", (e) => {
     if (fromHome) goTo(pages.findIndex((p) => p.id === "p-buttons"));
   }
   if (last) renderButtons(last.buttons || []);
+});
+// "Gå til side"-buttons
+document.addEventListener("click", (e) => {
+  const go = e.target.closest("[data-goto]");
+  if (!go) return;
+  navigator.vibrate?.(10);
+  const i = pages.findIndex((p) => p.id === "p-" + go.dataset.goto);
+  if (i < 0) toast("Siden er skjult eller findes ikke længere");
+  else goTo(i);
 });
 function pathTo(list, id, trail = []) {
   for (const b of list) {

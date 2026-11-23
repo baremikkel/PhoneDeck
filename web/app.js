@@ -211,6 +211,16 @@ function renderDonut(c, budget, plan) {
       setText("c.leftlbl", `brugt · ${usedPct} %`);
     }
   }
+  // Limit used up: the centre counts down to when new tokens arrive
+  const resetIn = (iso, secs) => iso ? (new Date(iso) - Date.now()) / 1000 : secs;
+  let blocked = null;
+  if (rem5 != null && rem5 <= 0.001) blocked = resetIn(p5?.resets_at, c.block_reset_in);
+  if (remW != null && remW <= 0.001) blocked = Math.max(blocked ?? 0, resetIn(pW?.resets_at, null) ?? 0);
+  if (blocked != null && blocked > 0) {
+    const h = Math.floor(blocked / 3600), m = Math.floor((blocked % 3600) / 60), sec = Math.floor(blocked % 60);
+    setText("c.left", h ? `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}` : `${m}:${String(sec).padStart(2, "0")}`);
+    setText("c.leftlbl", "til nye tokens");
+  }
   if (showUsed && remW != null) {
     const reset = pW ? ` · ↻ ${weekday(pW.resets_at)}` : "";
     setText("c.weektxt", `uge ${Math.round((1 - remW) * 100)} % brugt${reset}`);

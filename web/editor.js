@@ -442,9 +442,11 @@ document.addEventListener("keydown", (e) => {
 
 // ================= home page layout =================
 // core widgets; installed extensions add theirs when the editor loads
+// [name, icon, category]
 const WIDGETS = {
-  cpu: ["CPU", "bolt"], gpu: ["GPU", "bolt"], ram: ["RAM", "folder"], net: ["Netværk", "globe"],
-  disk: ["Disk", "folder"], sys: ["Systemlinje (RAM, net, disk, ur)", "keyboard"], clock: ["Ur", "lock"],
+  cpu: ["CPU", "bolt", "System"], gpu: ["GPU", "bolt", "System"], ram: ["RAM", "folder", "System"],
+  net: ["Netværk", "globe", "System"], disk: ["Disk", "folder", "System"],
+  sys: ["Systemlinje (RAM, net, disk, ur)", "keyboard", "System"], clock: ["Ur", "lock", "System"],
 };
 let home = null, homeDirty = false, selItem = -1, selStart = null;
 let editing = "home";          // "home" or the id of one of your own pages
@@ -648,23 +650,40 @@ function addWidget(type, button) {
   selStart = null; selItem = home.items.length - 1;
   homeSetDirty(); renderHomeGrid(); showPanel();
 }
+// one heading + buttons per category (System first, then the extensions' categories, Andet last)
+function catBlock(title, buttons) {
+  const box = document.createElement("div");
+  box.className = "cat-block";
+  box.append(Object.assign(document.createElement("div"), { className: "cat-name", textContent: title }),
+    Object.assign(document.createElement("div"), { className: "cat-items" }));
+  box.lastChild.append(...buttons);
+  return box;
+}
+function pickerButton(label, icon, add, dragData) {
+  const b = document.createElement("button");
+  b.append(iconEl(icon), label);
+  b.onclick = add;
+  b.draggable = true;
+  b.ondragstart = (e) => { e.dataTransfer.setData("text/phonedeck-widget", JSON.stringify(dragData)); };
+  return b;
+}
 function renderPickers() {
-  $("#widget-list").replaceChildren(...Object.entries(WIDGETS).map(([t, [name, icon]]) => {
-    const b = document.createElement("button");
-    b.append(iconEl({ kind: "builtin", value: icon }), name);
-    b.onclick = () => addWidget(t);
-    b.draggable = true;
-    b.ondragstart = (e) => { e.dataTransfer.setData("text/phonedeck-widget", JSON.stringify({ type: t })); };
-    return b;
-  }));
-  $("#button-list").replaceChildren(...allButtons().map((d) => {
-    const b = document.createElement("button");
-    b.append(iconEl(d.icon), d.label);
-    b.onclick = () => addWidget("button", d.id);
-    b.draggable = true;
-    b.ondragstart = (e) => { e.dataTransfer.setData("text/phonedeck-widget", JSON.stringify({ type: "button", button: d.id })); };
-    return b;
-  }));
+  const cats = new Map();
+  for (const [t, [name, icon, cat]] of Object.entries(WIDGETS)) {
+    const c = cat || "Andet";
+    if (!cats.has(c)) cats.set(c, []);
+    cats.get(c).push(pickerButton(name, { kind: "builtin", value: icon }, () => addWidget(t), { type: t }));
+  }
+  const order = [...cats.keys()].sort((a, b) => (a === "System" ? -1 : b === "System" ? 1 : a === "Andet" ? 1 : b === "Andet" ? -1 : 0));
+  $("#widget-list").replaceChildren(...order.map((c) => catBlock(c, cats.get(c))));
+  // Stream Deck buttons, grouped by the folder they live in
+  const groups = [];
+  const walkDeck = (list, title) => {
+    groups.push([title, list.map((d) => pickerButton(d.label, d.icon, () => addWidget("button", d.id), { type: "button", button: d.id }))]);
+    for (const f of list.filter((b) => b.action?.type === "folder")) walkDeck(f.buttons || [], `${title} › ${f.label}`);
+  };
+  walkDeck(deck, "Knapper");
+  $("#button-list").replaceChildren(...groups.filter(([, b]) => b.length).map(([t, b]) => catBlock(t, b)));
 }
 $("#pick-cancel").onclick = () => { selStart = null; renderHomeGrid(); showPanel(); };
 $("#sel-remove").onclick = () => { home.items.splice(selItem, 1); selItem = -1; homeSetDirty(); renderHomeGrid(); showPanel(); };
@@ -830,7 +849,7 @@ $("#preview-frame").addEventListener("load", () => setTimeout(sendPreview, 1500)
     select(-1);
     const st = await api("/api/settings");
     for (const ext of st.extensions || []) {
-      for (const w of ext.widgets || []) WIDGETS[w.type] = [`${w.name} (${ext.name})`, w.icon || "star"];
+      for (const w of ext.widgets || []) WIDGETS[w.type] = [`${w.name} (${ext.name})`, w.icon || "star", ext.category || "Andet"];
     }
     home = homeLayout = st.settings.ui.home;
     customPages = st.settings.ui.custom_pages || [];

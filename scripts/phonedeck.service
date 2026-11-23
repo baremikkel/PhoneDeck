@@ -1,0 +1,19 @@
+# systemd user-service: starter PhoneDeck automatisk, når du logger ind.
+#
+#   mkdir -p ~/.config/systemd/user
+#   cp scripts/phonedeck.service ~/.config/systemd/user/
+#   # ret WorkingDirectory hvis repoet ligger et andet sted
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now phonedeck
+[Unit]
+Description=PhoneDeck – PC-dashboard til telefonen
+After=graphical-session.target
+
+[Service]
+WorkingDirectory=%h/Documents/git-projects/PhoneDeck
+ExecStart=/usr/bin/python3 -m phonedeck
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

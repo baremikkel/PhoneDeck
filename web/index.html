@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#000000">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>PhoneDeck</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="offline" hidden>Ingen forbindelse til PC'en – prøver igen …</div>
+  <main id="deck">
+    <section class="card metric" id="cpu" style="--accent: var(--cpu)">
+      <header><span class="label">CPU</span><span class="sub" data-k="name"></span></header>
+      <div class="row">
+        <div class="big"><span data-k="load">–</span><small>%</small></div>
+        <div class="facts">
+          <div><span data-k="temp">–</span><small>°C</small></div>
+          <div><span data-k="freq">–</span><small>MHz</small></div>
+        </div>
+      </div>
+      <canvas class="spark" data-k="spark"></canvas>
+    </section>
+
+    <section class="card metric" id="gpu" style="--accent: var(--gpu)">
+      <header><span class="label">GPU</span><span class="sub" data-k="name"></span></header>
+      <div class="row">
+        <div class="big"><span data-k="load">–</span><small>%</small></div>
+        <div class="facts">
+          <div><span data-k="temp">–</span><small>°C</small></div>
+          <div><span data-k="power">–</span><small>W</small></div>
+        </div>
+      </div>
+      <div class="bar"><i data-k="vram"></i></div>
+      <div class="sub tiny" data-k="vramtxt"></div>
+      <canvas class="spark" data-k="spark"></canvas>
+    </section>
+
+    <section class="card" id="media">
+      <div class="art"><img data-k="art" alt=""><div class="noart">♪</div></div>
+      <div class="info">
+        <div class="sub" data-k="player"></div>
+        <div class="title" data-k="title">Intet afspilles</div>
+        <div class="artist" data-k="artist"></div>
+        <div class="progress"><i data-k="progress"></i></div>
+        <div class="times"><span data-k="pos"></span><span data-k="len"></span></div>
+        <div class="controls">
+          <button data-action="media.previous" aria-label="Forrige">⏮</button>
+          <button data-action="media.playpause" class="primary" data-k="playbtn" aria-label="Afspil/pause">▶</button>
+          <button data-action="media.next" aria-label="Næste">⏭</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="claude" style="--accent: var(--claude)">
+      <header><span class="label">Claude</span><span class="sub" data-k="reset"></span></header>
+      <div class="row">
+        <div class="big"><span data-k="block">–</span><small>tokens · 5 t</small></div>
+      </div>
+      <div class="facts grid2">
+        <div><span data-k="today">–</span><small>i dag</small></div>
+        <div><span data-k="week">–</span><small>7 dage</small></div>
+        <div><span data-k="out">–</span><small>output i dag</small></div>
+        <div><span data-k="msgs">–</span><small>svar i dag</small></div>
+      </div>
+      <canvas class="bars" data-k="hourly"></canvas>
+      <div class="sub tiny axis"><span>-24 t</span><span>nu</span></div>
+    </section>
+
+    <section class="card strip" id="sys">
+      <div><small>RAM</small><span data-k="ram">–</span></div>
+      <div><small>↓ Net</small><span data-k="down">–</span></div>
+      <div><small>↑ Net</small><span data-k="up">–</span></div>
+      <div><small>Disk</small><span data-k="disk">–</span></div>
+      <div><small>NVMe</small><span data-k="nvme">–</span></div>
+      <div class="clock" id="clock" title="Tryk for fuld skærm"><span data-k="time">–</span><small data-k="date"></small></div>
+    </section>
+
+    <section class="card buttons" id="buttons">
+      <button data-action="volume.down" aria-label="Lavere lydstyrke">🔉</button>
+      <button data-action="volume.mute" data-k="vol" class="vol">–</button>
+      <button data-action="volume.up" aria-label="Højere lydstyrke">🔊</button>
+      <button data-action="mic.mute" data-k="mic" aria-label="Mikrofon">🎙</button>
+      <span id="custom"></span>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

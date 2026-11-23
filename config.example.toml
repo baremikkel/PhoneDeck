@@ -1,0 +1,28 @@
+# PhoneDeck-konfiguration
+# Kopiér til ~/.config/phonedeck/config.toml og ret til.
+# Genstart PhoneDeck efter ændringer.
+
+[server]
+host = "127.0.0.1"   # kun lokalt – telefonen når den via `adb reverse`
+port = 8765
+interval = 1.0       # sekunder mellem opdateringer
+
+[gpu]
+# name = "Radeon RX 5700 XT"   # overstyr det automatisk fundne navn
+
+# Egne knapper ("Stream Deck"). `command` er enten en liste (anbefalet)
+# eller en streng, der køres med `sh -c`.
+[[buttons]]
+label = "Terminal"
+icon = "⌨"
+command = ["gnome-terminal"]
+
+[[buttons]]
+label = "Screenshot"
+icon = "📷"
+command = ["gnome-screenshot", "-i"]
+
+[[buttons]]
+label = "Lås"
+icon = "🔒"
+command = ["loginctl", "lock-session"]

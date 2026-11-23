@@ -5,15 +5,19 @@
 #   # ret WorkingDirectory hvis repoet ligger et andet sted
 #   systemctl --user daemon-reload
 #   systemctl --user enable --now phonedeck
+#   journalctl --user -u phonedeck -f      # se loggen
 [Unit]
 Description=PhoneDeck – PC-dashboard til telefonen
 After=graphical-session.target
+# starts with the desktop session (needs its D-Bus, display and audio)
+PartOf=graphical-session.target
 
 [Service]
 WorkingDirectory=%h/Documents/git-projects/PhoneDeck
 ExecStart=/usr/bin/python3 -m phonedeck
+Environment=PYTHONUNBUFFERED=1
 Restart=on-failure
 RestartSec=3
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target

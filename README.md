@@ -25,7 +25,7 @@ Swipe til venstre og højre mellem seks sider. Prikkerne nederst viser, hvor du 
 
 | Side | Indhold |
 |---|---|
-| **Forside** | Byg den selv på et fast gitter (4×2 til 8×4) med CPU, GPU, RAM, net, disk, musik, Claude, donut, ur, GitHub-heatmap og **genvejsknapper** fra dit Stream Deck. Standard: CPU, GPU, musik, Claude og en systemlinje. Nederst til højre sidder en **låst Menu-knap**, der åbner indstillinger og editor på computeren |
+| **Forside** | Byg den selv på et fast gitter (4×2 til 8×4) med CPU, GPU, RAM, net, disk, musik, Claude, donut, ur, GitHub-heatmap og **genvejsknapper** fra dit Stream Deck. Standard: CPU, GPU, musik, Claude og en systemlinje. Nederst til højre sidder som standard en **Menu-knap**, der åbner indstillinger og editor på computeren – den er et almindeligt element (under System i editoren), så den kan flyttes, ændres eller lægges på dine egne sider |
 | **System** | CPU med belastning pr. kerne, GPU (hotspot/kant, strøm, clock, blæser, VRAM), RAM, net og disk. CPU/GPU-graferne viser både belastning og temperatur. Knappen i CPU-kortets hjørne stiller CPU og GPU ved siden af eller over hinanden (også på Oversigt) |
 | **Musik** | Stort cover, titel/kunstner/album, afspilning, lydstyrke, en **visualizer**, der kan slås til/fra, og **næste sang** nederst. Tryk for at se hele køen (kræver Spotify-forbindelse, se nedenfor) |
 | **Claude** | **Donut** med hvad der er tilbage af dine grænser (5 timer + uge), tokens i 5-timers vinduet (input/output/cache), tid til nulstilling, i dag, 7 dage, fordeling pr. model, graf over 24 timer |

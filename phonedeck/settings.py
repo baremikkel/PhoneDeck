@@ -18,7 +18,7 @@ SETTINGS_PATH = os.path.expanduser(os.environ.get("PHONEDECK_SETTINGS", "~/.conf
 CORE_PAGES = ["overview", "system", "buttons"]
 # Core widgets; extensions add their own (any id-like name is accepted and simply
 # not shown while the extension providing it isn't installed)
-CORE_WIDGETS = {"cpu", "gpu", "ram", "net", "disk", "sys", "clock", "button"}
+CORE_WIDGETS = {"cpu", "gpu", "ram", "net", "disk", "sys", "clock", "button", "menu"}
 WIDGET_RE = re.compile(r"^[a-z0-9][a-z0-9.-]{0,60}$")  # "<extension>.<element>" for page elements
 PAGE_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
 CUSTOM_ID_RE = re.compile(r"^[a-z0-9]{1,12}$")
@@ -33,6 +33,7 @@ DEFAULT_HOME = {
         {"type": "media", "x": 4, "y": 0, "w": 2, "h": 3},
         {"type": "claude", "x": 6, "y": 0, "w": 2, "h": 3},
         {"type": "sys", "x": 0, "y": 3, "w": 7, "h": 1},
+        {"type": "menu", "x": 7, "y": 3, "w": 1, "h": 1},  # settings/editor – an ordinary element
     ],
 }
 
@@ -42,6 +43,7 @@ DEFAULTS = {
         "dim": True, "dim_from": 23, "dim_to": 7,
         "pixel_shift": True, "deck_cols": 5, "auto_fullscreen": True,
         "home": DEFAULT_HOME,
+        "home_v": 2,  # 2 = the menu button is an ordinary element (not locked)
         "custom_pages": [],  # your own pages: [{"id", "title", "cols", "rows", "items"}]
     },
     "ext": {},
@@ -51,9 +53,11 @@ DEFAULTS = {
 OLD_PAGES = {"music": "music", "claude": "claude-code", "activity": "github"}
 
 
-def make_room_for_menu(h: dict) -> dict:
-    """The bottom-right cell is reserved for the locked settings button.
-    Shrink (or drop) whatever covers it – used for layouts saved before it existed."""
+def add_menu_element(h: dict) -> dict:
+    """Layouts saved while the menu button was locked to the bottom-right cell: turn it into
+    an ordinary "menu" element in that cell (shrinking whatever covers it, if anything)."""
+    if any(it.get("type") == "menu" for it in h.get("items", [])):
+        return h
     mx, my = h["cols"] - 1, h["rows"] - 1
     items = []
     for it in h.get("items", []):
@@ -67,17 +71,18 @@ def make_room_for_menu(h: dict) -> dict:
             else:
                 continue
         items.append(it)
+    items.append({"type": "menu", "x": mx, "y": my, "w": 1, "h": 1})
     return dict(h, items=items)
 
 
-def validate_home(h, locked: bool = True) -> dict:
-    """A grid layout. `locked`: the bottom-right cell is the menu button (home page only)."""
+def validate_home(h) -> dict:
+    """A grid layout (the home page or one of your own pages)."""
     if not isinstance(h, dict):
         raise ValueError("ugyldig forside")
     cols, rows = h.get("cols"), h.get("rows")
     if (cols, rows) not in GRIDS:
         raise ValueError("ugyldig gitterstørrelse")
-    items, taken = [], ({(cols - 1, rows - 1)} if locked else set())  # bottom-right = locked menu button
+    items, taken = [], set()
     for it in h.get("items", [])[:48]:
         t = str(it.get("type", ""))
         if t not in CORE_WIDGETS and not WIDGET_RE.match(t):
@@ -89,8 +94,6 @@ def validate_home(h, locked: bool = True) -> dict:
         if w < 1 or hh < 1 or x < 0 or y < 0 or x + w > cols or y + hh > rows:
             raise ValueError("et felt går uden for gitteret")
         cells = {(cx, cy) for cx in range(x, x + w) for cy in range(y, y + hh)}
-        if locked and (cols - 1, rows - 1) in cells:
-            raise ValueError("feltet nederst til højre er låst til menu-knappen")
         if cells & taken:
             raise ValueError("to felter overlapper")
         taken |= cells
@@ -132,10 +135,12 @@ class Settings:
                     self.data["ui"][k] = saved["ui"][k]
             if isinstance(saved.get("ext"), dict):
                 self.data["ext"] = saved["ext"]
+            if saved.get("ui", {}).get("home_v", 1) < 2 and "home" in saved.get("ui", {}):
+                self.data["ui"]["home"] = add_menu_element(self.data["ui"]["home"])
         except (OSError, ValueError):
             pass
         try:
-            self.data["ui"]["home"] = validate_home(make_room_for_menu(self.data["ui"]["home"]))
+            self.data["ui"]["home"] = validate_home(self.data["ui"]["home"])
         except (KeyError, ValueError):
             self.data["ui"]["home"] = json.loads(json.dumps(DEFAULT_HOME))
 
@@ -189,7 +194,7 @@ class Settings:
                     raise ValueError("ugyldigt side-id")
                 seen.add(pid)
                 title = str(cp.get("title", "")).strip()[:30] or "Min side"
-                pages.append({"id": pid, "title": title, **validate_home(cp, locked=False)})
+                pages.append({"id": pid, "title": title, **validate_home(cp)})
             new["ui"]["custom_pages"] = pages
         changed_ext = []
         for ext_id, values in (raw.get("ext") or {}).items():

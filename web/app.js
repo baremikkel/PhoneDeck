@@ -442,6 +442,7 @@ function renderButtons(list) {
 // ---------- customisable home page: a fixed grid of widgets (set up at /editor#home) ----------
 // Static markup only – every value is filled in through the same data-b bindings as elsewhere.
 const WIDGET_HTML = {
+  menu: `<button class="tile home-menu" data-menu-open><i class="ic" data-icon="gear"></i><span>Menu</span></button>`,
   cpu: `<div class="card" style="--accent: var(--cpu)">
     <header><span class="label">CPU</span><span class="sub grow right" data-b="cpu.name"></span></header>
     <div class="row"><div class="big"><span data-b="cpu.load">–</span><small>%</small></div>
@@ -475,7 +476,7 @@ const WIDGET_HTML = {
 };
 
 // one grid builder for the home page and your own pages
-function buildGrid(page, layout, withMenu) {
+function buildGrid(page, layout) {
   page.classList.add("grid-page");
   page.style.gridTemplateColumns = `repeat(${layout.cols}, 1fr)`;
   page.style.gridTemplateRows = `repeat(${layout.rows}, 1fr)`;
@@ -500,17 +501,6 @@ function buildGrid(page, layout, withMenu) {
     el.style.gridRow = `${it.y + 1} / span ${it.h}`;
     return el;
   }).filter(Boolean));
-  if (withMenu) {
-    // locked menu button in the bottom-right cell (can't be moved or removed)
-    const menu = document.createElement("button");
-    menu.className = "tile home-menu";
-    menu.dataset.menuOpen = "";
-    menu.style.gridColumn = `${layout.cols}`;
-    menu.style.gridRow = `${layout.rows}`;
-    menu.append(Object.assign(document.createElement("i"), { className: "ic" }), Object.assign(document.createElement("span"), { textContent: "Menu" }));
-    drawIcon(menu.querySelector(".ic"), "gear");
-    page.append(menu);
-  }
   $$("[data-icon]", page).forEach((el) => drawIcon(el, el.dataset.icon));
   layoutGen++;
   PhoneDeck.each("rebuilt");  // a grid was rebuilt – extensions refresh their elements
@@ -523,7 +513,7 @@ function renderHome(home) {
   const key = JSON.stringify(home);
   if (key === homeKey) return;
   homeKey = key;
-  buildGrid($("#p-overview"), home, true);
+  buildGrid($("#p-overview"), home);
 }
 
 // your own pages (made in the editor) – one <section> each, id "p-custom-<id>"
@@ -544,7 +534,7 @@ function renderCustomPages(list) {
       pager.insertBefore(sec, $("#p-buttons"));
     }
     sec.dataset.title = cp.title;
-    buildGrid(sec, cp, false);
+    buildGrid(sec, cp);
   }
 }
 function fillHomeButtons(list) {

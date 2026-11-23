@@ -555,6 +555,15 @@ function renderHome(home) {
     el.style.gridRow = `${it.y + 1} / span ${it.h}`;
     return el;
   }));
+  // locked menu button in the bottom-right cell (can't be moved or removed)
+  const menu = document.createElement("button");
+  menu.className = "tile home-menu";
+  menu.dataset.menuOpen = "";
+  menu.style.gridColumn = `${home.cols}`;
+  menu.style.gridRow = `${home.rows}`;
+  menu.append(Object.assign(document.createElement("i"), { className: "ic" }), Object.assign(document.createElement("span"), { textContent: "Menu" }));
+  drawIcon(menu.querySelector(".ic"), "gear");
+  page.append(menu);
   $$("[data-icon]", page).forEach((el) => drawIcon(el, el.dataset.icon));
   heatKey = "";
   artKey = undefined;
@@ -566,6 +575,18 @@ function fillHomeButtons(list) {
     slot.replaceChildren(b ? makeTile(b) : Object.assign(document.createElement("div"), { className: "tile missing", textContent: "Knap slettet" }));
   });
 }
+
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-menu-open]")) { $("#menu").hidden = false; return; }
+  const item = e.target.closest("[data-menu-go]");
+  if (item) {
+    api("/api/action", { action: item.dataset.menuGo }).catch(() => {});
+    item.classList.add("pressed");
+    setTimeout(() => { $("#menu").hidden = true; item.classList.remove("pressed"); }, 300);
+  } else if (e.target.closest("[data-menu-close]") || e.target.id === "menu") {
+    $("#menu").hidden = true;
+  }
+});
 
 // ---------- per-device preferences ----------
 const prefs = (() => { try { return JSON.parse(localStorage.getItem("phonedeck.prefs") || "{}"); } catch { return {}; } })();

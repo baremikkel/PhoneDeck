@@ -201,7 +201,9 @@ class Deck:
         elif t == "url":
             _spawn(["xdg-open", a["url"]])
         elif t == "app":
-            self.apps.launch(a["app"])
+            # already running? bring it to the front if the desktop allows it, else start it
+            if not (a["app"] in self.apps.running([a["app"]]) and self.apps.activate(a["app"])):
+                self.apps.launch(a["app"])
         elif t == "hotkey":
             send_hotkey(a["keys"])
         elif t == "command":

@@ -44,6 +44,7 @@ body.tab-deck .home-only, body.tab-home .deck-only { display: none !important; }
 .widget-list img, .widget-list .ic { width: 18px; height: 18px; }
 .move-grid { display: grid; grid-template-columns: 70px repeat(4, minmax(0, 1fr)); gap: 6px; align-items: center; color: var(--muted); }
 #home-panel h3 { font-size: 18px; }
+.home-grid .w.locked { border-style: dashed; cursor: not-allowed; color: var(--muted); background: transparent; }
 
 button {
   font: inherit; color: var(--text); background: var(--tile); border: 1px solid var(--line);

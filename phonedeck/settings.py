@@ -22,7 +22,7 @@ DEFAULT_HOME = {
         {"type": "gpu", "x": 2, "y": 0, "w": 2, "h": 3},
         {"type": "media", "x": 4, "y": 0, "w": 2, "h": 3},
         {"type": "claude", "x": 6, "y": 0, "w": 2, "h": 3},
-        {"type": "sys", "x": 0, "y": 3, "w": 8, "h": 1},
+        {"type": "sys", "x": 0, "y": 3, "w": 7, "h": 1},
     ],
 }
 
@@ -38,13 +38,32 @@ DEFAULTS = {
 }
 
 
+def make_room_for_menu(h: dict) -> dict:
+    """The bottom-right cell is reserved for the locked settings button.
+    Shrink (or drop) whatever covers it – used for layouts saved before it existed."""
+    mx, my = h["cols"] - 1, h["rows"] - 1
+    items = []
+    for it in h.get("items", []):
+        covers = it["x"] <= mx < it["x"] + it["w"] and it["y"] <= my < it["y"] + it["h"]
+        if covers:
+            it = dict(it)
+            if it["w"] > 1:
+                it["w"] -= 1
+            elif it["h"] > 1:
+                it["h"] -= 1
+            else:
+                continue
+        items.append(it)
+    return dict(h, items=items)
+
+
 def validate_home(h) -> dict:
     if not isinstance(h, dict):
         raise ValueError("ugyldig forside")
     cols, rows = h.get("cols"), h.get("rows")
     if (cols, rows) not in GRIDS:
         raise ValueError("ugyldig gitterstørrelse")
-    items, taken = [], set()
+    items, taken = [], {(cols - 1, rows - 1)}  # bottom-right = locked menu button
     for it in h.get("items", [])[:48]:
         t = it.get("type")
         if t not in WIDGETS:
@@ -56,6 +75,8 @@ def validate_home(h) -> dict:
         if w < 1 or hh < 1 or x < 0 or y < 0 or x + w > cols or y + hh > rows:
             raise ValueError("et felt går uden for gitteret")
         cells = {(cx, cy) for cx in range(x, x + w) for cy in range(y, y + hh)}
+        if (cols - 1, rows - 1) in cells:
+            raise ValueError("feltet nederst til højre er låst til menu-knappen")
         if cells & taken:
             raise ValueError("to felter overlapper")
         taken |= cells
@@ -79,6 +100,10 @@ class Settings:
                         self.data[section][k] = saved[section][k]
         except (OSError, ValueError):
             pass
+        try:
+            self.data["ui"]["home"] = validate_home(make_room_for_menu(self.data["ui"]["home"]))
+        except (KeyError, ValueError):
+            self.data["ui"]["home"] = json.loads(json.dumps(DEFAULT_HOME))
 
     def get(self, section: str, key: str):
         with self._lock:

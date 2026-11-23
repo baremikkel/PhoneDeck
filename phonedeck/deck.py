@@ -25,7 +25,8 @@ import uuid
 from .actions import BUILTINS, load_config
 
 DECK_PATH = os.path.expanduser(os.environ.get("PHONEDECK_BUTTONS", "~/.config/phonedeck/buttons.json"))
-MAX_BUTTONS = 60
+MAX_BUTTONS = 150   # in total, including the ones inside folders
+MAX_DEPTH = 3       # folders inside folders inside folders
 
 # Linux input key codes ydotool understands (subset used by the editor)
 MAX_KEYCODE = 248
@@ -66,14 +67,18 @@ def _clean_icon(icon) -> dict:
     return {"kind": kind, "value": value}
 
 
-def validate(raw: list, apps) -> list[dict]:
-    """Return a cleaned list or raise ValueError with a Danish message."""
+def validate(raw: list, apps, _depth: int = 0, _seen: set | None = None, _count: list | None = None) -> list[dict]:
+    """Return a cleaned list or raise ValueError with a Danish message.
+    A button with action {"type": "folder"} holds its own "buttons" list."""
     if not isinstance(raw, list):
         raise ValueError("forventede en liste af knapper")
-    if len(raw) > MAX_BUTTONS:
-        raise ValueError(f"højst {MAX_BUTTONS} knapper")
-    out, seen = [], set()
+    seen = set() if _seen is None else _seen
+    count = [0] if _count is None else _count
+    out = []
     for b in raw:
+        count[0] += 1
+        if count[0] > MAX_BUTTONS:
+            raise ValueError(f"højst {MAX_BUTTONS} knapper i alt")
         if not isinstance(b, dict):
             raise ValueError("ugyldig knap")
         label = str(b.get("label", "")).strip()[:40]
@@ -81,7 +86,13 @@ def validate(raw: list, apps) -> list[dict]:
             raise ValueError("alle knapper skal have et navn")
         a = b.get("action") or {}
         t = a.get("type")
-        if t == "builtin":
+        children = None
+        if t == "folder":
+            if _depth >= MAX_DEPTH:
+                raise ValueError(f"{label}: mapper kan højst ligge {MAX_DEPTH} niveauer inde i hinanden")
+            action = {"type": "folder"}
+            children = validate(b.get("buttons") or [], apps, _depth + 1, seen, count)
+        elif t == "builtin":
             if a.get("name") not in BUILTINS:
                 raise ValueError(f"{label}: ukendt indbygget handling")
             action = {"type": "builtin", "name": a["name"]}
@@ -117,9 +128,20 @@ def validate(raw: list, apps) -> list[dict]:
         color = str(b.get("color") or "")
         if color and not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
             color = ""
-        out.append({"id": bid, "label": label, "icon": _clean_icon(b.get("icon")), "action": action,
-                    "color": color})
+        item = {"id": bid, "label": label, "icon": _clean_icon(b.get("icon")), "action": action,
+                "color": color}
+        if children is not None:
+            item["buttons"] = children
+        out.append(item)
     return out
+
+
+def walk(buttons: list[dict]):
+    """Every button, including those inside folders."""
+    for b in buttons:
+        yield b
+        if b["action"]["type"] == "folder":
+            yield from walk(b.get("buttons", []))
 
 
 class Deck:
@@ -173,26 +195,30 @@ class Deck:
 
     # ---- for the phone: no commands, just what it needs to draw ----
     def app_ids(self) -> list[str]:
-        return [b["action"]["app"] for b in self.buttons if b["action"]["type"] == "app"]
+        return [b["action"]["app"] for b in walk(self.buttons) if b["action"]["type"] == "app"]
 
-    def public(self, running: set[str] | None = None) -> list[dict]:
+    def public(self, running: set[str] | None = None, _buttons: list | None = None) -> list[dict]:
         out = []
-        for b in self.buttons:
+        for b in self.buttons if _buttons is None else _buttons:
             p = {"id": b["id"], "label": b["label"], "icon": b["icon"], "type": b["action"]["type"],
                  "color": b.get("color", "")}
             if b["action"]["type"] == "app":
                 p["running"] = b["action"]["app"] in (running or ())
             if b["action"]["type"] == "builtin":
                 p["builtin"] = b["action"]["name"]
+            if b["action"]["type"] == "folder":
+                p["buttons"] = self.public(running, b.get("buttons", []))
             out.append(p)
         return out
 
     # ---- running ----
     def press(self, button_id: str) -> dict:
-        b = next((x for x in self.buttons if x["id"] == button_id), None)
+        b = next((x for x in walk(self.buttons) if x["id"] == button_id), None)
         if b is None:
             raise ValueError("ukendt knap")
         a = b["action"]
+        if a["type"] == "folder":
+            return {}  # the phone opens folders itself
         if a["type"] == "app" and a["app"] in self.apps.running([a["app"]]):
             return {"notice": f"{b['label']} er allerede åben"}  # don't start a second copy
         self.run(a)
@@ -200,6 +226,8 @@ class Deck:
 
     def run(self, a: dict) -> None:
         t = a["type"]
+        if t == "folder":
+            return
         if t == "builtin":
             self.actions.run(a["name"])
         elif t == "url":

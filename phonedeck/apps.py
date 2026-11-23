@@ -6,7 +6,6 @@ import configparser
 import glob
 import os
 import re
-import shutil
 import subprocess
 import time
 from shlex import split as _shlex
@@ -137,57 +136,6 @@ class Apps:
             elif procs & names:
                 out.add(app_id)
         return out
-
-    # ---------- bring an already running app to the front ----------
-    @staticmethod
-    def _x_env() -> dict:
-        env = dict(os.environ)
-        env.setdefault("DISPLAY", ":0")
-        if "XAUTHORITY" not in env:  # GNOME's XWayland keeps its auth file here
-            auth = glob.glob(f"/run/user/{os.getuid()}/.mutter-Xwaylandauth.*")
-            if auth:
-                env["XAUTHORITY"] = auth[0]
-        return env
-
-    def activate(self, app_id: str) -> bool:
-        """Best effort – Wayland doesn't let other programs raise windows, so try:
-        1. D-Bus activation (GNOME apps with DBusActivatable=true)
-        2. xdotool for apps running under XWayland (Electron apps, Spotify, Steam …)
-        Returns False if neither worked; the caller then just launches the app."""
-        app = self.get(app_id)
-        if not app:
-            return False
-        cp = configparser.RawConfigParser(strict=False, interpolation=None)
-        try:
-            cp.read(app["path"], encoding="utf-8")
-            e = cp["Desktop Entry"]
-        except (configparser.Error, KeyError, UnicodeDecodeError):
-            return False
-        if e.get("DBusActivatable", "").lower() == "true":
-            name = app_id.removesuffix(".desktop")
-            path = "/" + name.replace(".", "/").replace("-", "_")
-            r = subprocess.run(["gdbus", "call", "--session", "--dest", name, "--object-path", path,
-                                "--method", "org.freedesktop.Application.Activate", "{}"],
-                               capture_output=True, timeout=3)
-            if r.returncode == 0:
-                return True
-        if not shutil.which("xdotool"):
-            return False
-        procs, steam_id = app.get("sig") or self._signature(app)
-        classes = set(procs)
-        if e.get("StartupWMClass"):
-            classes.add(e["StartupWMClass"])
-        if steam_id:
-            classes.add(f"steam_app_{steam_id}")
-        env = self._x_env()
-        for cls in classes:
-            ids = subprocess.run(["xdotool", "search", "--onlyvisible", "--class", cls],
-                                 capture_output=True, text=True, timeout=3, env=env).stdout.split()
-            for wid in ids:
-                if subprocess.run(["xdotool", "windowactivate", wid], capture_output=True,
-                                  timeout=3, env=env).returncode == 0:
-                    return True
-        return False
 
     def launch(self, app_id: str) -> None:
         app = self.get(app_id)

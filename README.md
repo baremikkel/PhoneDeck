@@ -30,7 +30,7 @@ Swipe til venstre og højre mellem seks sider. Prikkerne nederst viser, hvor du 
 | **Musik** | Stort cover, titel/kunstner/album, afspilning, lydstyrke, en **visualizer**, der kan slås til/fra, og **næste sang** nederst. Tryk for at se hele køen (kræver Spotify-forbindelse, se nedenfor) |
 | **Claude** | **Donut** med hvad der er tilbage af dine grænser (5 timer + uge), tokens i 5-timers vinduet (input/output/cache), tid til nulstilling, i dag, 7 dage, fordeling pr. model, graf over 24 timer |
 | **Aktivitet** | Heatmaps i GitHub-stil for dine GitHub-bidrag og dit Claude Code-forbrug det seneste år |
-| **Knapper** | Et **Stream Deck**: standardknapper (lyd, mikrofon, afspilning, fuld skærm, lås skærm, skærmbillede) plus dine egne, med valgfri farve. Programmer, der allerede kører, markeres som **Aktiv**, og et tryk henter dem frem på skærmen, når det er muligt (se nedenfor). Redigeres i browseren på PC'en |
+| **Knapper** | Et **Stream Deck**: standardknapper (lyd, mikrofon, afspilning, fuld skærm, lås skærm, skærmbillede) plus dine egne, med valgfri farve. Programmer, der allerede kører, markeres som **Aktiv**, og et tryk viser blot en kort besked om, at programmet allerede er åbent. Redigeres i browseren på PC'en |
 
 Medier bruger MPRIS (Spotify, browsere, VLC …), så der skal ingen API-nøgler til.
 Skærmen holdes tændt, mens dashboardet er åbent (Wake Lock API).
@@ -126,7 +126,7 @@ I editoren (**<http://localhost:8765/editor>**) er der to faner:
 Åbn **<http://localhost:8765/editor>** i browseren på PC'en, eller tryk *Redigér knapper*
 på telefonen, så åbner editoren på computeren. Her kan du:
 
-- **Åbne et program**: vælg blandt dine installerede programmer (også Steam-spil og snaps). Ikon og navn hentes automatisk. Kører programmet allerede, hentes vinduet frem i stedet. Wayland har ingen fælles måde at gøre det på, så PhoneDeck prøver D-Bus-aktivering (GNOME-programmer) og `xdotool` (programmer under XWayland, fx Spotify, VS Code og mange spil). Virker ingen af dem, startes programmet bare igen, og de fleste programmer viser så deres eksisterende vindue.
+- **Åbne et program**: vælg blandt dine installerede programmer (også Steam-spil og snaps). Ikon og navn hentes automatisk. Kører programmet allerede, starter knappen ikke en ekstra kopi, men viser en kort besked på telefonen.
 - **Åbne en hjemmeside** i standardbrowseren, fx Messenger.
 - **Sende en tastaturgenvej**, fx Ctrl+Shift+T. Kræver [`ydotool`](https://github.com/ReimuNotMoe/ydotool) med `ydotoold` kørende, fordi Wayland ikke tillader andre måder.
 - **Køre en kommando eller et script**, fx `~/shortcut_scripts/mit-script.sh`.

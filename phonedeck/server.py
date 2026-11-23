@@ -247,7 +247,7 @@ def make_handler(hub: Hub, host: str, port: int):
                     hub.visualizer.touch()
                 elif self.path == "/api/action":
                     if "button" in body:
-                        hub.deck.press(str(body["button"]))
+                        return self._json({"ok": True, **hub.deck.press(str(body["button"]))})
                     elif body.get("action") in ("open.editor", "open.settings"):
                         # open the editor / settings page in the PC's browser
                         page = "editor" if body["action"] == "open.editor" else "settings"

@@ -399,3 +399,11 @@ body.stack #p-overview { grid-template-areas: none !important; }
 #p-overview .small.w-media .controls button { min-height: 0; height: 100%; padding: 0; }
 #p-overview .small.w-media .info { height: 100%; }
 #p-overview .small.w-media .controls { flex: 1; margin: 0; }
+
+#toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 30;
+  background: #23232b; color: var(--text); border: 1px solid #3a3a46; border-radius: 999px;
+  padding: 10px 20px; font-size: 15px; box-shadow: 0 6px 24px #000a; white-space: nowrap;
+}
+#toast.show { animation: toast-in .18s ease-out; }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }

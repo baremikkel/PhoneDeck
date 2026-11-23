@@ -588,6 +588,16 @@ document.addEventListener("click", (e) => {
   }
 });
 
+// short pop-up message at the bottom of the screen
+function toast(msg) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.hidden = false;
+  t.classList.remove("show"); void t.offsetWidth; t.classList.add("show");
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => { t.hidden = true; }, 2200);
+}
+
 // ---------- per-device preferences ----------
 const prefs = (() => { try { return JSON.parse(localStorage.getItem("phonedeck.prefs") || "{}"); } catch { return {}; } })();
 const savePrefs = () => { try { localStorage.setItem("phonedeck.prefs", JSON.stringify(prefs)); } catch { /* ignore */ } };
@@ -622,7 +632,9 @@ document.addEventListener("click", async (e) => {
   btn.classList.add("pressed");
   setTimeout(() => btn.classList.remove("pressed"), 180);
   try {
-    await api("/api/action", btn.dataset.button ? { button: btn.dataset.button } : { action: btn.dataset.action });
+    const res = await api("/api/action", btn.dataset.button ? { button: btn.dataset.button } : { action: btn.dataset.action });
+    const data = await res.json().catch(() => ({}));
+    if (data.notice) toast(data.notice);
   } catch { /* offline banner covers this */ }
 });
 

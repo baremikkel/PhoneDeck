@@ -188,11 +188,15 @@ class Deck:
         return out
 
     # ---- running ----
-    def press(self, button_id: str) -> None:
+    def press(self, button_id: str) -> dict:
         b = next((x for x in self.buttons if x["id"] == button_id), None)
         if b is None:
             raise ValueError("ukendt knap")
-        self.run(b["action"])
+        a = b["action"]
+        if a["type"] == "app" and a["app"] in self.apps.running([a["app"]]):
+            return {"notice": f"{b['label']} er allerede åben"}  # don't start a second copy
+        self.run(a)
+        return {}
 
     def run(self, a: dict) -> None:
         t = a["type"]
@@ -201,9 +205,7 @@ class Deck:
         elif t == "url":
             _spawn(["xdg-open", a["url"]])
         elif t == "app":
-            # already running? bring it to the front if the desktop allows it, else start it
-            if not (a["app"] in self.apps.running([a["app"]]) and self.apps.activate(a["app"])):
-                self.apps.launch(a["app"])
+            self.apps.launch(a["app"])
         elif t == "hotkey":
             send_hotkey(a["keys"])
         elif t == "command":

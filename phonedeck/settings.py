@@ -19,8 +19,10 @@ CORE_PAGES = ["overview", "system", "buttons"]
 # Core widgets; extensions add their own (any id-like name is accepted and simply
 # not shown while the extension providing it isn't installed)
 CORE_WIDGETS = {"cpu", "gpu", "ram", "net", "disk", "sys", "clock", "button"}
-WIDGET_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
-PAGE_RE = WIDGET_RE
+WIDGET_RE = re.compile(r"^[a-z0-9][a-z0-9.-]{0,60}$")  # "<extension>.<element>" for page elements
+PAGE_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
+CUSTOM_ID_RE = re.compile(r"^[a-z0-9]{1,12}$")
+MAX_CUSTOM_PAGES = 10
 GRIDS = [(4, 2), (4, 3), (6, 3), (6, 4), (8, 4)]
 
 DEFAULT_HOME = {
@@ -40,6 +42,7 @@ DEFAULTS = {
         "dim": True, "dim_from": 23, "dim_to": 7,
         "pixel_shift": True, "deck_cols": 5, "auto_fullscreen": True,
         "home": DEFAULT_HOME,
+        "custom_pages": [],  # your own pages: [{"id", "title", "cols", "rows", "items"}]
     },
     "ext": {},
 }
@@ -67,13 +70,14 @@ def make_room_for_menu(h: dict) -> dict:
     return dict(h, items=items)
 
 
-def validate_home(h) -> dict:
+def validate_home(h, locked: bool = True) -> dict:
+    """A grid layout. `locked`: the bottom-right cell is the menu button (home page only)."""
     if not isinstance(h, dict):
         raise ValueError("ugyldig forside")
     cols, rows = h.get("cols"), h.get("rows")
     if (cols, rows) not in GRIDS:
         raise ValueError("ugyldig gitterstørrelse")
-    items, taken = [], {(cols - 1, rows - 1)}  # bottom-right = locked menu button
+    items, taken = [], ({(cols - 1, rows - 1)} if locked else set())  # bottom-right = locked menu button
     for it in h.get("items", [])[:48]:
         t = str(it.get("type", ""))
         if t not in CORE_WIDGETS and not WIDGET_RE.match(t):
@@ -85,7 +89,7 @@ def validate_home(h) -> dict:
         if w < 1 or hh < 1 or x < 0 or y < 0 or x + w > cols or y + hh > rows:
             raise ValueError("et felt går uden for gitteret")
         cells = {(cx, cy) for cx in range(x, x + w) for cy in range(y, y + hh)}
-        if (cols - 1, rows - 1) in cells:
+        if locked and (cols - 1, rows - 1) in cells:
             raise ValueError("feltet nederst til højre er låst til menu-knappen")
         if cells & taken:
             raise ValueError("to felter overlapper")
@@ -177,6 +181,16 @@ class Settings:
             new["ui"]["deck_cols"] = v
         if "home" in u:
             new["ui"]["home"] = validate_home(u["home"])
+        if "custom_pages" in u:
+            pages, seen = [], set()
+            for cp in (u["custom_pages"] or [])[:MAX_CUSTOM_PAGES]:
+                pid = str(cp.get("id", ""))
+                if not CUSTOM_ID_RE.match(pid) or pid in seen:
+                    raise ValueError("ugyldigt side-id")
+                seen.add(pid)
+                title = str(cp.get("title", "")).strip()[:30] or "Min side"
+                pages.append({"id": pid, "title": title, **validate_home(cp, locked=False)})
+            new["ui"]["custom_pages"] = pages
         changed_ext = []
         for ext_id, values in (raw.get("ext") or {}).items():
             clean = ext_validator(ext_id, values) if ext_validator else {}

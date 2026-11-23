@@ -128,6 +128,20 @@ def _read_manifest(folder: Path) -> dict | None:
     if m["has_page"]:
         m.setdefault("page", {})
         m["page"].setdefault("title", m["name"])
+        # every card marked data-widget="…" on the page can also be placed on the
+        # home page and on your own pages – as "<extension id>.<name>"
+        try:
+            html = (folder / "page.html").read_text(encoding="utf-8")
+        except OSError:
+            html = ""
+        known = {w.get("type") for w in m["widgets"]}
+        for tag in re.findall(r"<[^>]*\bdata-widget=\"[^\"]+\"[^>]*>", html):
+            wid = re.search(r'data-widget="([a-z0-9-]+)"', tag)
+            name = re.search(r'data-widget-name="([^"]*)"', tag)
+            if wid and f"{m['id']}.{wid.group(1)}" not in known:
+                m["widgets"].append({"type": f"{m['id']}.{wid.group(1)}",
+                                     "name": name.group(1) if name else wid.group(1),
+                                     "icon": "grid", "from_page": True})
     else:
         m.pop("page", None)
     return m

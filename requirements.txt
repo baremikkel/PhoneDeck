@@ -1,2 +1,3 @@
 psutil>=5.9
 PyGObject>=3.42  # normalt fra apt: python3-gi
+numpy>=1.24      # valgfri: kun til visualizeren

@@ -15,7 +15,14 @@ import time
 from datetime import datetime, timedelta
 
 ROOT = os.path.expanduser(os.environ.get("CLAUDE_CONFIG_DIR", "~/.claude"))
-KEEP_DAYS = 8
+KEEP_DAYS = 371  # a year of history for the heat map
+# Claude Code deletes old transcripts (30 days by default), so daily totals are
+# also saved here – the heat map keeps growing even after the logs are gone.
+DAILY_CACHE = os.path.expanduser("~/.cache/phonedeck/claude_daily.json")
+
+
+def _day(epoch: float) -> str:
+    return datetime.fromtimestamp(epoch).strftime("%Y-%m-%d")
 
 
 class ClaudeUsage:
@@ -25,6 +32,30 @@ class ClaudeUsage:
         # message id -> (epoch, model, input, output, cache_write, cache_read)
         self.records: dict[str, tuple] = {}
         self.last_scan = 0.0
+        try:
+            with open(DAILY_CACHE) as f:
+                self.saved_daily: dict[str, int] = json.load(f)
+        except (OSError, ValueError):
+            self.saved_daily = {}
+        self.daily: dict[str, int] = dict(self.saved_daily)
+
+    def _update_daily(self) -> None:
+        computed: dict[str, int] = {}
+        for epoch, _m, inp, out, cw, _cr in self.records.values():
+            d = _day(epoch)
+            computed[d] = computed.get(d, 0) + inp + out + cw
+        merged = dict(self.saved_daily)
+        for d, v in computed.items():
+            merged[d] = max(v, merged.get(d, 0))
+        self.daily = merged
+        if merged != self.saved_daily:
+            try:
+                os.makedirs(os.path.dirname(DAILY_CACHE), exist_ok=True)
+                with open(DAILY_CACHE, "w") as f:
+                    json.dump(merged, f)
+                self.saved_daily = merged
+            except OSError:
+                pass
 
     def _ingest_line(self, line: str) -> None:
         if '"usage"' not in line:
@@ -77,6 +108,23 @@ class ClaudeUsage:
             self.offsets[path] = off + end
         self.records = {k: v for k, v in self.records.items() if v[0] >= cutoff}
         self.last_scan = time.time()
+        self._update_daily()
+
+    def daily_series(self, days: int = 365) -> dict:
+        """Tokens per day for the last `days` days, oldest first (for the heat map)."""
+        today = datetime.now().date()
+        start = today - timedelta(days=days - 1)
+        counts = [self.daily.get((start + timedelta(days=i)).isoformat(), 0) for i in range(days)]
+        active = [c for c in counts if c]
+        streak = 0
+        for i, c in enumerate(reversed(counts)):
+            if c:
+                streak += 1
+            elif i:
+                break
+        return {"start": start.isoformat(), "counts": counts, "total": sum(counts),
+                "active_days": len(active), "best": max(counts), "streak": streak,
+                "first": min(self.daily) if self.daily else None}
 
     def summary(self) -> dict:
         now = time.time()
@@ -121,4 +169,5 @@ class ClaudeUsage:
             "hourly": hourly,
             "block_reset_in": reset_in,
             "available": os.path.isdir(os.path.join(self.root, "projects")),
+            "daily": self.daily_series(),
         }

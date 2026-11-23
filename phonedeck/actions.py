@@ -45,7 +45,20 @@ class Actions:
         self.media = media
         self.reload()
 
+    def reload_if_changed(self) -> None:
+        """Pick up new/changed buttons in config.toml without a restart."""
+        try:
+            mtime = os.path.getmtime(CONFIG_PATH)
+        except OSError:
+            mtime = None
+        if mtime != self._mtime:
+            self.reload()
+
     def reload(self) -> None:
+        try:
+            self._mtime = os.path.getmtime(CONFIG_PATH)
+        except OSError:
+            self._mtime = None
         cfg = load_config()
         self.buttons = []
         for i, b in enumerate(cfg.get("buttons", [])):

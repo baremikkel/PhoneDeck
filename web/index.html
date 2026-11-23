@@ -24,7 +24,7 @@
             <div><span data-b="cpu.freq">–</span><small>MHz</small></div>
           </div>
         </div>
-        <canvas class="spark" data-chart="cpu"></canvas>
+        <canvas class="spark" data-chart="cpu" title="Tryk for at skifte graf"></canvas>
       </div>
 
       <div class="card metric a-gpu" style="--accent: var(--gpu)">
@@ -38,7 +38,7 @@
         </div>
         <div class="bar"><i data-w="gpu.vram"></i></div>
         <div class="sub tiny" data-b="gpu.vramtxt"></div>
-        <canvas class="spark" data-chart="gpu"></canvas>
+        <canvas class="spark" data-chart="gpu" title="Tryk for at skifte graf"></canvas>
       </div>
 
       <div class="card media a-media">
@@ -88,8 +88,8 @@
             <div><span data-b="cpu.freq">–</span><small>MHz</small></div>
           </div>
         </div>
-        <div class="cores" data-cores></div>
-        <canvas class="spark" data-chart="cpu"></canvas>
+        <div class="cores" data-cores title="Tryk for lodret/vandret"></div>
+        <canvas class="spark" data-chart="cpu" title="Tryk for at skifte graf"></canvas>
       </div>
 
       <div class="card a-gpu" style="--accent: var(--gpu)">
@@ -108,7 +108,7 @@
         </div>
         <div class="bar"><i data-w="gpu.vram"></i></div>
         <div class="sub tiny" data-b="gpu.vramtxt"></div>
-        <canvas class="spark" data-chart="gpu"></canvas>
+        <canvas class="spark" data-chart="gpu" title="Tryk for at skifte graf"></canvas>
       </div>
 
       <div class="card a-mem" style="--accent: var(--ram)">
@@ -141,6 +141,7 @@
     <!-- ============ 3. MUSIK ============ -->
     <section class="page" id="p-music" data-title="Musik">
       <div class="card media big-media">
+        <canvas class="viz" data-viz hidden></canvas>
         <div class="art"><img data-art alt=""><div class="noart">♪</div></div>
         <div class="info">
           <div class="sub" data-b="m.player"></div>
@@ -159,6 +160,7 @@
             <div class="bar"><i data-w="vol.pct"></i></div>
             <button data-action="volume.up" aria-label="Højere"><i class="ic" data-icon="plus"></i></button>
             <button data-action="volume.mute" class="vol" data-b="vol.txt" data-on="vol.muted">–</button>
+            <button data-viz-toggle aria-label="Visualizer til/fra" title="Visualizer"><i class="ic" data-icon="viz"></i></button>
           </div>
         </div>
       </div>
@@ -193,7 +195,33 @@
       </div>
     </section>
 
-    <!-- ============ 5. KNAPPER ============ -->
+    <!-- ============ 5. AKTIVITET ============ -->
+    <section class="page" id="p-activity" data-title="Aktivitet">
+      <div class="card heat" style="--accent: var(--gh)">
+        <header>
+          <span class="label">GitHub<span class="sub" data-b="gh.user"></span></span>
+          <span class="stats">
+            <span><b data-b="gh.total">–</b><small>bidrag · år</small></span>
+            <span><b data-b="gh.today">–</b><small>i dag</small></span>
+            <span><b data-b="gh.streak">–</b><small>dage i træk</small></span>
+          </span>
+        </header>
+        <canvas class="heatmap" data-heat="github"></canvas>
+      </div>
+      <div class="card heat" style="--accent: var(--claude)">
+        <header>
+          <span class="label">Claude Code</span>
+          <span class="stats">
+            <span><b data-b="ch.total">–</b><small>tokens · år</small></span>
+            <span><b data-b="ch.active">–</b><small>aktive dage</small></span>
+            <span><b data-b="ch.streak">–</b><small>dage i træk</small></span>
+          </span>
+        </header>
+        <canvas class="heatmap" data-heat="claude"></canvas>
+      </div>
+    </section>
+
+    <!-- ============ 6. KNAPPER ============ -->
     <section class="page" id="p-buttons" data-title="Knapper">
       <div class="tiles" data-tiles>
         <button class="tile" data-action="volume.down"><i class="ic" data-icon="volDown"></i>Lavere</button>

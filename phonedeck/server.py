@@ -13,6 +13,8 @@ from pathlib import Path
 
 from .actions import Actions, audio_state, load_config
 from .claude_usage import ClaudeUsage
+from .github import GitHub
+from .visualizer import Visualizer
 from .media import Media
 from .sensors import Sensors
 
@@ -31,6 +33,8 @@ class Hub:
         self.media = Media()
         self.claude = ClaudeUsage()
         self.actions = Actions(self.media)
+        self.visualizer = Visualizer()
+        self.github = GitHub(load_config().get("github", {}).get("user"))
         self.cond = threading.Condition()
         self.state: dict = {}
         self.version = 0
@@ -40,6 +44,7 @@ class Hub:
     def _tick(self) -> None:
         now = time.time()
         if now >= self._claude_next:
+            self.actions.reload_if_changed()
             try:
                 self.claude.scan()
                 self._claude_summary = self.claude.summary()
@@ -53,6 +58,7 @@ class Hub:
             "media": self.media.state(),
             "audio": audio_state(),
             "claude": self._claude_summary,
+            "github": self.github.state(),
             "buttons": self.actions.public_buttons(),
         }
         with self.cond:
@@ -100,6 +106,8 @@ def make_handler(hub: Hub):
                 return self._json(hub.state)
             if path == "/api/stream":
                 return self._stream()
+            if path == "/api/spectrum":
+                return self._spectrum()
             if path == "/api/art":
                 art = hub.media.art()
                 if not art:
@@ -108,6 +116,9 @@ def make_handler(hub: Hub):
             return self._static(path)
 
         def do_POST(self):
+            if self.path == "/api/viz/keepalive":
+                hub.visualizer.touch()
+                return self._json({"ok": True})
             if self.path != "/api/action":
                 return self._json({"error": "not found"}, 404)
             try:
@@ -127,6 +138,26 @@ def make_handler(hub: Hub):
                 return self._send(404, b"Not found", "text/plain")
             ctype = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
             self._send(200, target.read_bytes(), ctype, {"Cache-Control": "no-cache"})
+
+        def _spectrum(self):
+            viz = hub.visualizer
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            if not viz.available:
+                self.wfile.write(b"event: error\ndata: " + json.dumps(viz.error).encode() + b"\n\n")
+                return
+            viz.touch()
+            frame = -1
+            try:
+                while viz.alive():  # ends when the page stops sending keepalives
+                    frame, bands = viz.wait(frame)
+                    self.wfile.write(b"data: " + json.dumps(bands, separators=(",", ":")).encode() + b"\n\n")
+                    self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            self.close_connection = True
 
         def _stream(self):
             self.send_response(200)

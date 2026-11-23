@@ -165,3 +165,9 @@ input:focus, select:focus, .recorder:focus { outline: 2px solid var(--accent); o
 .colors button.none::after { content: ""; position: absolute; left: 4px; right: 4px; top: 50%; height: 2px; background: var(--muted); transform: rotate(-45deg); }
 .tile[style*="--btn"] { background: color-mix(in srgb, var(--btn) 26%, #0d0d10); border-color: color-mix(in srgb, var(--btn) 60%, transparent); color: var(--text); }
 .home-grid .w.tile { aspect-ratio: auto; cursor: pointer; }
+
+/* element picker grouped by category */
+.widget-list { flex-direction: column; flex-wrap: nowrap; gap: 10px; }
+.cat-block { display: flex; flex-direction: column; gap: 5px; }
+.cat-name { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.cat-items { display: flex; flex-wrap: wrap; gap: 6px; }

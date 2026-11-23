@@ -124,6 +124,24 @@ button.vol { font-size: 15px; min-width: 64px; }
 .clock { align-items: flex-end; cursor: pointer; }
 .clock span { font-size: 20px; }
 
+/* compact: landscape phones are only ~380 css px tall */
+@media (orientation: landscape) and (max-height: 460px) {
+  :root { --gap: 6px; }
+  .card { padding: 7px 10px; gap: 3px; border-radius: 12px; }
+  .big { font-size: 30px; }
+  .facts { font-size: 14px; }
+  .facts.grid2 { font-size: 14px; gap: 0 8px; }
+  .facts.grid2 small { font-size: 10px; }
+  .title { font-size: 15px; }
+  .artist, .sub { font-size: 11px; }
+  .art { width: 34%; }
+  .strip { padding: 4px 12px; }
+  .strip > div { font-size: 14px; }
+  .clock span { font-size: 17px; }
+  button { min-height: 36px; font-size: 17px; }
+  .buttons { padding: 5px; gap: 6px; }
+}
+
 #offline {
   position: fixed; inset: auto 0 0 0; z-index: 9; text-align: center; padding: 6px;
   background: #3a1010; color: #ffd0d0; font-size: 13px;

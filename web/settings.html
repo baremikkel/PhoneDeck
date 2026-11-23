@@ -47,7 +47,7 @@
     <section class="form">
       <h2>Sider</h2>
       <p class="muted" style="margin:0">Vælg hvilke sider telefonen viser, og i hvilken rækkefølge du swiper igennem dem.
-        Udvidelser med en side dukker automatisk op her.</p>
+        Udvidelser med en side og dine egne sider (laves i <a href="/editor#home">editoren</a>) dukker automatisk op her.</p>
       <ol id="pages" class="pages"></ol>
       <div class="btns"><button id="save-pages" class="primary">Gem</button></div>
     </section>
@@ -188,6 +188,7 @@
     const ui = d.settings.ui;
     names = { ...CORE };
     for (const e of d.extensions) if (e.page) names[e.id] = [e.page.title, e.category];
+    for (const cp of ui.custom_pages || []) names["custom-" + cp.id] = [cp.title, "Egen side"];
     pageOrder = [...ui.pages, ...Object.keys(names).filter((id) => !ui.pages.includes(id))];
     hidden = new Set(ui.hidden);
     renderPages();

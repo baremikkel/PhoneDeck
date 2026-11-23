@@ -178,6 +178,10 @@ async function loadExtensions() {
     sec.dataset.title = e.page.title;
     sec.dataset.category = e.category;
     sec.innerHTML = await (await fetch(`/ext/${e.id}/page.html?v=${e.rev}`)).text();
+    // every card marked data-widget can also be placed on the home page / your own pages
+    sec.querySelectorAll("[data-widget]").forEach((card) => {
+      PhoneDeck.widgets[`${e.id}.${card.dataset.widget}`] = card.outerHTML;
+    });
     pager.insertBefore(sec, $("#p-buttons"));
   }
   // 2) then the scripts, in order
@@ -405,16 +409,12 @@ const WIDGET_HTML = {
   clock: `<div class="card clock-card" data-fullscreen><b data-b="time">–</b><span data-b="datelong"></span></div>`,
 };
 
-let homeKey = "";
-function renderHome(home) {
-  if (!home) return;
-  const key = JSON.stringify(home);
-  if (key === homeKey) return;
-  homeKey = key;
-  const page = $("#p-overview");
-  page.style.gridTemplateColumns = `repeat(${home.cols}, 1fr)`;
-  page.style.gridTemplateRows = `repeat(${home.rows}, 1fr)`;
-  page.replaceChildren(...home.items.map((it) => {
+// one grid builder for the home page and your own pages
+function buildGrid(page, layout, withMenu) {
+  page.classList.add("grid-page");
+  page.style.gridTemplateColumns = `repeat(${layout.cols}, 1fr)`;
+  page.style.gridTemplateRows = `repeat(${layout.rows}, 1fr)`;
+  page.replaceChildren(...layout.items.map((it) => {
     let el;
     if (it.type === "button") {
       el = document.createElement("div");
@@ -422,31 +422,65 @@ function renderHome(home) {
       el.dataset.homeButton = it.button;
     } else {
       const html = WIDGET_HTML[it.type] || PhoneDeck.widgets[it.type];
-      if (!html) return null;  // widget from an extension that isn't installed
+      if (!html) return null;  // element from an extension that isn't installed
       const t = document.createElement("template");
       t.innerHTML = html;  // static strings from core / installed extensions
       el = t.content.firstElementChild;
+      el.removeAttribute("data-widget");
     }
-    el.classList.add("w-" + it.type);
+    el.classList.add("w-" + it.type.replace(".", "_"));
     if (it.w * it.h <= 2) el.classList.add("small");
     if (it.w === 1) el.classList.add("narrow");
     el.style.gridColumn = `${it.x + 1} / span ${it.w}`;
     el.style.gridRow = `${it.y + 1} / span ${it.h}`;
     return el;
   }).filter(Boolean));
-  // locked menu button in the bottom-right cell (can't be moved or removed)
-  const menu = document.createElement("button");
-  menu.className = "tile home-menu";
-  menu.dataset.menuOpen = "";
-  menu.style.gridColumn = `${home.cols}`;
-  menu.style.gridRow = `${home.rows}`;
-  menu.append(Object.assign(document.createElement("i"), { className: "ic" }), Object.assign(document.createElement("span"), { textContent: "Menu" }));
-  drawIcon(menu.querySelector(".ic"), "gear");
-  page.append(menu);
+  if (withMenu) {
+    // locked menu button in the bottom-right cell (can't be moved or removed)
+    const menu = document.createElement("button");
+    menu.className = "tile home-menu";
+    menu.dataset.menuOpen = "";
+    menu.style.gridColumn = `${layout.cols}`;
+    menu.style.gridRow = `${layout.rows}`;
+    menu.append(Object.assign(document.createElement("i"), { className: "ic" }), Object.assign(document.createElement("span"), { textContent: "Menu" }));
+    drawIcon(menu.querySelector(".ic"), "gear");
+    page.append(menu);
+  }
   $$("[data-icon]", page).forEach((el) => drawIcon(el, el.dataset.icon));
   layoutGen++;
-  PhoneDeck.each("rebuilt");  // the home page was rebuilt – extensions refresh their widgets
-  if (last) { fillHomeButtons(last.buttons || []); }
+  PhoneDeck.each("rebuilt");  // a grid was rebuilt – extensions refresh their elements
+  if (last) fillHomeButtons(last.buttons || []);
+}
+
+let homeKey = "";
+function renderHome(home) {
+  if (!home) return;
+  const key = JSON.stringify(home);
+  if (key === homeKey) return;
+  homeKey = key;
+  buildGrid($("#p-overview"), home, true);
+}
+
+// your own pages (made in the editor) – one <section> each, id "p-custom-<id>"
+let customKey = "";
+function renderCustomPages(list) {
+  const key = JSON.stringify(list);
+  if (key === customKey) return;
+  customKey = key;
+  const ids = new Set(list.map((cp) => "p-custom-" + cp.id));
+  $$(".page[data-custom]").forEach((sec) => { if (!ids.has(sec.id)) sec.remove(); });
+  for (const cp of list) {
+    let sec = $("#p-custom-" + cp.id);
+    if (!sec) {
+      sec = document.createElement("section");
+      sec.className = "page";
+      sec.id = "p-custom-" + cp.id;
+      sec.dataset.custom = "";
+      pager.insertBefore(sec, $("#p-buttons"));
+    }
+    sec.dataset.title = cp.title;
+    buildGrid(sec, cp, false);
+  }
 }
 function fillHomeButtons(list) {
   $$("[data-home-button]").forEach((slot) => {
@@ -632,6 +666,7 @@ function applyUi(next) {
   uiKey = key;
   const keepId = firstTime ? store.get("phonedeck.page") : pages[current]?.id;
   ui = next;
+  renderCustomPages(next.custom_pages || []);
   for (const name of next.pages) {
     const el = $("#p-" + name);
     if (!el) continue;

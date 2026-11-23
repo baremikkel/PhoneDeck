@@ -11,9 +11,9 @@
   <header class="top">
     <div>
       <h1>PhoneDeck <span>· Editor</span></h1>
-      <nav class="tabs"><a href="#deck" data-tab="deck">Knapper (Stream Deck)</a><a href="#home" data-tab="home">Forside</a></nav>
+      <nav class="tabs"><a href="#deck" data-tab="deck">Knapper (Stream Deck)</a><a href="#home" data-tab="home">Sider</a></nav>
       <p class="muted deck-only">Træk knapperne for at ændre rækkefølgen. Klik på en knap for at redigere den. Ændringer vises på telefonen, når du trykker <b>Gem</b>.</p>
-      <p class="muted home-only">Byg forsiden på et fast gitter: klik på et tomt felt og derefter på et andet for at markere et område, og vælg hvad der skal stå der. Knapper fra dit Stream Deck kan bruges som genveje.</p>
+      <p class="muted home-only">Byg Forsiden og dine egne sider på et fast gitter: klik på et tomt felt og derefter på et andet for at markere et område, og vælg hvad der skal stå der. Knapper fra dit Stream Deck kan bruges som genveje.</p>
     </div>
     <div class="actions deck-only">
       <a href="/settings" class="muted" style="align-self:center">Indstillinger</a>
@@ -24,6 +24,13 @@
 
   <main class="home-only home-main">
     <section>
+      <div class="row-ctl">
+        <label>Side
+          <select id="page-select"></select>
+        </label>
+        <button id="page-rename" class="ghost" hidden>Omdøb</button>
+        <button id="page-delete" class="danger" hidden>Slet side</button>
+      </div>
       <div class="row-ctl">
         <label>Gitter
           <select id="grid">
@@ -43,7 +50,7 @@
     </section>
     <section class="form" id="home-panel">
       <div id="home-pick" hidden>
-        <span class="field-label">Hvad skal stå i det markerede område?</span>
+        <span class="field-label">Hvad skal stå i det markerede område? (elementer fra udvidelsernes sider er med)</span>
         <div id="widget-list" class="widget-list"></div>
         <span class="field-label" style="margin-top:12px">… eller en genvej fra dit Stream Deck</span>
         <div id="button-list" class="widget-list"></div>

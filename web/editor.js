@@ -208,6 +208,7 @@ function select(i) {
   $("#url").value = b.action.type === "url" ? b.action.url : "";
   $("#command").value = b.action.type === "command" ? commandText(b.action.argv) : "";
   $("#builtin").value = b.action.type === "builtin" ? b.action.name : Object.keys(builtins)[0];
+  renderPageTargets(b.action.type === "page" ? b.action.page : "");
   renderApps();
   renderHotkey();
   renderIcon();
@@ -243,6 +244,11 @@ $("#types").addEventListener("click", (e) => {
       b.buttons = b.buttons || [];
       if (b.icon.kind === "app") b.icon = { kind: "builtin", value: "folder" };
     }
+    if (t === "page") {
+      const p = $("#page-target").value || PAGE_TARGETS[0][0];
+      b.action = { type: "page", page: p };
+      if (b.icon.kind === "app" || b.icon.value === "⭐") b.icon = { kind: "builtin", value: "next" };
+    }
     if (t === "builtin") {
       const n = $("#builtin").value || Object.keys(builtins)[0];
       b.action = { type: "builtin", name: n };
@@ -262,6 +268,19 @@ $("#types").addEventListener("click", (e) => {
 $("#label").addEventListener("input", (e) => update((b) => { b.label = e.target.value; }));
 $("#url").addEventListener("input", (e) => update((b) => { b.action = { type: "url", url: e.target.value.trim() }; }));
 $("#command").addEventListener("input", (e) => update((b) => { b.action = { type: "command", argv: ["sh", "-c", e.target.value] }; }));
+// pages a "Gå til side"-button can open: [id, name]
+let PAGE_TARGETS = [["overview", "Forside"], ["system", "System"], ["buttons", "Knapper"]];
+function renderPageTargets(value) {
+  const opts = PAGE_TARGETS.map(([id, name]) => Object.assign(document.createElement("option"), { value: id, textContent: name }));
+  if (value && !PAGE_TARGETS.some(([id]) => id === value)) opts.push(Object.assign(document.createElement("option"), { value, textContent: `${value} (findes ikke)` }));
+  $("#page-target").replaceChildren(...opts);
+  if (value) $("#page-target").value = value;
+}
+$("#page-target").addEventListener("change", (e) => update((b) => {
+  b.action = { type: "page", page: e.target.value };
+  const name = PAGE_TARGETS.find(([id]) => id === e.target.value)?.[1];
+  if (name && (!b.label || b.label === "Ny knap" || PAGE_TARGETS.some(([, n]) => n === b.label))) { b.label = name; $("#label").value = name; }
+}));
 $("#builtin").addEventListener("change", (e) => update((b) => {
   b.action = { type: "builtin", name: e.target.value };
   b.label = builtins[e.target.value][0];
@@ -808,6 +827,7 @@ function toPublic(list) {
   return (list || []).map((b, i) => ({
     id: b.id || `draft${i}`, label: b.label || "Ny knap", icon: b.icon, color: b.color || "",
     type: b.action?.type, builtin: b.action?.type === "builtin" ? b.action.name : undefined,
+    page: b.action?.type === "page" ? b.action.page : undefined,
     buttons: b.action?.type === "folder" ? toPublic(b.buttons) : undefined,
   }));
 }
@@ -854,6 +874,9 @@ $("#preview-frame").addEventListener("load", () => setTimeout(sendPreview, 1500)
     home = homeLayout = st.settings.ui.home;
     customPages = st.settings.ui.custom_pages || [];
     renderPageSelect();
+    PAGE_TARGETS = [...PAGE_TARGETS,
+      ...(st.extensions || []).filter((e) => e.page).map((e) => [e.id, e.page.title || e.name]),
+      ...customPages.map((p) => ["custom-" + p.id, p.title])];
     $("#grid").value = `${home.cols}x${home.rows}`;
     homeSetDirty(false);
     showTab();

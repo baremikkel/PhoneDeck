@@ -126,6 +126,8 @@ I editoren (**<http://localhost:8765/editor>**) er der to faner:
   24-timers grafen og GitHub-heatmappet) kan sættes på Forsiden og dine egne sider. Tilføjer du en
   udvidelse, kommer dens elementer automatisk med. En udvidelse markerer et kort med
   `data-widget="navn"` og `data-widget-name="Visningsnavn"` i sin `page.html`.
+  I editoren er elementerne grupperet efter kategori (System, AI, Musik, Udvikling, Andet),
+  og Stream Deck-knapperne efter den mappe, de ligger i.
 - **Knapper (Stream Deck):** se nedenfor.
 
 
@@ -142,6 +144,8 @@ på telefonen, så åbner editoren på computeren. Her kan du:
   I editoren dobbeltklikker du på en mappe for at åbne den. Træk en knap ind på mappen for at
   flytte den derind, eller på *Tilbage* for at flytte den ud. Mapper kan ligge op til 3 niveauer
   inde i hinanden, og en mappe kan også lægges på forsiden.
+- **Gå til side**: en knap, der skifter telefonen til en bestemt side – fx Musik, Claude
+  eller en af dine egne sider. Den kører ikke noget på PC'en og er smart på Forsiden.
 
 Træk knapperne for at ændre rækkefølgen, vælg emoji, standardikon eller programikon, og
 brug *Test på computeren*. Når du trykker **Gem**, opdateres telefonen med det samme.

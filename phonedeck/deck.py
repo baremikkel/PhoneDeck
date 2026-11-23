@@ -7,6 +7,7 @@ Each button has a label, an icon and an action:
     {"type": "app",     "app": "firefox.desktop"}   start an installed program
     {"type": "hotkey",  "keys": [29, 46]}           press a key combo (ydotool)
     {"type": "command", "argv": ["prog", "arg"]}    run a program/script
+    {"type": "page",    "page": "music"}            show a page on the phone (nothing runs on the PC)
 
 Icons: {"kind": "builtin", "value": "<icon name>"} | {"kind": "emoji", "value": "💬"}
        | {"kind": "app", "value": "<desktop id>"}
@@ -25,6 +26,7 @@ import uuid
 from .actions import BUILTINS, load_config
 
 DECK_PATH = os.path.expanduser(os.environ.get("PHONEDECK_BUTTONS", "~/.config/phonedeck/buttons.json"))
+PAGE_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")  # same as settings.PAGE_RE
 MAX_BUTTONS = 150   # in total, including the ones inside folders
 MAX_DEPTH = 3       # folders inside folders inside folders
 
@@ -92,6 +94,11 @@ def validate(raw: list, apps, _depth: int = 0, _seen: set | None = None, _count:
                 raise ValueError(f"{label}: mapper kan højst ligge {MAX_DEPTH} niveauer inde i hinanden")
             action = {"type": "folder"}
             children = validate(b.get("buttons") or [], apps, _depth + 1, seen, count)
+        elif t == "page":
+            page = str(a.get("page", ""))
+            if not PAGE_RE.match(page):
+                raise ValueError(f"{label}: vælg en side")
+            action = {"type": "page", "page": page}
         elif t == "builtin":
             if a.get("name") not in BUILTINS:
                 raise ValueError(f"{label}: ukendt indbygget handling")
@@ -206,6 +213,8 @@ class Deck:
                 p["running"] = b["action"]["app"] in (running or ())
             if b["action"]["type"] == "builtin":
                 p["builtin"] = b["action"]["name"]
+            if b["action"]["type"] == "page":
+                p["page"] = b["action"]["page"]
             if b["action"]["type"] == "folder":
                 p["buttons"] = self.public(running, b.get("buttons", []))
             out.append(p)
@@ -217,8 +226,8 @@ class Deck:
         if b is None:
             raise ValueError("ukendt knap")
         a = b["action"]
-        if a["type"] == "folder":
-            return {}  # the phone opens folders itself
+        if a["type"] in ("folder", "page"):
+            return {}  # the phone opens folders and pages itself
         if a["type"] == "app" and a["app"] in self.apps.running([a["app"]]):
             return {"notice": f"{b['label']} er allerede åben"}  # don't start a second copy
         self.run(a)
@@ -226,7 +235,7 @@ class Deck:
 
     def run(self, a: dict) -> None:
         t = a["type"]
-        if t == "folder":
+        if t in ("folder", "page"):
             return
         if t == "builtin":
             self.actions.run(a["name"])

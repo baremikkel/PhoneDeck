@@ -96,6 +96,7 @@
           <button data-type="command">Kør kommando</button>
           <button data-type="builtin">Indbygget</button>
           <button data-type="folder">Mappe</button>
+          <button data-type="page">Gå til side</button>
         </div>
       </div>
 
@@ -134,6 +135,13 @@
           <input id="command" placeholder="fx ~/shortcut_scripts/type_less_than.sh">
         </label>
         <p class="muted small">Køres i din hjemmemappe med <code>sh -c</code>. Du kan bruge scripts, <code>gnome-terminal</code>, <code>xdg-open ~/Downloads</code> osv.</p>
+      </div>
+
+      <div class="type-panel" data-panel="page">
+        <label>Side
+          <select id="page-target"></select>
+        </label>
+        <p class="muted small">Knappen skifter telefonen til siden – fx Musik eller en af dine egne sider. Smart på Forsiden eller i en mappe.</p>
       </div>
 
       <div class="type-panel" data-panel="folder">

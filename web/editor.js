@@ -498,6 +498,10 @@ function widgetLabel(it) {
     const b = allButtons().find((x) => x.id === it.button);
     return b ? [b.label, b.icon] : ["(slettet knap)", { kind: "emoji", value: "⚠️" }];
   }
+  if (it.type === "goto") {
+    const name = Object.fromEntries(navPagesAll())[it.page];
+    return [name ? `Gå til ${name}` : `Gå til ${it.page} (findes ikke)`, { kind: "builtin", value: navIcon(it.page) }];
+  }
   const [name, icon] = WIDGETS[it.type] || [`${it.type} (udvidelse ikke installeret)`, "star"];
   return [name, { kind: "builtin", value: icon }];
 }
@@ -635,7 +639,7 @@ $("#home-grid").addEventListener("drop", (e) => {
   const w = JSON.parse(raw);
   const area = dropArea(e);
   if (!fits(area)) { toast("Der er ikke plads her", true); renderHomeGrid(); return; }
-  home.items.push({ type: w.type, ...(w.button ? { button: w.button } : {}), ...area });
+  home.items.push({ type: w.type, ...(w.button ? { button: w.button } : {}), ...(w.page ? { page: w.page } : {}), ...area });
   selStart = null; selItem = home.items.length - 1;
   homeSetDirty(); renderHomeGrid(); showPanel();
 });
@@ -654,10 +658,11 @@ function showPanel() {
   if (selItem >= 0) $("#sel-name").textContent = widgetLabel(home.items[selItem])[0];
   if (!selStart) $("#home-hint").textContent = "Træk hen over tomme felter for at markere et område – eller træk et element fra listen ind i gitteret.";
 }
-function addWidget(type, button) {
+function addWidget(type, extra) {
   const r = selStart.w ? selStart : { ...selStart, w: 1, h: 1 };
   const it = { type, x: r.x, y: r.y, w: r.w, h: r.h };
-  if (button) it.button = button;
+  if (typeof extra === "string") it.button = extra;
+  else if (extra) Object.assign(it, extra);
   home.items.push(it);
   selStart = null; selItem = home.items.length - 1;
   homeSetDirty(); renderHomeGrid(); showPanel();
@@ -687,7 +692,11 @@ function renderPickers() {
     cats.get(c).push(pickerButton(name, { kind: "builtin", value: icon }, () => addWidget(t), { type: t }));
   }
   const order = [...cats.keys()].sort((a, b) => (a === "System" ? -1 : b === "System" ? 1 : a === "Andet" ? 1 : b === "Andet" ? -1 : 0));
-  $("#widget-list").replaceChildren(...order.map((c) => catBlock(c, cats.get(c))));
+  // "Gå til side": a button that switches the phone to that page
+  const gotos = navPagesAll().filter(([id]) => !(isHome() ? id === "overview" : id === "custom-" + editing))
+    .map(([id, name]) => pickerButton(name, { kind: "builtin", value: navIcon(id) },
+      () => addWidget("goto", { page: id }), { type: "goto", page: id }));
+  $("#widget-list").replaceChildren(...order.map((c) => catBlock(c, cats.get(c))), catBlock("Gå til side", gotos));
   // Stream Deck buttons, grouped by the folder they live in
   const groups = [];
   const walkDeck = (list, title) => {
@@ -808,6 +817,14 @@ function navPages() {
   const at = list.findIndex(([id]) => id === "buttons");
   list.splice(at < 0 ? list.length : at, 0, ...missing);
   return list;
+}
+const navIcon = (id) => NAV_ICONS[id] || (id.startsWith("custom-") ? "grid" : "star");
+// every page (also hidden ones) – for the "Gå til side" elements
+function navPagesAll() {
+  const shown = navPages();
+  const rest = [...PAGE_TARGETS.filter(([id]) => !id.startsWith("custom-")), ...customPages.map((p) => ["custom-" + p.id, p.title])]
+    .filter(([id]) => !shown.some(([s]) => s === id));
+  return [...shown, ...rest];
 }
 function currentNav() {
   if (previewPage) return previewPage;

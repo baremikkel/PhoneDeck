@@ -138,6 +138,27 @@ function heatmap(canvas, startIso, levels, color) {
   });
 }
 
+// ---------- preview inside the editor (/?preview) ----------
+// The editor embeds the dashboard and posts its unsaved drafts here, so you see the
+// result before pressing Gem. Only messages from our own origin are accepted.
+const PREVIEW = new URLSearchParams(location.search).has("preview");
+let previewDraft = {};
+if (PREVIEW) {
+  document.documentElement.classList.add("preview");
+  window.addEventListener("message", (e) => {
+    if (e.origin !== location.origin || e.data?.type !== "phonedeck-preview") return;
+    const d = e.data;
+    previewDraft = { home: d.home, custom: d.custom, buttons: d.buttons };
+    if (Array.isArray(d.folder)) folderPath = d.folder;
+    uiKey = ""; homeKey = ""; customKey = ""; buttonsKey = "";
+    if (last) render(last);
+    requestAnimationFrame(() => {
+      const i = pages.findIndex((p) => p.id === d.page);
+      if (i >= 0) { goTo(i, false); updateDots(); }
+    });
+  });
+}
+
 // ---------- extensions (phone side) ----------
 // Every extension folder may ship page.html / page.js / page.css. page.js calls
 // PhoneDeck.register(id, {render(extState, fullState), tick(), page(pageId), widgets: {type: html}}).
@@ -344,6 +365,7 @@ const findButton = (list, id) => {
 
 let buttonsKey = "";
 function renderButtons(list) {
+  if (PREVIEW && previewDraft.buttons) list = previewDraft.buttons;
   const key = JSON.stringify([list, folderPath]);
   if (key === buttonsKey) return;
   buttonsKey = key;
@@ -526,7 +548,7 @@ document.addEventListener("click", () => {
   enterFullscreen().then(() => { $("#toast").hidden = true; keepAwake(); }).catch(() => {});
 }, { capture: true });
 setInterval(() => {
-  if (ui.auto_fullscreen === false || document.fullscreenElement || document.visibilityState !== "visible") {
+  if (PREVIEW || ui.auto_fullscreen === false || document.fullscreenElement || document.visibilityState !== "visible") {
     notFullFor = 0;
     return;
   }
@@ -616,7 +638,7 @@ document.addEventListener("click", (e) => {
 // the lock whenever the page is hidden, so grab it again every time it comes back.
 let wakeLock = null;
 async function keepAwake() {
-  if (!("wakeLock" in navigator) || document.visibilityState !== "visible" || (wakeLock && !wakeLock.released)) return;
+  if (PREVIEW || !("wakeLock" in navigator) || document.visibilityState !== "visible" || (wakeLock && !wakeLock.released)) return;
   try {
     wakeLock = await navigator.wakeLock.request("screen");
     wakeLock.addEventListener("release", () => setTimeout(keepAwake, 1000));
@@ -655,11 +677,19 @@ function updateDots() {
   if (i === current && $("#dots .on")) return;
   current = i;
   $$("#dots button").forEach((b, j) => b.classList.toggle("on", j === i));
-  if (pages[i] && uiKey) store.set("phonedeck.page", pages[i].id);  // not before the saved page is restored
+  if (pages[i] && uiKey && !PREVIEW) store.set("phonedeck.page", pages[i].id);  // not before the saved page is restored
   PhoneDeck.each("page", pages[i]?.id);
 }
 function applyUi(next) {
   if (!next) return;
+  if (PREVIEW) {  // unsaved drafts from the editor win over the saved layout
+    next = { ...next, hidden: [] };
+    if (previewDraft.home) next.home = previewDraft.home;
+    if (previewDraft.custom) {
+      const others = (next.custom_pages || []).filter((p) => p.id !== previewDraft.custom.id);
+      next.custom_pages = [...others, previewDraft.custom];
+    }
+  }
   const key = JSON.stringify(next);
   if (key === uiKey) return;
   const firstTime = !uiKey;

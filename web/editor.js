@@ -138,6 +138,7 @@ function renderDeck() {
   }
   $("#deck").replaceChildren(...tiles, add);
   renderCrumbs();
+  sendPreview();
 }
 function move(from, to) {
   if (from < 0 || from === to) return;
@@ -215,7 +216,7 @@ function select(i) {
 }
 const cur = () => level()[selected];
 function update(fn) { fn(cur()); setDirty(); renderPreview(); renderDeck(); }
-function renderPreview() { tileContent($("#preview"), cur()); }
+function renderPreview() { tileContent($("#preview"), cur()); sendPreview(); }
 
 function commandText(argv) {
   if (!argv) return "";
@@ -515,6 +516,7 @@ function renderHomeGrid() {
     els.push(w);
   });
   g.replaceChildren(...els);
+  sendPreview();
 }
 function cellClick(x, y) {
   selItem = -1;
@@ -765,8 +767,54 @@ function showTab() {
   document.body.className = "tab-" + tab;
   $$(".tabs a").forEach((a) => a.classList.toggle("on", a.dataset.tab === tab));
   if (tab === "home" && home) { renderPickers(); renderHomeGrid(); showPanel(); }
+  sendPreview();
 }
 window.addEventListener("hashchange", showTab);
+
+// ---------- live preview (the real dashboard in an iframe) ----------
+function sizePreview() {
+  const [w, h] = $("#preview-size").value.split("x").map(Number);
+  const box = $("#preview-box"), frame = $("#preview-frame");
+  const scale = Math.min(1, box.clientWidth / w);
+  frame.style.width = w + "px"; frame.style.height = h + "px";
+  frame.style.transform = `scale(${scale})`;
+  frame.style.left = Math.max(0, (box.clientWidth - w * scale) / 2) + "px";  // centred in the frame
+  box.style.height = h * scale + "px";
+}
+new ResizeObserver(sizePreview).observe($("#preview-box"));
+$("#preview-size").onchange = () => { sizePreview(); sendPreview(); };
+
+// the phone wants buttons in its own (public) format
+function toPublic(list) {
+  return (list || []).map((b, i) => ({
+    id: b.id || `draft${i}`, label: b.label || "Ny knap", icon: b.icon, color: b.color || "",
+    type: b.action?.type, builtin: b.action?.type === "builtin" ? b.action.name : undefined,
+    buttons: b.action?.type === "folder" ? toPublic(b.buttons) : undefined,
+  }));
+}
+let previewTimer;
+function sendPreview() {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(() => {
+    const frame = $("#preview-frame")?.contentWindow;
+    if (!frame || !home) return;
+    const msg = { type: "phonedeck-preview" };
+    if (location.hash !== "#home") {
+      msg.page = "p-buttons";
+      msg.buttons = toPublic(deck);
+      msg.folder = path.map((f) => f.id).filter(Boolean);
+    } else if (isHome()) {
+      msg.page = "p-overview";
+      msg.home = home;
+    } else {
+      const meta = customPages.find((p) => p.id === editing) || {};
+      msg.page = "p-custom-" + editing;
+      msg.custom = { id: editing, title: meta.title || "Side", cols: home.cols, rows: home.rows, items: home.items };
+    }
+    frame.postMessage(msg, location.origin);
+  }, 120);
+}
+$("#preview-frame").addEventListener("load", () => setTimeout(sendPreview, 1500));
 
 // ---------- start ----------
 (async () => {

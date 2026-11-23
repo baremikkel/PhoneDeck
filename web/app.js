@@ -633,7 +633,9 @@ let notFullFor = 0, fsArmed = false;
 function enterFullscreen() {
   return document.documentElement.requestFullscreen?.({ navigationUI: "hide" }) ?? Promise.reject();
 }
-document.addEventListener("pointerdown", () => {
+// "click" (not pointerdown): on touch screens the browser only counts the tap as a user
+// gesture once the finger is lifted
+document.addEventListener("click", () => {
   if (!fsArmed) return;
   fsArmed = false;
   enterFullscreen().then(() => { $("#toast").hidden = true; keepAwake(); }).catch(() => {});

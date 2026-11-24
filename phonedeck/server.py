@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 import json
 import mimetypes
+import os
+import sys
 import threading
 import time
 import urllib.parse
@@ -338,7 +340,26 @@ def make_handler(hub: Hub, host: str, port: int):
     return Handler
 
 
+def _log_to_file_without_console() -> None:
+    """Under pythonw (Windows autostart) there is no console: stdout/stderr are None and
+    errors vanish. Send them to a log file instead, so a crash can be diagnosed."""
+    if sys.stdout is not None and sys.stderr is not None:
+        return
+    import faulthandler
+    from . import paths
+    os.makedirs(paths.CACHE_DIR, exist_ok=True)
+    log = paths.cache("phonedeck.log")
+    if os.path.exists(log) and os.path.getsize(log) > 1_000_000:
+        os.replace(log, log + ".old")
+    f = open(log, "a", encoding="utf-8", buffering=1)
+    sys.stdout = sys.stdout or f
+    sys.stderr = sys.stderr or f
+    faulthandler.enable(f)  # also catch hard crashes in native code
+    print(f"[phonedeck] --- startet {time.strftime('%Y-%m-%d %H:%M:%S')} ---")
+
+
 def main() -> None:
+    _log_to_file_without_console()
     cfg = load_config().get("server", {})
     p = argparse.ArgumentParser(prog="phonedeck", description="PC-dashboard til en gammel telefon")
     p.add_argument("--host", default=cfg.get("host", "127.0.0.1"),

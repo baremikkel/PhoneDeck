@@ -12,8 +12,9 @@ import re
 import threading
 
 from .actions import load_config
+from . import paths
 
-SETTINGS_PATH = os.path.expanduser(os.environ.get("PHONEDECK_SETTINGS", "~/.config/phonedeck/settings.json"))
+SETTINGS_PATH = os.path.expanduser(os.environ.get("PHONEDECK_SETTINGS", paths.config("settings.json")))
 
 CORE_PAGES = ["overview", "system", "buttons"]
 # Core widgets; extensions add their own (any id-like name is accepted and simply

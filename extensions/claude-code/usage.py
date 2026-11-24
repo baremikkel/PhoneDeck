@@ -13,12 +13,13 @@ import json
 import os
 import time
 from datetime import datetime, timedelta
+from phonedeck import paths
 
 ROOT = os.path.expanduser(os.environ.get("CLAUDE_CONFIG_DIR", "~/.claude"))
 KEEP_DAYS = 371  # a year of history for the heat map
 # Claude Code deletes old transcripts (30 days by default), so daily totals are
 # also saved here – the heat map keeps growing even after the logs are gone.
-DAILY_CACHE = os.path.expanduser("~/.cache/phonedeck/claude_daily.json")
+DAILY_CACHE = paths.cache("claude_daily.json")
 
 
 def _day(epoch: float) -> str:

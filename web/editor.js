@@ -240,7 +240,7 @@ function renderPreview() { tileContent($("#preview"), cur()); sendPreview(); }
 
 function commandText(argv) {
   if (!argv) return "";
-  return argv[0] === "sh" && argv[1] === "-c" && argv.length === 3 ? argv[2] : argv.map((a) => /\s/.test(a) ? JSON.stringify(a) : a).join(" ");
+  return (argv[0] === "sh" && argv[1] === "-c" || argv[0] === "cmd" && argv[1] === "/c") && argv.length === 3 ? argv[2] : argv.map((a) => /\s/.test(a) ? JSON.stringify(a) : a).join(" ");
 }
 
 function showType(type) {

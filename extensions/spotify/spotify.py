@@ -12,6 +12,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import secrets
 import threading
 import time
@@ -19,9 +20,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-TOKEN_PATH = os.path.expanduser("~/.config/phonedeck/spotify_token.json")
-import re
+from phonedeck import paths
 
+TOKEN_PATH = paths.config("spotify_token.json")
 SCOPES = ("user-read-playback-state user-read-currently-playing user-modify-playback-state "
           "user-library-read user-library-modify playlist-read-private playlist-read-collaborative")
 URI_RE = re.compile(r"^spotify:(track|episode|playlist|album):[A-Za-z0-9]{22}$")

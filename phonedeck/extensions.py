@@ -19,6 +19,7 @@ extension.json::
       "category": "Musik",             // groups pages + settings; missing -> "Andet"
       "description": "…",
       "page": {"title": "Musik"},      // only if page.html exists
+      "platforms": ["linux"],          // optional: only load on these ("linux", "windows")
       "widgets": [{"type": "media", "name": "Musik", "icon": "play"}],
       "settings": [                    // shown under the category in /settings
         {"key": "user", "label": "Brugernavn", "type": "text", "default": ""},
@@ -54,10 +55,12 @@ import sys
 import threading
 import traceback
 from pathlib import Path
+from . import paths
 
 REPO_DIR = Path(__file__).resolve().parent.parent / "extensions"
-USER_DIR = Path(os.path.expanduser("~/.config/phonedeck/extensions"))
+USER_DIR = Path(paths.config("extensions"))
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
+PLATFORM = "windows" if sys.platform == "win32" else "macos" if sys.platform == "darwin" else "linux"
 CATEGORY_ORDER = ["AI", "Musik", "Udvikling", "Hjem", "System"]
 STATIC_TYPES = {".html", ".js", ".css", ".png", ".svg", ".jpg", ".jpeg", ".webp", ".json", ".woff2"}
 _load_counter = 0
@@ -74,7 +77,7 @@ class Context:
         self.hub = manager.hub
         self.port = manager.port
         self.stopped = threading.Event()  # set when the extension is removed
-        self.cache_dir = Path(os.path.expanduser(f"~/.cache/phonedeck/{ext_id}"))
+        self.cache_dir = Path(paths.cache(ext_id))
 
     def settings(self) -> dict:
         # pass the manifest along: while the backend is being created it isn't registered yet
@@ -188,6 +191,8 @@ class ExtensionManager:
                 manifest = _read_manifest(folder)
                 if not manifest:
                     continue
+                if manifest.get("platforms") and PLATFORM not in manifest["platforms"]:
+                    continue  # e.g. a PipeWire-only extension on Windows
                 ext_id = manifest["id"]
                 seen.add(ext_id)
                 cur = self.loaded.get(ext_id)

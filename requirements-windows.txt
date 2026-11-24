@@ -1,0 +1,11 @@
+# PhoneDeck on Windows:  py -m pip install -r requirements-windows.txt
+psutil              # CPU, RAM, network, disk
+tzdata              # time zones for the calendar (Windows has no zoneinfo database)
+
+# optional – each unlocks a feature, PhoneDeck works without them
+numpy               # music visualizer
+soundcard           # music visualizer: listens to the speakers (WASAPI loopback)
+pycaw               # read the volume level and mute the microphone
+winrt-Windows.Media.Control     # "now playing" title, artist and cover
+winrt-Windows.Storage.Streams
+winrt-Windows.Foundation

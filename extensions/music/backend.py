@@ -2,7 +2,12 @@
 
 import json
 
-from .media import Media
+import sys
+
+if sys.platform == "win32":
+    from .media_win import Media
+else:
+    from .media import Media
 from .visualizer import Visualizer
 
 

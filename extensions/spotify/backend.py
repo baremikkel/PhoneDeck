@@ -53,8 +53,8 @@ class Extension:
         if path == "login":
             try:
                 req.redirect(self.spotify.login_url())
-            except ValueError as e:
-                req.send(400, str(e).encode(), "text/plain; charset=utf-8")
+            except ValueError as e:  # back to the settings page, which shows the message
+                req.redirect(f"http://localhost:{self.ctx.port}/settings?msg=" + urllib.parse.quote(str(e)))
             return True
         if path == "callback":
             err = (query.get("error") or [""])[0]

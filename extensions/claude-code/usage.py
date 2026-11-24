@@ -76,6 +76,8 @@ class ClaudeUsage:
             epoch = datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
         except ValueError:
             return
+        if msg.get("model") == "<synthetic>":  # Claude Code's own placeholder replies, no API call
+            return
         u = msg["usage"]
         self.records[mid] = (
             epoch,

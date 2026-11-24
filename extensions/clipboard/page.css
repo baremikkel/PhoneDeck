@@ -1,0 +1,22 @@
+/* Udklip og skærmbilleder */
+#p-clipboard { grid-template-columns: 1fr 1.3fr; grid-template-rows: 1fr; }
+.clip-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; min-height: 0; flex: 1; }
+.clip-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; text-align: left; padding: 8px 10px;
+  border: 1px solid var(--line); border-radius: 10px; background: transparent; color: var(--text); font: inherit; min-height: 44px; }
+.clip-row:active { border-color: var(--accent); }
+.clip-text { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 14px; line-height: 1.25; word-break: break-word; }
+.clip-row small { margin: 0; white-space: nowrap; }
+.clip-empty { color: var(--muted); margin: auto; text-align: center; padding: 12px; grid-column: 1 / -1; }
+
+.shot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; overflow-y: auto; min-height: 0; flex: 1; align-content: start; }
+.shot { position: relative; padding: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #000; aspect-ratio: 16 / 10; }
+.shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.shot small { position: absolute; left: 4px; bottom: 3px; margin: 0; padding: 1px 5px; border-radius: 4px; background: #000a; color: #ddd; font-size: 10px; }
+.shot-sheet { width: min(96vw, 1100px); height: 100%; }
+.shot-sheet header { align-items: center; gap: 8px; }
+.shot-sheet header .label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.shot-sheet .mini { padding: 0 12px; width: auto; }
+.shot-big { flex: 1; min-height: 0; width: 100%; object-fit: contain; }
+
+@container (max-width: 260px) { .shot-grid { grid-template-columns: 1fr 1fr; } .clip-card header .sub { display: none; } }
+@container (max-height: 120px) { .clip-card > header, .shot-card > header { display: none; } .clip-text { -webkit-line-clamp: 1; } }

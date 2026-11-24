@@ -129,3 +129,49 @@ def toggle_mic_mute() -> None:
     if ep is None:
         raise ValueError("Mikrofon-mute kræver pycaw på Windows: pip install pycaw")
     ep.SetMute(0 if ep.GetMute() else 1, None)
+
+
+# ---------- clipboard (text) ----------
+kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+CF_UNICODETEXT = 13
+GMEM_MOVEABLE = 0x0002
+user32.GetClipboardData.restype = wintypes.HANDLE
+user32.SetClipboardData.argtypes = [wintypes.UINT, wintypes.HANDLE]
+user32.SetClipboardData.restype = wintypes.HANDLE
+kernel32.GlobalLock.argtypes = [wintypes.HGLOBAL]
+kernel32.GlobalLock.restype = wintypes.LPVOID
+kernel32.GlobalUnlock.argtypes = [wintypes.HGLOBAL]
+kernel32.GlobalAlloc.argtypes = [wintypes.UINT, ctypes.c_size_t]
+kernel32.GlobalAlloc.restype = wintypes.HGLOBAL
+
+
+def get_clipboard_text() -> str | None:
+    if not user32.OpenClipboard(None):
+        return None
+    try:
+        h = user32.GetClipboardData(CF_UNICODETEXT)
+        if not h:
+            return None
+        p = kernel32.GlobalLock(h)
+        try:
+            return ctypes.wstring_at(p) if p else None
+        finally:
+            kernel32.GlobalUnlock(h)
+    finally:
+        user32.CloseClipboard()
+
+
+def set_clipboard_text(text: str) -> None:
+    data = ctypes.create_unicode_buffer(text)
+    size = ctypes.sizeof(data)
+    h = kernel32.GlobalAlloc(GMEM_MOVEABLE, size)
+    p = kernel32.GlobalLock(h)
+    ctypes.memmove(p, data, size)
+    kernel32.GlobalUnlock(h)
+    if not user32.OpenClipboard(None):
+        raise ValueError("udklipsholderen er optaget – prøv igen")
+    try:
+        user32.EmptyClipboard()
+        user32.SetClipboardData(CF_UNICODETEXT, h)  # Windows owns the memory from here
+    finally:
+        user32.CloseClipboard()

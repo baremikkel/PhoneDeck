@@ -1,0 +1,19 @@
+/* Home Assistant */
+#p-home-assistant { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+.ha-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); grid-auto-rows: minmax(84px, auto);
+  gap: 8px; overflow-y: auto; min-height: 0; flex: 1; align-content: start; }
+.ha-tile { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; gap: 2px; text-align: left;
+  padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: #ffffff06; color: var(--text); font: inherit; min-width: 0; }
+.ha-tile .ic { width: 26px; height: 26px; margin-bottom: auto; color: var(--muted); }
+.ha-tile b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.ha-tile small { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.ha-tile.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--text); }
+.ha-tile.on .ic { color: var(--accent); }
+.ha-tile.ro { cursor: default; }
+.ha-tile.off-line { opacity: .45; }
+.ha-dim { position: relative; width: 100%; height: 10px; border-radius: 5px; background: var(--line); margin-top: 6px; overflow: hidden; }
+.ha-dim i { position: absolute; inset: 0 auto 0 0; background: var(--accent); }
+.ha-empty { color: var(--muted); grid-column: 1 / -1; text-align: center; padding: 20px; }
+
+@container (max-width: 260px) { .ha-grid { grid-template-columns: 1fr 1fr; grid-auto-rows: minmax(64px, auto); } .ha-tile { padding: 6px 8px; } .ha-tile small { display: none; } }
+@container (max-height: 120px) { .ha-card > header { display: none; } .ha-grid { grid-auto-rows: 100%; grid-auto-flow: column; grid-auto-columns: minmax(120px, 1fr); grid-template-columns: none; } }

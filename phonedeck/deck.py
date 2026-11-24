@@ -280,9 +280,14 @@ def shell_argv(cmd: str) -> list[str]:
 
 def _spawn(argv: list[str]) -> None:
     if IS_WINDOWS:
+        cmdline: list[str] | str = argv
+        if len(argv) == 3 and argv[:2] == ["cmd", "/c"]:
+            # hand the typed command to cmd exactly as written: Python would turn its quotes
+            # into \" (C runtime style), which cmd doesn't understand. /s strips the outer pair.
+            cmdline = f'cmd /s /c "{argv[2]}"'
         # detached, no console window popping up
         flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
-        subprocess.Popen(argv, creationflags=flags, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        subprocess.Popen(cmdline, creationflags=flags, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                          cwd=os.path.expanduser("~"))
         return
     subprocess.Popen(argv, start_new_session=True, stdout=subprocess.DEVNULL,

@@ -1,4 +1,4 @@
-"""Installed programs on Windows: the shortcuts in the Start menu.
+"""Installed programs on Windows: the shortcuts in the Start menu, plus Store (MSIX) apps.
 
 Same interface as apps.Apps on Linux. A program counts as "Aktiv" when its .exe has a
 visible window (EnumWindows), and it is started like a double-click on the shortcut.
@@ -8,9 +8,11 @@ Icons aren't extracted – the editor falls back to an emoji / built-in icon.
 from __future__ import annotations
 
 import glob
+import json
 import ntpath
 import os
 import struct
+import subprocess
 import time
 
 import psutil
@@ -55,14 +57,40 @@ def lnk_target(path: str) -> str | None:
         return None
 
 
+PACKAGED_EVERY = 600  # seconds between asking Windows for the Store apps (it takes a moment)
+
+
+def packaged_apps() -> list[dict]:
+    """Store / MSIX apps (Notepad, Calculator, Photos, Spotify from the Store …). They have no
+    .lnk in the Start menu folders; Get-StartApps lists them with an AppUserModelID."""
+    try:
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+             "[Console]::OutputEncoding=[Text.Encoding]::UTF8; "
+             "Get-StartApps | Where-Object AppID -like '*!*' | Select-Object Name,AppID | ConvertTo-Json -Compress"],
+            capture_output=True, timeout=20, creationflags=subprocess.CREATE_NO_WINDOW,
+        ).stdout.decode("utf-8", "replace").strip()
+        items = json.loads(out) if out else []
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return []
+    items = [items] if isinstance(items, dict) else items
+    return [{"name": i["Name"], "aumid": i["AppID"]} for i in items
+            if isinstance(i, dict) and i.get("Name") and i.get("AppID")]
+
+
 class WinApps:
     def __init__(self):
         self._apps: dict[str, dict] = {}
         self._scanned = 0.0
+        self._packaged: list[dict] = []
+        self._packaged_at = 0.0
 
     def _scan(self) -> None:
         if time.time() - self._scanned < 60:
             return
+        if time.time() - self._packaged_at > PACKAGED_EVERY:
+            self._packaged_at = time.time()
+            self._packaged = packaged_apps() or self._packaged
         apps: dict[str, dict] = {}
         for base in START_MENUS:
             for path in sorted(glob.glob(os.path.join(base, "**", "*.lnk"), recursive=True)):
@@ -75,6 +103,13 @@ class WinApps:
                 target = lnk_target(path)
                 apps[app_id] = {"id": app_id, "name": name, "path": path, "icon": "",
                                 "exe": ntpath.basename(target).lower() if target and target.lower().endswith(".exe") else None}
+        names = {a["name"].lower() for a in apps.values()}
+        for p in self._packaged:
+            if p["name"].lower() in names or any(s in p["name"].lower() for s in SKIP):
+                continue  # the same program as a Start menu shortcut
+            app_id = "store:" + p["aumid"]
+            apps[app_id] = {"id": app_id, "name": p["name"], "path": "shell:AppsFolder\\" + p["aumid"],
+                            "icon": "", "exe": None}
         self._apps = apps
         self._scanned = time.time()
 

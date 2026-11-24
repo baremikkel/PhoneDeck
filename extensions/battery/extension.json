@@ -1,0 +1,12 @@
+{
+  "id": "battery",
+  "name": "Batterier",
+  "category": "System",
+  "description": "Batteriet i dit headset, din mus, dit tastatur og dine controllere (via UPower) – og telefonens eget batteri.",
+  "page": {"title": "Batterier"},
+  "platforms": ["linux"],
+  "settings": [
+    {"key": "warn", "label": "Advar under (%)", "type": "number", "default": 20, "min": 5, "max": 50},
+    {"type": "info", "html": "Enheder vises, når de er forbundet og melder deres batteri til Linux (UPower) – de fleste Bluetooth-headsets, Logitech-mus/tastaturer og controllere gør. Telefonens eget batteri læses af browseren på telefonen."}
+  ]
+}

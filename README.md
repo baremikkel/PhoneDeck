@@ -80,6 +80,9 @@ and without it the PC stops capturing within 4 seconds.
 
 ## Getting started (PC)
 
+> **Step-by-step installation guides:** [Linux](docs/install-linux.md) · [Windows](docs/install-windows.md) – from a fresh PC to the dashboard on your phone,
+> including optional packages, autostart, troubleshooting, updating and uninstalling.
+
 Requires Python 3.11+, `psutil` and PyGObject. The visualizer also needs `numpy` and
 PipeWire (`pw-record`). On Ubuntu:
 

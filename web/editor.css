@@ -178,3 +178,11 @@ input:focus, select:focus, .recorder:focus { outline: 2px solid var(--accent); o
 .nav-chip .ic { width: 16px; height: 16px; }
 .nav-chip:hover { border-color: var(--muted); }
 .nav-chip.on { border-color: var(--text); font-weight: 600; }
+
+/* display options */
+.opt-checks { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.opt-checks label { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
+.tile.hide-label > span { display: none; }
+.tile.hide-icon > .ic, .tile.hide-icon > img, .tile.hide-icon > b { display: none; }
+.tile.hide-frame { background: transparent; border-color: transparent; }
+.tile.invisible { opacity: .35; outline: 1px dashed var(--muted); }

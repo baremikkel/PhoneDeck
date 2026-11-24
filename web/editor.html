@@ -64,6 +64,8 @@
           <span>Flyt</span><button data-mv="-1,0">←</button><button data-mv="0,-1">↑</button><button data-mv="0,1">↓</button><button data-mv="1,0">→</button>
           <span>Størrelse</span><button data-sz="-1,0">smallere</button><button data-sz="1,0">bredere</button><button data-sz="0,-1">lavere</button><button data-sz="0,1">højere</button>
         </div>
+        <span class="field-label" style="margin-top:14px">Vis</span>
+        <div class="opt-checks" id="sel-opts"></div>
         <button id="sel-remove" class="danger" style="margin-top:14px">Fjern felt</button>
       </div>
       <p id="home-empty" class="muted">Markér et område i gitteret, eller klik på et felt for at flytte, ændre eller fjerne det.</p>
@@ -170,6 +172,16 @@
       <div class="field">
         <span class="field-label">Farve</span>
         <div id="colors" class="colors"></div>
+      </div>
+
+      <div class="field">
+        <span class="field-label">Visning</span>
+        <div class="opt-checks" id="btn-opts">
+          <label><input type="checkbox" data-btn-hide="label" checked> Vis navn</label>
+          <label><input type="checkbox" data-btn-hide="icon" checked> Vis ikon</label>
+          <label><input type="checkbox" data-btn-hide="frame" checked> Vis ramme og baggrund</label>
+          <label><input type="checkbox" id="btn-invisible"> Usynlig knap <span class="muted small">(kan stadig trykkes)</span></label>
+        </div>
       </div>
 
       <div class="form-foot">

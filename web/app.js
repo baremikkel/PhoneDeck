@@ -223,7 +223,10 @@ const PhoneDeck = {
   },
   action: (ext, name, body) => api(`/api/ext/${ext}/action/${name}`, body).then((r) => r.json()),
   currentPage: () => pages[current]?.id,
+  // the editor reads this through its preview to offer each element's display options
+  widgetHTML: (type) => WIDGET_HTML[type] || PhoneDeck.widgets[type] || "",
 };
+window.PhoneDeck = PhoneDeck;
 
 let extKey = null;
 async function loadExtensions() {
@@ -392,6 +395,9 @@ function makeTile(b) {
       if (live.on) el.dataset.on = live.on;
     }
     el.append(icon, label);
+    // display options from the editor: hide name / icon / frame, or invisible (still pressable)
+    for (const h of b.hide || []) el.classList.add("hide-" + h);
+    if (b.invisible) { el.classList.add("invisible"); el.setAttribute("aria-label", b.label); }
     return el;
 }
 
@@ -446,34 +452,56 @@ const WIDGET_HTML = {
   cpu: `<div class="card" style="--accent: var(--cpu)">
     <header><span class="label">CPU</span><span class="sub grow right" data-b="cpu.name"></span></header>
     <div class="row"><div class="big"><span data-b="cpu.load">–</span><small>%</small></div>
-      <div class="facts"><div><span data-b="cpu.temp" data-temp="cpu">–</span><small>°C</small></div><div><span data-b="cpu.freq">–</span><small>MHz</small></div></div></div>
-    <canvas class="spark" data-chart="cpu"></canvas></div>`,
+      <div class="facts" data-opt="facts" data-opt-name="Temperatur og takt"><div><span data-b="cpu.temp" data-temp="cpu">–</span><small>°C</small></div><div><span data-b="cpu.freq">–</span><small>MHz</small></div></div></div>
+    <canvas class="spark" data-chart="cpu" data-opt="graph" data-opt-name="Graf"></canvas></div>`,
   gpu: `<div class="card" style="--accent: var(--gpu)">
     <header><span class="label">GPU</span><span class="sub grow right" data-b="gpu.name"></span></header>
     <div class="row"><div class="big"><span data-b="gpu.load">–</span><small>%</small></div>
-      <div class="facts"><div><span data-b="gpu.temp" data-temp="gpu">–</span><small>°C</small></div><div><span data-b="gpu.power">–</span><small>W</small></div></div></div>
-    <div class="bar"><i data-w="gpu.vram"></i></div>
-    <canvas class="spark" data-chart="gpu"></canvas></div>`,
+      <div class="facts" data-opt="facts" data-opt-name="Temperatur og strøm"><div><span data-b="gpu.temp" data-temp="gpu">–</span><small>°C</small></div><div><span data-b="gpu.power">–</span><small>W</small></div></div></div>
+    <div class="bar" data-opt="bar" data-opt-name="VRAM-bjælke"><i data-w="gpu.vram"></i></div>
+    <canvas class="spark" data-chart="gpu" data-opt="graph" data-opt-name="Graf"></canvas></div>`,
   ram: `<div class="card" style="--accent: var(--ram)">
     <header><span class="label">RAM</span><span class="sub" data-b="ram.pcttxt"></span></header>
     <div class="big"><span data-b="ram.used">–</span><small data-b="ram.total"></small></div>
-    <div class="bar"><i data-w="ram.pct"></i></div><canvas class="spark" data-chart="ram"></canvas></div>`,
+    <div class="bar" data-opt="bar" data-opt-name="Bjælke"><i data-w="ram.pct"></i></div><canvas class="spark" data-chart="ram" data-opt="graph" data-opt-name="Graf"></canvas></div>`,
   net: `<div class="card" style="--accent: var(--net)">
     <header><span class="label">Netværk</span></header>
     <div class="kv"><div><small>↓ Ned</small><span data-b="net.down">–</span></div><div><small>↑ Op</small><span data-b="net.up">–</span></div></div>
-    <canvas class="spark" data-chart="net"></canvas></div>`,
+    <canvas class="spark" data-chart="net" data-opt="graph" data-opt-name="Graf"></canvas></div>`,
   disk: `<div class="card" style="--accent: var(--disk)">
     <header><span class="label">Disk</span><span class="sub" data-b="nvme"></span></header>
-    <div class="kv"><div><small>Brugt</small><span data-b="disk.usage">–</span></div><div><small>I/O</small><span data-b="disk.io">–</span></div></div>
-    <div class="bar"><i data-w="disk.pct"></i></div></div>`,
+    <div class="kv"><div><small>Brugt</small><span data-b="disk.usage">–</span></div><div data-opt="io" data-opt-name="I/O"><small>I/O</small><span data-b="disk.io">–</span></div></div>
+    <div class="bar" data-opt="bar" data-opt-name="Bjælke"><i data-w="disk.pct"></i></div></div>`,
   sys: `<div class="card strip">
-    <div><small>RAM</small><span data-b="ram.txt">–</span></div>
-    <div><small>↓ Net</small><span data-b="net.down">–</span></div>
-    <div><small>↑ Net</small><span data-b="net.up">–</span></div>
-    <div class="hide-narrow"><small>Disk</small><span data-b="disk.txt">–</span></div>
-    <div class="clock" data-fullscreen><span data-b="time">–</span><small data-b="date"></small></div></div>`,
-  clock: `<div class="card clock-card" data-fullscreen><b data-b="time">–</b><span data-b="datelong"></span></div>`,
+    <div data-opt="ram" data-opt-name="RAM"><small>RAM</small><span data-b="ram.txt">–</span></div>
+    <div data-opt="down" data-opt-name="Net ned"><small>↓ Net</small><span data-b="net.down">–</span></div>
+    <div data-opt="up" data-opt-name="Net op"><small>↑ Net</small><span data-b="net.up">–</span></div>
+    <div class="hide-narrow" data-opt="disk" data-opt-name="Disk"><small>Disk</small><span data-b="disk.txt">–</span></div>
+    <div class="clock" data-fullscreen data-opt="clock" data-opt-name="Ur"><span data-b="time">–</span><small data-b="date"></small></div></div>`,
+  clock: `<div class="card clock-card" data-fullscreen><b data-b="time">–</b><span data-b="datelong" data-opt="date" data-opt-name="Dato"></span></div>`,
 };
+
+// display options chosen in the editor: "header", "frame", "label"/"icon" (buttons),
+// or any part an element marks with data-opt="key" (e.g. the graph or the cover)
+function applyOptions(el, it) {
+  const hide = it.hide || [];
+  if (el.classList.contains("home-btn")) {  // buttons: applied to the tile (see fillHomeButtons / goto)
+    if (hide.length) el.dataset.hide = hide.join(" ");
+    if (it.invisible) el.dataset.invisible = "1";
+    const tile = el.querySelector(".tile");
+    if (tile) { hide.forEach((h) => tile.classList.add("hide-" + h)); if (it.invisible) tile.classList.add("invisible"); }
+    return;
+  }
+  if (el.classList.contains("tile")) {  // the Menu button
+    hide.forEach((h) => el.classList.add("hide-" + h));
+    if (it.invisible) el.classList.add("invisible");
+    return;
+  }
+  for (const h of hide) {
+    if (h === "header" || h === "frame") el.classList.add("hide-" + h);
+    else el.querySelectorAll(`[data-opt~="${h}"]`).forEach((p) => p.classList.add("opt-hidden"));
+  }
+}
 
 // one grid builder for the home page and your own pages
 function buildGrid(page, layout) {
@@ -503,6 +531,7 @@ function buildGrid(page, layout) {
       el.removeAttribute("data-widget");
     }
     el.classList.add("w-" + it.type.replace(".", "_"));
+    applyOptions(el, it);
     if (it.w * it.h <= 2) el.classList.add("small");
     if (it.w === 1) el.classList.add("narrow");
     el.style.gridColumn = `${it.x + 1} / span ${it.w}`;
@@ -548,7 +577,12 @@ function renderCustomPages(list) {
 }
 function fillHomeButtons(list) {
   $$("[data-home-button]").forEach((slot) => {
-    const b = findButton(list, slot.dataset.homeButton);
+    let b = findButton(list, slot.dataset.homeButton);
+    // the element's own display options come on top of the button's
+    if (b && (slot.dataset.hide || slot.dataset.invisible)) {
+      b = { ...b, hide: [...(b.hide || []), ...(slot.dataset.hide || "").split(" ").filter(Boolean)],
+            invisible: b.invisible || !!slot.dataset.invisible };
+    }
     slot.replaceChildren(b ? makeTile(b) : Object.assign(document.createElement("div"), { className: "tile missing", textContent: "Knap slettet" }));
   });
 }

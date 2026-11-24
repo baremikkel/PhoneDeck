@@ -544,3 +544,14 @@ body.stack .grid-page { grid-template-areas: none !important; }
 @container (max-width: 200px) and (min-height: 131px) { .big-media .title { font-size: 15px; } }
 @container (max-width: 130px) { .w-media .controls button:not(.primary) { display: none; } }
 @container (max-width: 130px) { .c-main .donut { min-height: 0; max-width: 100%; height: auto; width: 100%; } }
+
+/* ---------- display options (set per button / element in the editor) ---------- */
+.tile.hide-label > span { display: none; }
+.tile.hide-label > .ic, .tile.hide-label > img, .tile.hide-label > b { transform: scale(1.25); }
+.tile.hide-icon > .ic, .tile.hide-icon > img, .tile.hide-icon > b { display: none; }
+.tile.hide-frame { background: transparent; border-color: transparent; box-shadow: none; }
+.tile.invisible { opacity: 0; }  /* still takes taps – a hidden hot-spot */
+.tile.invisible:active { opacity: .15; }
+.grid-page > .hide-header > header, .grid-page > .hide-header > .noheader-hide { display: none; }
+.grid-page > .hide-frame { background: transparent; border-color: transparent; }
+[data-opt].opt-hidden { display: none !important; }

@@ -159,12 +159,12 @@ PhoneDeck.register("claude-code", {
     claude: `<div class="card" style="--accent: var(--claude)">
     <header><span class="label">Claude</span><span class="sub" data-b="c.reset"></span></header>
     <div class="big"><span data-b="c.block">–</span><small>tokens · 5 t</small></div>
-    <div class="facts grid2"><div><span data-b="c.today">–</span><small>i dag</small></div><div><span data-b="c.week">–</span><small>7 dage</small></div></div>
-    <canvas class="bars" data-chart="claude"></canvas></div>`,
+    <div class="facts grid2" data-opt="facts" data-opt-name="I dag / 7 dage"><div><span data-b="c.today">–</span><small>i dag</small></div><div><span data-b="c.week">–</span><small>7 dage</small></div></div>
+    <canvas class="bars" data-chart="claude" data-opt="graph" data-opt-name="Graf"></canvas></div>`,
     donut: `<div class="card donut-card" style="--accent: var(--claude)">
     <div class="donut" data-donut-wrap><canvas data-donut></canvas>
       <div class="donut-center"><b data-b="c.left">–</b><small data-b="c.leftlbl">tilbage</small></div></div>
-    <div class="sub center" data-b="c.fivetxt">Claude · 5 timer</div></div>`,
+    <div class="sub center" data-b="c.fivetxt" data-opt="caption" data-opt-name="Tekst under">Claude · 5 timer</div></div>`,
   },
 });
 })();

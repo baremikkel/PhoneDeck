@@ -162,6 +162,12 @@ preview** of the phone that updates while you edit, before you save.
   page and your own pages. When you add an extension, its elements show up automatically.
   An extension marks a card with `data-widget="name"` and
   `data-widget-name="Display name"` in its `page.html`.
+- **Display options** (*Vis*): click an element in the grid to choose what it shows – the
+  header, the frame and background, and parts such as the graph, the cover, the volume or
+  the numbers. Buttons can hide their name, icon or frame, or be **invisible** (still
+  pressable). Every element also adapts to its size by itself, so small boxes show less.
+  An extension offers its own parts by marking them with `data-opt="key"` and
+  `data-opt-name="Display name"`.
 
 ### Knapper (Stream Deck)
 
@@ -183,6 +189,9 @@ it on the computer. A button can:
   also be placed on the home page.
 - **Go to page** (*Gå til side*): switches the phone to a given page, e.g. Musik, Claude
   or one of your own pages. Nothing runs on the PC; handy on the home page.
+
+Under *Visning* (display) each button can hide its name, icon or frame, or be an
+**invisible** button that still works when tapped.
 
 Drag buttons to reorder them, choose an emoji, built-in icon or program icon, and use
 *Test på computeren* (test on the computer). When you press **Gem** (save), the phone

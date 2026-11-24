@@ -22,7 +22,7 @@ PhoneDeck.register("github", {
   render: renderGitHub,
   widgets: {
     github: `<div class="card heat" style="--accent: var(--gh)">
-    <header><span class="label">GitHub</span><span class="sub"><b data-b="gh.total">–</b> bidrag · <b data-b="gh.streak">–</b> dage i træk</span></header>
+    <header><span class="label">GitHub</span><span class="sub" data-opt="stats" data-opt-name="Tal"><b data-b="gh.total">–</b> bidrag · <b data-b="gh.streak">–</b> dage i træk</span></header>
     <canvas class="heatmap" data-heat="github"></canvas></div>`,
   },
 });

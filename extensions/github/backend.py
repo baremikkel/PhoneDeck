@@ -12,7 +12,8 @@ class Extension:
 
     def _start(self):
         self._stop = threading.Event()
-        self.github = GitHub(self.ctx.settings().get("user") or None, self._stop)
+        self.github = GitHub(self.ctx.settings().get("user") or None, self._stop,
+                             refresh=lambda: self.ctx.number("refresh_min", 30) * 60)
 
     def state(self):
         if self.ctx.stopped.is_set():

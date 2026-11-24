@@ -7,6 +7,7 @@
   "platforms": ["linux"],
   "settings": [
     {"key": "warn", "label": "Advar under (%)", "type": "number", "default": 20, "min": 5, "max": 50},
+    {"key": "poll_s", "label": "Opdatér hvert (sekunder)", "type": "number", "default": 30, "min": 10, "max": 600},
     {"type": "info", "html": "Enheder vises, når de er forbundet og melder deres batteri til Linux (UPower) – de fleste Bluetooth-headsets, Logitech-mus/tastaturer og controllere gør. Telefonens eget batteri læses af browseren på telefonen."}
   ]
 }

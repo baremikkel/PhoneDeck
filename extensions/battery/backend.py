@@ -16,7 +16,7 @@ class Extension:
     def _loop(self):
         while not self.ctx.stopped.is_set():
             self.devices = read()
-            self.ctx.stopped.wait(30)
+            self.ctx.stopped.wait(self.ctx.number("poll_s", 30))
 
     def state(self):
         return {"devices": self.devices, "warn": int(self.ctx.settings().get("warn") or 20)}

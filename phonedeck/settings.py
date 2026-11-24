@@ -142,7 +142,7 @@ class Settings:
         self._lock = threading.Lock()
         self.data = json.loads(json.dumps(DEFAULTS))
         try:
-            with open(SETTINGS_PATH) as f:
+            with open(SETTINGS_PATH, encoding="utf-8") as f:
                 saved = _migrate(json.load(f))
             for k in DEFAULTS["ui"]:
                 if k in saved.get("ui", {}):
@@ -224,7 +224,7 @@ class Settings:
         os.makedirs(os.path.dirname(SETTINGS_PATH), exist_ok=True)
         tmp = SETTINGS_PATH + ".tmp"
         fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)  # may hold tokens
-        with os.fdopen(fd, "w") as f:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
         os.replace(tmp, SETTINGS_PATH)
 

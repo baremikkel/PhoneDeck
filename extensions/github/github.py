@@ -50,8 +50,9 @@ def streak(days: list[dict]) -> int:
 
 
 class GitHub:
-    def __init__(self, user: str | None, stopped=None):
+    def __init__(self, user: str | None, stopped=None, refresh=lambda: REFRESH):
         self.stopped = stopped or threading.Event()
+        self.refresh = refresh  # callable -> seconds between fetches
         self.user = user
         self.data: dict | None = None if user else {"error": "Sæt dit GitHub-brugernavn under Indstillinger"}
         self._lock = threading.Lock()
@@ -71,7 +72,7 @@ class GitHub:
                     "best": max((d["count"] for d in days), default=0),
                     "updated": time.time(),
                 }
-                wait = REFRESH
+                wait = self.refresh()
             except Exception as e:
                 data = dict(self.data or {}, error=str(e))
                 wait = 120  # retry sooner after a failure

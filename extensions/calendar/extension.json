@@ -13,6 +13,7 @@
     {"key": "url3", "label": "Kalender 3 (valgfri)", "type": "secret"},
     {"key": "name3", "label": "Navn", "type": "text", "default": ""},
     {"key": "days", "label": "Vis dage frem", "type": "number", "default": 7, "min": 1, "max": 31},
+    {"key": "poll_min", "label": "Hent kalenderne hvert (minutter)", "type": "number", "default": 10, "min": 5, "max": 240},
     {"type": "status", "key": "status"},
     {"type": "button", "label": "Glem alle kalender-links", "action": "forget", "danger": true}
   ]

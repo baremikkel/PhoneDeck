@@ -58,7 +58,8 @@ class Extension:
             "hourly": "temperature_2m,precipitation_probability,precipitation,weather_code,is_day",
             "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,"
                      "precipitation_probability_max,sunrise,sunset,wind_speed_10m_max",
-            "forecast_days": 7, "forecast_hours": 25,
+            "forecast_days": int(self.ctx.number("days", 7)),
+            "forecast_hours": int(self.ctx.number("hours", 24)) + 1,  # +1: the graph shows both ends
             "temperature_unit": "fahrenheit" if imperial else "celsius",
             "wind_speed_unit": "mph" if imperial else "ms",
         })
@@ -85,7 +86,7 @@ class Extension:
         while not self.ctx.stopped.is_set():
             try:
                 self.data = self._fetch()
-                wait = POLL
+                wait = self.ctx.number("poll_min", POLL / 60) * 60
             except (urllib.error.URLError, OSError, ValueError, KeyError, IndexError, TypeError) as e:
                 msg = str(e.reason if isinstance(e, urllib.error.URLError) else e)
                 self.data = dict(self.data, error=msg) if self.data.get("now") else {"error": msg}

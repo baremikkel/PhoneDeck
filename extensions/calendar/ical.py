@@ -7,12 +7,70 @@ BYMONTHDAY), EXDATE and moved single occurrences (RECURRENCE-ID).
 
 from __future__ import annotations
 
+import functools
+import os
 import re
+import sys
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 WEEKDAYS = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
 MAX_STEPS = 5000   # safety limit when expanding a repeating event
+
+# Windows time zone names (Outlook writes these as TZID, and Windows reports the PC's zone
+# this way) -> IANA names with the same rules. The common ones, after CLDR windowsZones.
+WINDOWS_ZONES = {
+    "UTC": "Etc/UTC", "GMT Standard Time": "Europe/London", "Greenwich Standard Time": "Atlantic/Reykjavik",
+    "W. Europe Standard Time": "Europe/Berlin", "Romance Standard Time": "Europe/Paris",
+    "Central Europe Standard Time": "Europe/Budapest", "Central European Standard Time": "Europe/Warsaw",
+    "W. Central Africa Standard Time": "Africa/Lagos", "GTB Standard Time": "Europe/Bucharest",
+    "FLE Standard Time": "Europe/Kiev", "E. Europe Standard Time": "Europe/Chisinau",
+    "Turkey Standard Time": "Europe/Istanbul", "Israel Standard Time": "Asia/Jerusalem",
+    "Egypt Standard Time": "Africa/Cairo", "South Africa Standard Time": "Africa/Johannesburg",
+    "Russian Standard Time": "Europe/Moscow", "Arabian Standard Time": "Asia/Dubai",
+    "Arab Standard Time": "Asia/Riyadh", "Iran Standard Time": "Asia/Tehran",
+    "Pakistan Standard Time": "Asia/Karachi", "India Standard Time": "Asia/Kolkata",
+    "Bangladesh Standard Time": "Asia/Dhaka", "SE Asia Standard Time": "Asia/Bangkok",
+    "China Standard Time": "Asia/Shanghai", "Singapore Standard Time": "Asia/Singapore",
+    "Taipei Standard Time": "Asia/Taipei", "Tokyo Standard Time": "Asia/Tokyo",
+    "Korea Standard Time": "Asia/Seoul", "AUS Eastern Standard Time": "Australia/Sydney",
+    "E. Australia Standard Time": "Australia/Brisbane", "Cen. Australia Standard Time": "Australia/Adelaide",
+    "W. Australia Standard Time": "Australia/Perth", "New Zealand Standard Time": "Pacific/Auckland",
+    "Hawaiian Standard Time": "Pacific/Honolulu", "Alaskan Standard Time": "America/Anchorage",
+    "Pacific Standard Time": "America/Los_Angeles", "US Mountain Standard Time": "America/Phoenix",
+    "Mountain Standard Time": "America/Denver", "Central Standard Time": "America/Chicago",
+    "Central Standard Time (Mexico)": "America/Mexico_City", "Canada Central Standard Time": "America/Regina",
+    "Eastern Standard Time": "America/New_York", "Atlantic Standard Time": "America/Halifax",
+    "Newfoundland Standard Time": "America/St_Johns", "SA Pacific Standard Time": "America/Bogota",
+    "E. South America Standard Time": "America/Sao_Paulo", "Argentina Standard Time": "America/Buenos_Aires",
+    "Morocco Standard Time": "Africa/Casablanca", "E. Africa Standard Time": "Africa/Nairobi",
+}
+
+
+@functools.lru_cache(maxsize=1)
+def local_zone():
+    """The PC's time zone *with* its daylight-saving rules. (datetime.now().astimezone() only
+    gives today's fixed offset, which puts summer events an hour off in winter.)"""
+    name = os.environ.get("TZ", "")
+    if not name and sys.platform == "win32":
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
+                                r"SYSTEM\CurrentControlSet\Control\TimeZoneInformation") as k:
+                name = WINDOWS_ZONES.get(winreg.QueryValueEx(k, "TimeZoneKeyName")[0].strip("\0 "), "")
+        except OSError:
+            pass
+    elif not name:
+        try:
+            with open("/etc/timezone", encoding="utf-8") as f:
+                name = f.read().strip()
+        except OSError:
+            link = os.path.realpath("/etc/localtime")
+            name = link.split("zoneinfo/", 1)[1] if "zoneinfo/" in link else ""
+    try:
+        return ZoneInfo(name) if name else datetime.now().astimezone().tzinfo
+    except (ZoneInfoNotFoundError, ValueError):
+        return datetime.now().astimezone().tzinfo
 
 
 def _unfold(text: str) -> list[str]:
@@ -42,10 +100,9 @@ def _tz(name: str | None, local):
     if not name:
         return local
     try:
-        return ZoneInfo(name)
+        return ZoneInfo(WINDOWS_ZONES.get(name, name))  # Outlook: "Romance Standard Time"
     except (ZoneInfoNotFoundError, ValueError):
-        # Outlook names like "Romance Standard Time" – fall back to the PC's zone
-        return local
+        return local  # unknown name: assume the PC's zone
 
 
 def _when(value: str, params: dict, local) -> tuple[datetime, bool]:
@@ -144,7 +201,7 @@ def _occurrences(ev: dict, start: datetime, end: datetime, local):
 
 
 def events_between(text: str, start: datetime, end: datetime, local=None) -> list[dict]:
-    local = local or datetime.now().astimezone().tzinfo
+    local = local or local_zone()
     events, moved = [], {}
     cur = None
     for line in _unfold(text):

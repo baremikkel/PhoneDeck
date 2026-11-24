@@ -128,7 +128,7 @@ function renderClaude(c) {
   $$("[data-models]").forEach((box) => {
     if (box.dataset.key === key) return;
     box.dataset.key = key;
-    box.replaceChildren(...models.slice(0, 4).map(([name, v]) => {
+    box.replaceChildren(...models.slice(0, Math.max(1, +claudeLast?.settings?.models_shown || 4)).map(([name, v]) => {
       const row = document.createElement("div");
       const n = document.createElement("span"); n.textContent = name;
       const t = document.createElement("span"); t.textContent = fmtTok(v);

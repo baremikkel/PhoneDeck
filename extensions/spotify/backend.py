@@ -8,7 +8,8 @@ from .spotify import Spotify
 class Extension:
     def __init__(self, ctx):
         self.ctx = ctx
-        self.spotify = Spotify(lambda: ctx.settings().get("client_id") or "", ctx.port, ctx.stopped)
+        self.spotify = Spotify(lambda: ctx.settings().get("client_id") or "", ctx.port, ctx.stopped,
+                               poll=lambda: ctx.number("poll_s", 10))
         self._last_title = None
 
     def state(self):
@@ -53,8 +54,8 @@ class Extension:
         if path == "login":
             try:
                 req.redirect(self.spotify.login_url())
-            except ValueError as e:
-                req.send(400, str(e).encode(), "text/plain; charset=utf-8")
+            except ValueError as e:  # back to the settings page, which shows the message
+                req.redirect(f"http://localhost:{self.ctx.port}/settings?msg=" + urllib.parse.quote(str(e)))
             return True
         if path == "callback":
             err = (query.get("error") or [""])[0]

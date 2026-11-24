@@ -7,7 +7,11 @@ Only imported on Windows.
 from __future__ import annotations
 
 import ctypes
+import gc
 import os
+import queue
+import threading
+import time
 from ctypes import wintypes
 
 user32 = ctypes.WinDLL("user32", use_last_error=True)
@@ -101,34 +105,100 @@ def visible_window_pids() -> set[int]:
 
 
 # ---------- audio: volume level and microphone (optional pycaw) ----------
-def _endpoint(capture: bool):
-    try:
-        from comtypes import CLSCTX_ALL  # type: ignore
-        from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume  # type: ignore
-    except ImportError:
-        return None
-    dev = AudioUtilities.GetMicrophone() if capture else AudioUtilities.GetSpeakers()
-    if dev is None:
-        return None
-    iface = dev.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-    return ctypes.cast(iface, ctypes.POINTER(IAudioEndpointVolume))
+# All COM objects live on ONE thread that initialised COM. If a comtypes pointer is
+# released on another thread (e.g. when the garbage collector happens to run in the
+# visualizer thread), Windows kills the whole process with an access violation.
+class _AudioCom:
+    REFRESH = 30  # seconds before looking up the endpoints again (default device may change)
+
+    def __init__(self):
+        self._jobs: queue.Queue = queue.Queue()
+        self._thread: threading.Thread | None = None
+        self._lock = threading.Lock()
+
+    def call(self, fn, timeout: float = 3):
+        with self._lock:
+            if self._thread is None:
+                self._thread = threading.Thread(target=self._run, name="audio-com", daemon=True)
+                self._thread.start()
+        done, box = threading.Event(), {}
+        self._jobs.put((fn, done, box))
+        if not done.wait(timeout):
+            raise TimeoutError("lyd svarer ikke")
+        if "error" in box:
+            raise box["error"]
+        return box["value"]
+
+    def _run(self):
+        try:
+            import comtypes  # type: ignore
+            comtypes.CoInitializeEx(comtypes.COINIT_MULTITHREADED)
+        except (ImportError, OSError):
+            pass
+        cache: dict = {}
+        fetched = 0.0
+        while True:
+            fn, done, box = self._jobs.get()
+            if time.monotonic() - fetched > self.REFRESH:
+                cache.clear()
+                gc.collect()  # free old COM objects here, on this thread
+                fetched = time.monotonic()
+            try:
+                before = len(cache)
+                box["value"] = fn(lambda capture: self._endpoint(cache, capture))
+                if len(cache) != before:
+                    gc.collect()  # temporaries from the device lookup, also freed on this thread
+            except Exception as e:
+                cache.clear()
+                gc.collect()
+                box["error"] = e
+            done.set()
+
+    @staticmethod
+    def _endpoint(cache: dict, capture: bool):
+        if capture in cache:
+            return cache[capture]
+        try:
+            from comtypes import CLSCTX_ALL  # type: ignore
+            from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume  # type: ignore
+        except ImportError:
+            return None
+        dev = AudioUtilities.GetMicrophone() if capture else AudioUtilities.GetSpeakers()
+        if dev is None:
+            ep = None
+        elif hasattr(dev, "EndpointVolume"):  # pycaw 20240210+ wraps the device in AudioDevice
+            ep = dev.EndpointVolume
+        else:
+            iface = dev.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+            ep = ctypes.cast(iface, ctypes.POINTER(IAudioEndpointVolume))
+        cache[capture] = ep
+        return ep
+
+
+_audio = _AudioCom()
 
 
 def audio_level(capture: bool = False) -> dict:
-    try:
-        ep = _endpoint(capture)
+    def read(endpoint):
+        ep = endpoint(capture)
         if ep is None:
             return {"volume": None, "muted": False}
         return {"volume": round(ep.GetMasterVolumeLevelScalar() * 100), "muted": bool(ep.GetMute())}
-    except OSError:
+    try:
+        return _audio.call(read)
+    except Exception:  # optional feature: never let it break the whole sample
         return {"volume": None, "muted": False}
 
 
 def toggle_mic_mute() -> None:
-    ep = _endpoint(capture=True)
-    if ep is None:
+    def toggle(endpoint):
+        ep = endpoint(True)
+        if ep is None:
+            return False
+        ep.SetMute(0 if ep.GetMute() else 1, None)
+        return True
+    if not _audio.call(toggle):
         raise ValueError("Mikrofon-mute kræver pycaw på Windows: pip install pycaw")
-    ep.SetMute(0 if ep.GetMute() else 1, None)
 
 
 # ---------- clipboard (text) ----------

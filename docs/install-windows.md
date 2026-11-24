@@ -18,10 +18,11 @@ For Linux, see [install-linux.md](install-linux.md).
 
 1. Download **Python 3.11 or newer** from
    [python.org/downloads](https://www.python.org/downloads/).
-2. In the installer, tick **Add python.exe to PATH** before clicking *Install Now*.
-   The autostart script in step 7 needs it.
+2. In the installer, keep **Use admin privileges when installing py.exe** ticked (it
+   installs the `py` launcher used below). Ticking **Add python.exe to PATH** is optional.
 
-Or from a terminal: `winget install Python.Python.3.13`
+Or from a terminal: `winget install Python.Python.3.13`. This guide only uses `py`, so it
+works whether or not `python` ends up in PATH.
 
 Check it in a new PowerShell window:
 
@@ -60,6 +61,11 @@ This installs everything, including the optional packages:
 
 If one of the optional packages fails to install, PhoneDeck still works without it.
 
+> With **Smart App Control** turned on (*Windows Security → App & browser control*),
+> Windows may refuse to load the `winrt` packages even though they installed fine. The music
+> card then says *"Windows blokerede winrt"* and shows no title or cover. Play/pause and
+> next/previous still work through the media keys.
+
 ## 4. Start it and check it on the PC
 
 ```powershell
@@ -85,8 +91,13 @@ Windows doesn't expose temperatures to normal programs. PhoneDeck reads them fro
 3. To have it start with Windows: tick *Options → Run On Windows Startup* and
    *Start Minimized*.
 
-Without it you still get CPU load, RAM, network and disk. NVIDIA graphics cards also work
-through `nvidia-smi`, which comes with the NVIDIA driver.
+It gives PhoneDeck CPU and GPU temperatures, GPU load, power, fan and VRAM, and the SMART
+health of your drives (on the *Diske* page). Without it you still get CPU load, RAM,
+network and disk space. NVIDIA graphics cards also work through `nvidia-smi`, which comes
+with the NVIDIA driver.
+
+Or install it from a terminal: `winget install LibreHardwareMonitor.LibreHardwareMonitor`
+(then start it as administrator once and turn on the web server as above).
 
 ## 6. Connect the phone
 
@@ -147,7 +158,7 @@ powershell -ExecutionPolicy Bypass -File scripts\install-autostart-windows.ps1
 ```
 
 This puts a shortcut in your Startup folder that runs PhoneDeck in the background, without
-a console window, every time you log in. Start it right away with `pythonw -m phonedeck`
+a console window, every time you log in. Start it right away with `pyw -m phonedeck`
 (from the PhoneDeck folder) or by logging out and in.
 
 To remove the autostart again:
@@ -168,6 +179,13 @@ Open <http://localhost:8765/settings> on the PC (or tap *Menu* on the phone):
 - **Extensions**: GitHub user name, weather town, calendar links, Spotify, Claude limits,
   Home Assistant …
 
+For your real Claude plan limits (no login needed), add PhoneDeck's status line to
+Claude Code once:
+
+```powershell
+py scripts\install-claude-statusline.py
+```
+
 The Stream Deck buttons and your home screen are edited at
 <http://localhost:8765/editor>.
 
@@ -175,7 +193,8 @@ The Stream Deck buttons and your home screen are edited at
 
 - The **Lyd** (mixer), **Batterier** and **Skrivebord** pages are Linux-only and hidden.
 - The player's own volume isn't available; use the Windows volume mixer.
-- *Diske* shows space per drive, but no SMART health.
+- *Diske* shows space per drive; SMART health (wear, spare, hours, temperature) needs
+  LibreHardwareMonitor from step 5.
 - Programs come from your Start menu. *Aktiv* means the program has a visible window.
 
 See the [README](../README.md#windows) for the full list.
@@ -189,7 +208,7 @@ py -m pip install -r requirements-windows.txt
 ```
 
 Then restart PhoneDeck (end `pythonw.exe` in Task Manager and log out and in, or run
-`pythonw -m phonedeck`). If you downloaded the ZIP, download it again and replace the
+`pyw -m phonedeck`). If you downloaded the ZIP, download it again and replace the
 folder.
 
 Your settings live in `%APPDATA%\PhoneDeck` and are kept when you update.

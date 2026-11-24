@@ -122,7 +122,18 @@
       return txt ? el("div", { className: "status", textContent: txt }) : el("span");
     }
     if (f.type === "button") {
-      if (f.href) return el("a", { className: "button", href: f.href, textContent: f.label });
+      if (f.href) {
+        const a = el("a", { className: "button", href: f.href, textContent: f.label });
+        // e.g. "Forbind Spotify": save what's typed in this section first, or the login
+        // would start without the Client ID the user just pasted
+        a.onclick = async (ev) => {
+          const sec = a.closest("section");
+          if (!sec?.querySelector("[data-key]")) return;
+          ev.preventDefault();
+          try { await saveExt(ext, sec); location.href = f.href; } catch (e) { toast(e.message, true); }
+        };
+        return a;
+      }
       const b = el("button", { className: f.danger ? "danger" : "ghost", textContent: f.label });
       b.onclick = async () => {
         try { await api(`/api/ext/${ext.id}/action/${f.action}`, {}); toast("Udført"); load(); } catch (e) { toast(e.message, true); }
@@ -152,6 +163,15 @@
     return el("label", {}, f.label || f.key, input, f.help ? el("span", { className: "hint", textContent: f.help }) : "");
   }
 
+  function saveExt(ext, sec) {
+    const values = {};
+    sec.querySelectorAll("[data-key]").forEach((inp) => {
+      values[inp.dataset.key] = inp.dataset.type === "bool" ? inp.checked
+        : inp.dataset.type === "number" ? (inp.value === "" ? null : +inp.value) : inp.value;
+    });
+    return api("/api/settings", { ext: { [ext.id]: values } });
+  }
+
   function renderExtensions(list) {
     const box = $("#ext-settings");
     const cats = [];
@@ -172,12 +192,7 @@
         if ((ext.settings || []).some((f) => f.key)) {
           const save = el("button", { className: "primary", textContent: "Gem" });
           save.onclick = async () => {
-            const values = {};
-            sec.querySelectorAll("[data-key]").forEach((inp) => {
-              values[inp.dataset.key] = inp.dataset.type === "bool" ? inp.checked
-                : inp.dataset.type === "number" ? (inp.value === "" ? null : +inp.value) : inp.value;
-            });
-            try { await api("/api/settings", { ext: { [ext.id]: values } }); toast(`${ext.name}: gemt`); setTimeout(load, 1500); }
+            try { await saveExt(ext, sec); toast(`${ext.name}: gemt`); setTimeout(load, 1500); }
             catch (e) { toast(e.message, true); }
           };
           sec.append(el("div", { className: "btns" }, save));

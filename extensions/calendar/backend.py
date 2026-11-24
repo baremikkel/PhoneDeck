@@ -12,7 +12,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timedelta
 
-from .ical import events_between
+from .ical import events_between, local_zone
 
 POLL = 10 * 60
 COLOURS = ["var(--cpu)", "var(--claude)", "var(--net)"]
@@ -57,7 +57,7 @@ class Extension:
                     # never show the (secret) link itself in an error
                     self.errors[i] = str(getattr(e, "reason", None) or getattr(e, "code", None) or e).split("http")[0][:80]
             self.fetched = time.time()
-            self._wake.wait(POLL)
+            self._wake.wait(self.ctx.number("poll_min", POLL / 60) * 60)
             self._wake.clear()
 
     def state(self):
@@ -71,7 +71,7 @@ class Extension:
         out = []
         for i, text in sorted(self.texts.items()):
             try:
-                evs = events_between(text, start, end, now.tzinfo)
+                evs = events_between(text, start, end, local_zone())
             except Exception as e:  # a broken file must not stop the dashboard
                 self.errors[i] = f"kunne ikke læse kalenderen ({e.__class__.__name__})"
                 continue
@@ -92,8 +92,26 @@ class Extension:
             return {}
         raise ValueError(f"ukendt handling: {name}")
 
+    def _summary(self, text: str) -> str:
+        """'42 begivenheder, næste 3. dec.' – so an empty-looking calendar can be told apart
+        from one that didn't download (e.g. a link that gives an empty or HTML page)."""
+        if "BEGIN:VCALENDAR" not in text[:2000].upper():
+            return "linket gav ikke en kalender (ICS) – tjek at det er den hemmelige iCal-adresse"
+        count = text.upper().count("BEGIN:VEVENT")
+        now = datetime.now().astimezone()
+        try:
+            nxt = next(iter(events_between(text, now, now + timedelta(days=366), local_zone())), None)
+        except Exception:  # noqa: BLE001
+            nxt = None
+        when = f"næste {nxt['start'].day}/{nxt['start'].month}" if nxt else "ingen det næste år"
+        return f"{count} begivenhed{'er' if count != 1 else ''}, {when}"
+
     def info(self):
         n = len(self.texts)
         if self.errors:
             return {"status": "⚠ " + "; ".join(self.errors.values())}
-        return {"status": f"✓ {n} kalender{'e' if n != 1 else ''} hentet" if n else "Ingen kalender sat op endnu"}
+        if not n:
+            return {"status": "Ingen kalender sat op endnu"}
+        s = self.ctx.settings()
+        parts = [f"{s.get(f'name{i}') or f'Kalender {i}'}: {self._summary(t)}" for i, t in sorted(self.texts.items())]
+        return {"status": "✓ " + " · ".join(parts)}

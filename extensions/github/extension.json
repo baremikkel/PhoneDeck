@@ -8,6 +8,7 @@
   "settings": [
     {"key": "user", "label": "GitHub-brugernavn", "type": "text", "default": "",
      "pattern": "[A-Za-z0-9-]{1,39}", "pattern_help": "kun bogstaver, tal og bindestreg",
-     "help": "Private bidrag tælles kun med, hvis 'Private contributions' er slået til på din profil."}
+     "help": "Private bidrag tælles kun med, hvis 'Private contributions' er slået til på din profil."},
+    {"key": "refresh_min", "label": "Opdatér hvert (minutter)", "type": "number", "default": 30, "min": 10, "max": 720}
   ]
 }

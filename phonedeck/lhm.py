@@ -86,6 +86,9 @@ class LibreHardwareMonitor:
         f = lambda t, *n: self._find(prefixes, t, n)  # noqa: E731
         mib = 1024 * 1024
         used, total = f("smalldata", "GPU Memory Used", "D3D Dedicated Memory Used"), f("smalldata", "GPU Memory Total")
+        fan = f("control", "GPU Fan")  # 0 % is a real value: many cards stop the fan when idle
+        if fan is None:
+            fan = f("load", "GPU Fan")
         return {
             "name": sensors[0]["hw"] or "GPU",
             "load": f("load", "GPU Core", "D3D 3D"),
@@ -93,15 +96,30 @@ class LibreHardwareMonitor:
             "temp_hot": f("temperature", "Hot Spot", "Junction"),
             "power": f("power", "GPU Package", "GPU Power", "GPU Core"),
             "clock": f("clock", "GPU Core"),
-            "fan": f("control", "GPU Fan") or f("load", "GPU Fan"),
+            "fan": fan,
             "vram_used": used * mib if used is not None else None,
             "vram_total": total * mib if total is not None else None,
         }
 
+    def drives(self) -> dict[str, list[dict]]:
+        """Storage sensors grouped per drive (hw_id -> sensors)."""
+        out: dict[str, list[dict]] = {}
+        for s in self.refresh():
+            if s["hw_id"].startswith(("nvme", "hdd", "ssd", "storage")):
+                out.setdefault(s["hw_id"], []).append(s)
+        return out
+
     def nvme_temps(self) -> list[float]:
-        return [s["value"] for s in self.refresh()
-                if s["hw_id"].startswith(("nvme", "hdd", "ssd", "storage")) and s["type"].lower() == "temperature"
-                and s["value"] is not None and "warning" not in s["name"].lower() and "critical" not in s["name"].lower()][:4]
+        """One temperature per drive: the composite one when there is one (NVMe drives also
+        report several internal sensors and their warning/critical limits)."""
+        temps = []
+        for sensors in self.drives().values():
+            t = [s for s in sensors if s["type"].lower() == "temperature" and s["value"] is not None
+                 and not any(w in s["name"].lower() for w in ("warning", "critical", "limit"))]
+            best = next((s for s in t if "composite" in s["name"].lower()), t[0] if t else None)
+            if best:
+                temps.append(best["value"])
+        return temps[:4]
 
 
 class LhmGpu:

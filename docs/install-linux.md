@@ -187,6 +187,13 @@ Open <http://localhost:8765/settings> on the PC (or tap *Menu* on the phone):
 - **Extensions**: GitHub user name, weather town, calendar links, Spotify, Claude limits,
   Home Assistant …
 
+For your real Claude plan limits (no login needed), add PhoneDeck's status line to
+Claude Code once:
+
+```bash
+python3 scripts/install-claude-statusline.py
+```
+
 The Stream Deck buttons and your home screen are edited at
 <http://localhost:8765/editor>. See the [README](../README.md) for what every page and
 setting does.

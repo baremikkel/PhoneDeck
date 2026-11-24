@@ -1,8 +1,9 @@
 """Claude Code usage (local logs) + plan limits (optional, via the Claude Code login)."""
 
 import threading
+import time
 
-from .plan import ClaudePlan
+from .plan import ClaudePlan, statusline_seen
 from .usage import ClaudeUsage
 
 SCAN_EVERY = 15  # seconds
@@ -18,7 +19,8 @@ class Extension:
     def __init__(self, ctx):
         self.ctx = ctx
         self.usage = ClaudeUsage()
-        self.plan = ClaudePlan(lambda: bool(ctx.settings().get("use_login")), ctx.stopped)
+        self.plan = ClaudePlan(lambda: bool(ctx.settings().get("use_login")), ctx.stopped,
+                               poll=lambda: ctx.number("login_poll_min", 2) * 60)
         self._summary = {}
         threading.Thread(target=self._loop, daemon=True).start()
 
@@ -29,7 +31,7 @@ class Extension:
                 self._summary = self.usage.summary()
             except Exception as e:  # keep running even if a log line is odd
                 self._summary = {"error": str(e)}
-            self.ctx.stopped.wait(SCAN_EVERY)
+            self.ctx.stopped.wait(self.ctx.number("scan_s", SCAN_EVERY))
 
     def state(self):
         return {"usage": self._summary, "plan": self.plan.state(), "settings": self.ctx.settings()}
@@ -39,14 +41,24 @@ class Extension:
 
     def info(self):
         p = self.plan.state()
-        if p is None:
-            plan_status = ""
+        seen = statusline_seen()
+        if (p is None or (p.get("error") and not p.get("five_hour"))) and seen:
+            plan_status = (f"Statusline kører (sidst kl. {time.strftime('%H:%M', time.localtime(seen))}), "
+                           "men Claude Code har ikke sendt plan-grænser endnu. De kommer efter et svar "
+                           "og kun med Pro, Max eller Ultra.")
+        elif p is None:
+            plan_status = ("Ingen plan-tal endnu. Sæt Claude Codes statusline op (se herunder) "
+                           "eller slå login til.")
         elif p.get("error"):
             plan_status = "⚠ " + p["error"]
         elif p.get("five_hour"):
-            plan_status = (f"✓ {str(p.get('plan') or '').capitalize()}-plan: "
+            via = ("via statusline" if p.get("source") == "statusline" else "via login")
+            at = time.strftime("%H:%M", time.localtime(p["updated"])) if p.get("updated") else "?"
+            plan_name = str(p.get("plan") or "").capitalize()
+            plan_status = (f"✓ {plan_name + '-plan: ' if plan_name else ''}"
                            f"{round(p['five_hour']['used_pct'])} % brugt i 5-timers vinduet"
-                           + (f", {round(p['seven_day']['used_pct'])} % af ugen" if p.get("seven_day") else ""))
+                           + (f", {round(p['seven_day']['used_pct'])} % af ugen" if p.get("seven_day") else "")
+                           + f" ({via}, kl. {at})")
         else:
             plan_status = "Henter …"
         s = self._summary

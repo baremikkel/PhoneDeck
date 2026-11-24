@@ -11,6 +11,10 @@
      "options": [["spotify", "Kun Spotify (også Spotifast)"], ["no_browser", "Alle undtagen browsere (YouTube osv.)"], ["all", "Alle afspillere"]]},
     {"key": "viz_colour", "label": "Visualizerens farve", "type": "select", "default": "app",
      "options": [["app", "Efter programmet der spiller (Spotify grøn, Firefox orange …)"], ["fixed", "Altid samme farve"]]},
+    {"key": "viz_bands", "label": "Visualizer: antal søjler", "type": "number", "default": 36, "min": 8, "max": 96},
+    {"key": "viz_range", "label": "Visualizer: dynamik (dB)", "type": "number", "default": 36, "min": 12, "max": 72,
+     "help": "Lavere = søjlerne fylder mere og ser mere urolige ud. Højere = roligere, flere detaljer i de svage toner."},
+    {"key": "viz_fps", "label": "Visualizer: billeder pr. sekund", "type": "number", "default": 30, "min": 10, "max": 60},
     {"key": "volume_step", "label": "Lydstyrke-trin (%)", "type": "number", "default": 5, "min": 1, "max": 25}
   ]
 }

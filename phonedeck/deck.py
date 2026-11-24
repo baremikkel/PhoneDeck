@@ -177,7 +177,7 @@ class Deck:
     def reload(self) -> None:
         with self._lock:
             try:
-                with open(DECK_PATH) as f:
+                with open(DECK_PATH, encoding="utf-8") as f:
                     data = json.load(f)
                 self.buttons = validate(data.get("buttons", []), self.apps)
                 self._mtime = os.path.getmtime(DECK_PATH)
@@ -198,7 +198,7 @@ class Deck:
     def _write(self) -> None:
         os.makedirs(os.path.dirname(DECK_PATH), exist_ok=True)
         tmp = DECK_PATH + ".tmp"
-        with open(tmp, "w") as f:
+        with open(tmp, "w", encoding="utf-8") as f:
             json.dump({"buttons": self.buttons}, f, ensure_ascii=False, indent=2)
         os.replace(tmp, DECK_PATH)
         self._mtime = os.path.getmtime(DECK_PATH)
@@ -280,9 +280,14 @@ def shell_argv(cmd: str) -> list[str]:
 
 def _spawn(argv: list[str]) -> None:
     if IS_WINDOWS:
+        cmdline: list[str] | str = argv
+        if len(argv) == 3 and argv[:2] == ["cmd", "/c"]:
+            # hand the typed command to cmd exactly as written: Python would turn its quotes
+            # into \" (C runtime style), which cmd doesn't understand. /s strips the outer pair.
+            cmdline = f'cmd /s /c "{argv[2]}"'
         # detached, no console window popping up
         flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
-        subprocess.Popen(argv, creationflags=flags, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        subprocess.Popen(cmdline, creationflags=flags, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                          cwd=os.path.expanduser("~"))
         return
     subprocess.Popen(argv, start_new_session=True, stdout=subprocess.DEVNULL,

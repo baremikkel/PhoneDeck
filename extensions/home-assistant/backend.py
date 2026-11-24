@@ -96,7 +96,7 @@ class Extension:
         while not self.ctx.stopped.is_set():
             try:
                 self.data = self._fetch()
-                wait = POLL
+                wait = self.ctx.number("poll_s", POLL)
             except LookupError as e:
                 self.data = {"setup": True, "error": str(e)}
                 wait = 30

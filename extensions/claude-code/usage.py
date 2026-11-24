@@ -34,7 +34,7 @@ class ClaudeUsage:
         self.records: dict[str, tuple] = {}
         self.last_scan = 0.0
         try:
-            with open(DAILY_CACHE) as f:
+            with open(DAILY_CACHE, encoding="utf-8") as f:
                 self.saved_daily: dict[str, int] = json.load(f)
         except (OSError, ValueError):
             self.saved_daily = {}
@@ -52,7 +52,7 @@ class ClaudeUsage:
         if merged != self.saved_daily:
             try:
                 os.makedirs(os.path.dirname(DAILY_CACHE), exist_ok=True)
-                with open(DAILY_CACHE, "w") as f:
+                with open(DAILY_CACHE, "w", encoding="utf-8") as f:
                     json.dump(merged, f)
                 self.saved_daily = merged
             except OSError:
@@ -75,6 +75,8 @@ class ClaudeUsage:
         try:
             epoch = datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
         except ValueError:
+            return
+        if msg.get("model") == "<synthetic>":  # Claude Code's own placeholder replies, no API call
             return
         u = msg["usage"]
         self.records[mid] = (

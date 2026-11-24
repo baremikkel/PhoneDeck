@@ -42,8 +42,11 @@ def _track(t: dict | None) -> dict | None:
         return None
     images = (t.get("album") or {}).get("images") or (t.get("show") or {}).get("images") or []
     small = min(images, key=lambda i: i.get("width") or 9999)["url"] if images else None
+    # the cover for the music card: the one closest to 300 px
+    big = min(images, key=lambda i: abs((i.get("width") or 300) - 300))["url"] if images else None
     artists = ", ".join(a["name"] for a in t.get("artists", [])) or (t.get("show") or {}).get("name", "")
-    return {"title": t.get("name"), "artist": artists, "art": small, "uri": t.get("uri"), "id": t.get("id"),
+    return {"title": t.get("name"), "artist": artists, "art": small, "art_big": big, "uri": t.get("uri"),
+            "id": t.get("id"), "album": (t.get("album") or {}).get("name"),
             "duration": (t.get("duration_ms") or 0) / 1000}
 
 
@@ -208,8 +211,11 @@ class Spotify:
         return {}
 
     # ---------- queue ----------
-    def refresh_soon(self) -> None:
-        self._wake.set()
+    def refresh_soon(self, delay: float = 0) -> None:
+        if delay:
+            threading.Timer(delay, self._wake.set).start()
+        else:
+            self._wake.set()
 
     def _loop(self) -> None:
         while not self.stopped.is_set():
@@ -227,6 +233,15 @@ class Spotify:
                     data = {"connected": True, "current": current,
                             "next": queue[0] if queue else None, "queue": queue,
                             "reconnect": self.missing_scopes()}
+                    # playing or paused, and how far (the music card uses this when Windows'
+                    # own media controls are unavailable)
+                    try:
+                        now = self._api("GET", "/me/player/currently-playing")  # {} = nothing
+                        data["playing"] = bool(now.get("is_playing"))
+                        data["progress"] = (now.get("progress_ms") or 0) / 1000
+                        data["progress_at"] = time.time()
+                    except ValueError:
+                        pass
                     # is the current song in "Liked Songs"? (only asked when the song changes)
                     old = self.data.get("current") or {}
                     if current and current.get("id") and not data["reconnect"]:

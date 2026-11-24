@@ -9,6 +9,8 @@
     {"type": "info", "html": "Lydstyrken på musiksiden ændrer kun afspillerens egen lydstyrke – ikke resten af computeren."},
     {"key": "source", "label": "Vis afspillere", "type": "select", "default": "spotify",
      "options": [["spotify", "Kun Spotify (også Spotifast)"], ["no_browser", "Alle undtagen browsere (YouTube osv.)"], ["all", "Alle afspillere"]]},
+    {"key": "viz_colour", "label": "Visualizerens farve", "type": "select", "default": "app",
+     "options": [["app", "Efter programmet der spiller (Spotify grøn, Firefox orange …)"], ["fixed", "Altid samme farve"]]},
     {"key": "volume_step", "label": "Lydstyrke-trin (%)", "type": "number", "default": 5, "min": 1, "max": 25}
   ]
 }

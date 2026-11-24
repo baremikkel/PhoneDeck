@@ -6,13 +6,13 @@
             <canvas data-donut></canvas>
             <div class="donut-center"><b data-b="c.left">–</b><small data-b="c.leftlbl">tilbage</small></div>
           </div>
-          <div class="donut-info">
+          <div class="donut-info" data-opt="numbers" data-opt-name="Tal ved donutten">
             <div class="big"><span data-b="c.block">–</span><small data-b="c.blockof">tokens</small></div>
             <div class="sub" data-b="c.resetlong"></div>
             <div class="legend"><span><i style="background: var(--claude)"></i><span data-b="c.fivetxt">5 timer</span></span><span data-week-legend><i style="background: var(--ram)"></i><span data-b="c.weektxt">uge</span></span></div>
           </div>
         </div>
-        <div class="kv">
+        <div class="kv" data-opt="breakdown" data-opt-name="Input/output/cache">
           <div><small>Input</small><span data-b="c.b.in">–</span></div>
           <div><small>Output</small><span data-b="c.b.out">–</span></div>
           <div><small>Cache skrevet</small><span data-b="c.b.cw">–</span></div>
@@ -26,17 +26,17 @@
           <div><small>Output i dag</small><span data-b="c.out">–</span></div>
           <div><small>Sidste 7 dage</small><span data-b="c.week">–</span></div>
         </div>
-        <div class="models" data-models></div>
+        <div class="models" data-models data-opt="models" data-opt-name="Modeller"></div>
       </div>
       <div class="card c-chart" style="--accent: var(--claude)" data-widget="hourly" data-widget-name="Sidste 24 timer">
         <header><span class="label">Sidste 24 timer</span><span class="sub">tokens pr. time</span></header>
         <canvas class="bars" data-chart="claude"></canvas>
-        <div class="sub tiny axis"><span>-24 t</span><span>-12 t</span><span>nu</span></div>
+        <div class="sub tiny axis" data-opt="axis" data-opt-name="Tidsakse"><span>-24 t</span><span>-12 t</span><span>nu</span></div>
       </div>
       <div class="card heat c-heat" style="--accent: var(--claude)" data-widget="heatmap" data-widget-name="Claude-heatmap (år)">
         <header>
           <span class="label">Seneste år</span>
-          <span class="stats">
+          <span class="stats" data-opt="stats" data-opt-name="Tal i overskriften">
             <span><b data-b="ch.total">–</b><small>tokens · år</small></span>
             <span><b data-b="ch.active">–</b><small>aktive dage</small></span>
             <span><b data-b="ch.streak">–</b><small>dage i træk</small></span>

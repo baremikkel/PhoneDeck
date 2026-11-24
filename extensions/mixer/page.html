@@ -5,11 +5,11 @@
       <div class="card mix-devs" style="--accent: var(--cpu)" data-widget="devices" data-widget-name="Lydenheder (højttaler/mikrofon)">
         <header><span class="label">Udgang</span><span class="sub grow right">tryk for at skifte</span></header>
         <div class="mix-list" data-mix-outputs></div>
-        <header><span class="label" style="color: var(--ram)">Indgang</span></header>
-        <div class="mix-list" data-mix-inputs></div>
+        <div class="mix-inputs" data-opt="inputs" data-opt-name="Indgang (mikrofon)"><header><span class="label" style="color: var(--ram)">Indgang</span></header>
+        <div class="mix-list" data-mix-inputs></div></div>
       </div>
       <div class="card mix-mic" style="--accent: var(--ram)" data-widget="mic" data-widget-name="Mikrofon og push-to-talk">
         <header><span class="label">Mikrofon</span><span class="sub grow right" data-b="mx.micstate">–</span></header>
-        <div class="mic-meter" data-mic-meter><i></i></div>
-        <button class="tile ptt" data-ptt><i class="ic" data-icon="mic"></i><span>Hold for at tale</span></button>
+        <div class="mic-meter" data-mic-meter data-opt="meter" data-opt-name="Måler"><i></i></div>
+        <button class="tile ptt" data-ptt data-opt="ptt" data-opt-name="Push-to-talk"><i class="ic" data-icon="mic"></i><span>Hold for at tale</span></button>
       </div>

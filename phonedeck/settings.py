@@ -22,6 +22,7 @@ CORE_WIDGETS = {"cpu", "gpu", "ram", "net", "disk", "sys", "clock", "button", "m
 WIDGET_RE = re.compile(r"^[a-z0-9][a-z0-9.-]{0,60}$")  # "<extension>.<element>" for page elements
 PAGE_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
 CUSTOM_ID_RE = re.compile(r"^[a-z0-9]{1,12}$")
+OPT_RE = re.compile(r"^[a-z0-9-]{1,30}$")  # display-option keys
 MAX_CUSTOM_PAGES = 10
 GRIDS = [(4, 2), (4, 3), (6, 3), (6, 4), (8, 4)]
 
@@ -105,6 +106,13 @@ def validate_home(h) -> dict:
             if not PAGE_RE.match(page):
                 raise ValueError("vælg en side til Gå til side-knappen")
             item["page"] = page
+        # display options: parts to hide ("header", "frame", "label", or a part the element marks
+        # with data-opt="…"), and for buttons: invisible but still pressable
+        hide = [h for h in (it.get("hide") or []) if isinstance(h, str) and OPT_RE.match(h)][:16]
+        if hide:
+            item["hide"] = list(dict.fromkeys(hide))
+        if it.get("invisible") is True:
+            item["invisible"] = True
         items.append(item)
     return {"cols": cols, "rows": rows, "items": items}
 

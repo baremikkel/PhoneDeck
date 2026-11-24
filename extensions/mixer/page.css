@@ -48,7 +48,7 @@
 .narrow .mix-row .ctl [data-mx-step], .narrow .mix-row .pct { display: none; }
 
 /* on a grid page: show less the smaller the box is */
-@container (max-height: 260px) { .mix-devs > header:nth-of-type(2), .mix-devs [data-mix-inputs] { display: none; } }
+@container (max-height: 260px) { .mix-devs .mix-inputs { display: none; } }
 @container (max-height: 200px) { .mix-devs .mix-dev { display: none; } .mix-devs > header .sub { display: none; } }
 @container (max-height: 200px) and (min-height: 140px) and (min-width: 300px) { .mix-devs .mix-dev.cur { display: flex; } }
 @container (max-height: 110px) { .mix-devs > header, .mix-apps > header, .mix-mic > header { display: none; } .mix-row .nm small { display: none; } }
@@ -62,3 +62,4 @@
 @container (max-height: 110px) and (min-width: 200px) { .ptt { flex-direction: row; gap: 8px; } }
 .ptt { min-height: 0; }
 @container (max-width: 130px) { .ptt span { font-size: 12px; white-space: normal; text-align: center; line-height: 1.1; } }
+.mix-inputs { display: flex; flex-direction: column; gap: 6px; }

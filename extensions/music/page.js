@@ -107,9 +107,9 @@ PhoneDeck.register("music", {
   page: updateViz,
   widgets: {
     media: `<div class="card media">
-    <div class="art"><img data-art alt=""><div class="noart">♪</div></div>
+    <div class="art" data-opt="cover" data-opt-name="Cover"><img data-art alt=""><div class="noart">♪</div></div>
     <div class="info"><div class="title" data-b="m.title">Intet afspilles</div><div class="artist" data-b="m.artist"></div>
-      <div class="progress"><i data-w="m.progress"></i></div>
+      <div class="progress" data-opt="progress" data-opt-name="Fremskridt"><i data-w="m.progress"></i></div>
       <div class="controls"><button data-action="media.previous" aria-label="Forrige"><i class="ic" data-icon="prev"></i></button>
         <button data-action="media.playpause" class="primary" aria-label="Afspil/pause"><i class="ic" data-icon="play" data-ib="m.play"></i></button>
         <button data-action="media.next" aria-label="Næste"><i class="ic" data-icon="next"></i></button></div></div></div>`,

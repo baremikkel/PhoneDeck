@@ -27,6 +27,7 @@ from .actions import BUILTINS, load_config
 
 DECK_PATH = os.path.expanduser(os.environ.get("PHONEDECK_BUTTONS", "~/.config/phonedeck/buttons.json"))
 PAGE_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")  # same as settings.PAGE_RE
+BUTTON_HIDE = ("label", "icon", "frame")  # parts of a button that can be hidden
 MAX_BUTTONS = 150   # in total, including the ones inside folders
 MAX_DEPTH = 3       # folders inside folders inside folders
 
@@ -137,6 +138,12 @@ def validate(raw: list, apps, _depth: int = 0, _seen: set | None = None, _count:
             color = ""
         item = {"id": bid, "label": label, "icon": _clean_icon(b.get("icon")), "action": action,
                 "color": color}
+        # display options: hide the name/icon/frame, or make the button invisible (still pressable)
+        hide = [h for h in (b.get("hide") or []) if h in BUTTON_HIDE][:3]
+        if hide:
+            item["hide"] = list(dict.fromkeys(hide))
+        if b.get("invisible") is True:
+            item["invisible"] = True
         if children is not None:
             item["buttons"] = children
         out.append(item)
@@ -209,6 +216,10 @@ class Deck:
         for b in self.buttons if _buttons is None else _buttons:
             p = {"id": b["id"], "label": b["label"], "icon": b["icon"], "type": b["action"]["type"],
                  "color": b.get("color", "")}
+            if b.get("hide"):
+                p["hide"] = b["hide"]
+            if b.get("invisible"):
+                p["invisible"] = True
             if b["action"]["type"] == "app":
                 p["running"] = b["action"]["app"] in (running or ())
             if b["action"]["type"] == "builtin":

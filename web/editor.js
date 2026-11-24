@@ -91,7 +91,25 @@ function tileContent(el, b) {
   const label = document.createElement("span");
   label.textContent = b.label || "Ny knap";
   el.replaceChildren(iconEl(b.icon), label);
+  for (const h of ["label", "icon", "frame"]) el.classList.toggle("hide-" + h, !!b.hide?.includes(h));
+  el.classList.toggle("invisible", !!b.invisible);
 }
+
+// ---------- display options: name / icon / frame / invisible ----------
+function renderBtnOpts() {
+  const b = cur();
+  $$("#btn-opts [data-btn-hide]").forEach((c) => { c.checked = !b.hide?.includes(c.dataset.btnHide); });
+  $("#btn-invisible").checked = !!b.invisible;
+}
+$("#btn-opts").addEventListener("change", (e) => {
+  const c = e.target;
+  update((b) => {
+    if (c.id === "btn-invisible") { if (c.checked) b.invisible = true; else delete b.invisible; return; }
+    const hide = new Set(b.hide || []);
+    if (c.checked) hide.delete(c.dataset.btnHide); else hide.add(c.dataset.btnHide);
+    if (hide.size) b.hide = [...hide]; else delete b.hide;
+  });
+});
 
 // ---------- deck grid (drag & drop to reorder) ----------
 let dragFrom = -1;
@@ -213,6 +231,7 @@ function select(i) {
   renderHotkey();
   renderIcon();
   renderColors();
+  renderBtnOpts();
   $("#test-msg").textContent = "";
 }
 const cur = () => level()[selected];
@@ -521,7 +540,7 @@ function renderHomeGrid() {
   }
   home.items.forEach((it, i) => {
     const w = document.createElement("div");
-    w.className = "w" + (i === selItem ? " on" : "");
+    w.className = "w" + (i === selItem ? " on" : "") + (it.invisible ? " invisible" : "");
     w.style.gridColumn = `${it.x + 1} / span ${it.w}`; w.style.gridRow = `${it.y + 1} / span ${it.h}`;
     const [name, icon] = widgetLabel(it);
     if (it.type === "button") { const b = allButtons().find((x) => x.id === it.button); if (b?.color) w.style.setProperty("--btn", b.color); w.classList.add("tile"); }
@@ -655,9 +674,64 @@ function showPanel() {
   $("#home-pick").hidden = !selStart;
   $("#home-sel").hidden = selItem < 0;
   $("#home-empty").hidden = !!selStart || selItem >= 0;
-  if (selItem >= 0) $("#sel-name").textContent = widgetLabel(home.items[selItem])[0];
+  if (selItem >= 0) { $("#sel-name").textContent = widgetLabel(home.items[selItem])[0]; renderSelOpts(); }
   if (!selStart) $("#home-hint").textContent = "Træk hen over tomme felter for at markere et område – eller træk et element fra listen ind i gitteret.";
 }
+// ---------- display options for the selected element ----------
+// Buttons: name / icon / frame / invisible. Other elements: header, frame, and every part the
+// element marks with data-opt="key" data-opt-name="…" (read from the live preview's markup).
+function elementOptions(it) {
+  if (it.type === "button" || it.type === "goto" || it.type === "menu") {
+    return [["label", "Navn"], ["icon", "Ikon"], ["frame", "Ramme og baggrund"]];
+  }
+  const html = $("#preview-frame")?.contentWindow?.PhoneDeck?.widgetHTML?.(it.type) || "";
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const card = doc.body.firstElementChild;
+  if (!card) return [];
+  const opts = [];
+  if (card.querySelector(":scope > header")) opts.push(["header", "Overskrift"]);
+  if (card.classList.contains("card")) opts.push(["frame", "Ramme og baggrund"]);
+  for (const p of card.querySelectorAll("[data-opt]")) {
+    for (const key of p.dataset.opt.split(" ")) {
+      if (!opts.some(([k]) => k === key)) opts.push([key, p.dataset.optName || key]);
+    }
+  }
+  return opts;
+}
+function renderSelOpts() {
+  const it = home.items[selItem];
+  if (!it) return;
+  const box = $("#sel-opts");
+  const opts = elementOptions(it);
+  box.replaceChildren(...opts.map(([key, name]) => {
+    const l = document.createElement("label");
+    const c = Object.assign(document.createElement("input"), { type: "checkbox", checked: !it.hide?.includes(key) });
+    c.dataset.opt = key;
+    l.append(c, " " + name);
+    return l;
+  }));
+  if (["button", "goto", "menu"].includes(it.type)) {
+    const l = document.createElement("label");
+    const c = Object.assign(document.createElement("input"), { type: "checkbox", checked: !!it.invisible });
+    c.dataset.invisible = "1";
+    l.append(c, " Usynlig ", Object.assign(document.createElement("span"), { className: "muted small", textContent: "(kan stadig trykkes)" }));
+    box.append(l);
+  }
+  if (!box.children.length) box.append(Object.assign(document.createElement("span"), { className: "muted small", textContent: "Ingen valg for dette element" }));
+}
+$("#sel-opts").addEventListener("change", (e) => {
+  const it = home.items[selItem];
+  const c = e.target;
+  if (!it || c.type !== "checkbox") return;
+  if (c.dataset.invisible) { if (c.checked) it.invisible = true; else delete it.invisible; }
+  else {
+    const hide = new Set(it.hide || []);
+    if (c.checked) hide.delete(c.dataset.opt); else hide.add(c.dataset.opt);
+    if (hide.size) it.hide = [...hide]; else delete it.hide;
+  }
+  homeSetDirty(); renderHomeGrid();
+});
+
 function addWidget(type, extra) {
   const r = selStart.w ? selStart : { ...selStart, w: 1, h: 1 };
   const it = { type, x: r.x, y: r.y, w: r.w, h: r.h };
@@ -890,6 +964,7 @@ function toPublic(list) {
     id: b.id || `draft${i}`, label: b.label || "Ny knap", icon: b.icon, color: b.color || "",
     type: b.action?.type, builtin: b.action?.type === "builtin" ? b.action.name : undefined,
     page: b.action?.type === "page" ? b.action.page : undefined,
+    hide: b.hide, invisible: b.invisible,
     buttons: b.action?.type === "folder" ? toPublic(b.buttons) : undefined,
   }));
 }

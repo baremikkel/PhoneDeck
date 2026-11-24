@@ -18,10 +18,11 @@ For Linux, see [install-linux.md](install-linux.md).
 
 1. Download **Python 3.11 or newer** from
    [python.org/downloads](https://www.python.org/downloads/).
-2. In the installer, tick **Add python.exe to PATH** before clicking *Install Now*.
-   The autostart script in step 7 needs it.
+2. In the installer, keep **Use admin privileges when installing py.exe** ticked (it
+   installs the `py` launcher used below). Ticking **Add python.exe to PATH** is optional.
 
-Or from a terminal: `winget install Python.Python.3.13`
+Or from a terminal: `winget install Python.Python.3.13` (this does not add `python` to
+PATH, but `py` works, and that is all this guide uses).
 
 Check it in a new PowerShell window:
 
@@ -147,7 +148,7 @@ powershell -ExecutionPolicy Bypass -File scripts\install-autostart-windows.ps1
 ```
 
 This puts a shortcut in your Startup folder that runs PhoneDeck in the background, without
-a console window, every time you log in. Start it right away with `pythonw -m phonedeck`
+a console window, every time you log in. Start it right away with `pyw -m phonedeck`
 (from the PhoneDeck folder) or by logging out and in.
 
 To remove the autostart again:
@@ -189,7 +190,7 @@ py -m pip install -r requirements-windows.txt
 ```
 
 Then restart PhoneDeck (end `pythonw.exe` in Task Manager and log out and in, or run
-`pythonw -m phonedeck`). If you downloaded the ZIP, download it again and replace the
+`pyw -m phonedeck`). If you downloaded the ZIP, download it again and replace the
 folder.
 
 Your settings live in `%APPDATA%\PhoneDeck` and are kept when you update.

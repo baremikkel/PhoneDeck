@@ -6,6 +6,33 @@ from .media import Media
 from .visualizer import Visualizer
 
 
+# the visualizer takes the colour of the program that is playing (MPRIS name contains the key)
+APP_COLOURS = [
+    ("spotif", "#1ed760"),      # Spotify, Spotifast, spotifyd
+    ("firefox", "#ff7139"),
+    ("chrom", "#4c8bf5"),       # Chrome, Chromium
+    ("brave", "#fb542b"),
+    ("edge", "#33c3f0"),
+    ("opera", "#ff1b2d"),
+    ("vivaldi", "#ef3939"),
+    ("vlc", "#ff8800"),
+    ("mpv", "#b05ee6"),
+    ("rhythmbox", "#e6b422"),
+    ("strawberry", "#e8455a"),
+    ("tidal", "#e8e8e8"),
+    ("deezer", "#a238ff"),
+    ("youtube", "#ff3b3b"),
+    ("discord", "#5865f2"),
+    ("plexamp", "#ebaf00"),
+    ("lollypop", "#3d9ae8"),
+]
+
+
+def app_colour(player: str | None) -> str | None:
+    p = (player or "").lower()
+    return next((c for key, c in APP_COLOURS if key in p), None)
+
+
 class Extension:
     def __init__(self, ctx):
         self.ctx = ctx
@@ -18,7 +45,9 @@ class Extension:
     def state(self):
         self.media.source = self.ctx.settings().get("source") or "spotify"
         self._media_state = self.media.state()
-        return {"media": self._media_state}
+        m = self._media_state or {}
+        colour = app_colour(m.get("player")) if self.ctx.settings().get("viz_colour", "app") == "app" else None
+        return {"media": self._media_state, "viz_colour": colour}
 
     def action(self, name, body):
         if name in ("playpause", "next", "previous"):

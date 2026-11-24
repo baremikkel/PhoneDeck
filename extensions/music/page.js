@@ -50,13 +50,22 @@ function renderVolume(m) {
 let vizSource = null;
 const vizCanvas = $("canvas[data-viz]");
 
+// colour of the program that is playing (from the PC), faded smoothly when it changes
+let vizTarget = null, vizRGB = null;
+const hexRGB = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+function vizColour() {
+  const want = hexRGB(vizTarget || css("--media"));
+  vizRGB = vizRGB ? vizRGB.map((c, i) => c + (want[i] - c) * 0.15) : want;
+  return "#" + vizRGB.map((c) => Math.round(c).toString(16).padStart(2, "0")).join("");
+}
 function drawViz(levels) {
   const [ctx, w, h] = prep(vizCanvas);
   if (!ctx) return;
   const n = levels.length, gap = 4, bw = (w - gap * (n - 1)) / n;
+  const colour = vizColour();
   const g = ctx.createLinearGradient(0, h, 0, 0);
-  g.addColorStop(0, css("--media"));
-  g.addColorStop(1, css("--media") + "10");
+  g.addColorStop(0, colour);
+  g.addColorStop(1, colour + "10");
   ctx.fillStyle = g;
   levels.forEach((v, i) => {
     const bh = Math.max(2, (v / 100) * h * 0.7);
@@ -92,7 +101,7 @@ setTimeout(updateViz, 300);
 document.addEventListener("visibilitychange", updateViz);
 
 PhoneDeck.register("music", {
-  render(ext) { renderMedia(ext?.media); renderVolume(ext?.media); },
+  render(ext) { renderMedia(ext?.media); renderVolume(ext?.media); vizTarget = ext?.viz_colour || null; },
   tick: tickMedia,
   rebuilt() { artKey = undefined; },  // new <img> elements on the home page need the cover again
   page: updateViz,

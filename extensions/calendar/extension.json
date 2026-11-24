@@ -1,0 +1,19 @@
+{
+  "id": "calendar",
+  "name": "Kalender",
+  "category": "Hjem",
+  "description": "Dagens program, næste begivenhed med nedtælling og de kommende dage fra op til tre kalendere (ICS-link fra Google, Outlook, iCloud …).",
+  "page": {"title": "Kalender"},
+  "settings": [
+    {"type": "info", "html": "Indsæt kalenderens <b>hemmelige ICS-adresse</b>. Google: Kalenderindstillinger → din kalender → <i>Hemmelig adresse i iCal-format</i>. Outlook: Indstillinger → Kalender → Delte kalendere → <i>Udgiv en kalender</i> (ICS). Linket gemmes kun på denne computer og vises ikke igen."},
+    {"key": "url1", "label": "Kalender 1 (ICS-link)", "type": "secret"},
+    {"key": "name1", "label": "Navn", "type": "text", "default": "", "placeholder": "fx Privat"},
+    {"key": "url2", "label": "Kalender 2 (valgfri)", "type": "secret"},
+    {"key": "name2", "label": "Navn", "type": "text", "default": ""},
+    {"key": "url3", "label": "Kalender 3 (valgfri)", "type": "secret"},
+    {"key": "name3", "label": "Navn", "type": "text", "default": ""},
+    {"key": "days", "label": "Vis dage frem", "type": "number", "default": 7, "min": 1, "max": 31},
+    {"type": "status", "key": "status"},
+    {"type": "button", "label": "Glem alle kalender-links", "action": "forget", "danger": true}
+  ]
+}

@@ -80,6 +80,10 @@ class Context:
         # pass the manifest along: while the backend is being created it isn't registered yet
         return self._manager.settings_for(self.id, self.manifest)
 
+    def clear_settings(self, keys: list[str]) -> None:
+        """Forget saved values, e.g. secret tokens – a "Glem"-button calls this."""
+        self.hub.settings.clear_ext(self.id, keys)
+
     def other(self, ext_id: str):
         """Another extension's backend (or None), e.g. Spotify reading the music player."""
         ext = self._manager.loaded.get(ext_id)
@@ -281,7 +285,7 @@ class ExtensionManager:
         saved = self.hub.settings.ext_values(ext_id)
         out = {}
         for field in manifest.get("settings", []):
-            if "key" in field and field.get("type") in ("text", "number", "bool", "select"):
+            if "key" in field and field.get("type") in ("text", "number", "bool", "select", "secret"):
                 out[field["key"]] = saved.get(field["key"], field.get("default"))
         return out
 

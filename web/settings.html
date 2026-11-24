@@ -141,7 +141,10 @@
       input = el("select", {}, ...(f.options || []).map(([val, txt]) => el("option", { value: val, textContent: txt })));
       input.value = v ?? f.default ?? "";
     } else {
-      input = el("input", { type: f.type === "number" ? "number" : "text", value: v ?? "", autocomplete: "off", spellcheck: false });
+      const secret = f.type === "secret";
+      input = el("input", { type: f.type === "number" ? "number" : secret ? "password" : "text", value: secret ? "" : v ?? "",
+        autocomplete: secret ? "new-password" : "off", spellcheck: false,
+        placeholder: secret ? (ext.secrets_set?.[f.key] ? "•••••• gemt – skriv for at skifte" : "indsæt her") : (f.placeholder || "") });
       if (f.min != null) input.min = f.min;
       if (f.max != null) input.max = f.max;
     }

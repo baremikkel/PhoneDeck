@@ -1,0 +1,21 @@
+      <div class="card wx-now" style="--accent: var(--cpu)" data-widget="now" data-widget-name="Vejret nu">
+        <header><span class="label" data-b="wx.place">Vejr</span><span class="sub grow right" data-b="wx.updated" data-opt="updated" data-opt-name="Opdateret"></span></header>
+        <div class="wx-main">
+          <i class="ic wx-icon" data-wx-icon></i>
+          <div class="wx-temp"><b data-b="wx.temp">–</b><span data-b="wx.desc"></span></div>
+        </div>
+        <div class="kv wx-facts" data-opt="facts" data-opt-name="Detaljer">
+          <div><small>Føles som</small><span data-b="wx.feels">–</span></div>
+          <div><small>Vind</small><span data-b="wx.wind">–</span></div>
+          <div><small>Fugt</small><span data-b="wx.humidity">–</span></div>
+          <div><small>I dag</small><span data-b="wx.today">–</span></div>
+        </div>
+      </div>
+      <div class="card wx-hours" style="--accent: var(--cpu)" data-widget="hours" data-widget-name="Vejret næste 24 timer">
+        <header><span class="label">Næste 24 timer</span><span class="sub grow right" data-opt="legend" data-opt-name="Forklaring">temperatur · regn</span></header>
+        <canvas class="wx-chart" data-wx-hours></canvas>
+      </div>
+      <div class="card wx-days" style="--accent: var(--cpu)" data-widget="days" data-widget-name="Vejret 7 dage">
+        <header><span class="label">7 dage</span></header>
+        <div class="wx-daylist" data-wx-days></div>
+      </div>

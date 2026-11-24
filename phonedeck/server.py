@@ -217,7 +217,7 @@ def make_handler(hub: Hub, host: str, port: int):
             if path == "/api/settings":
                 if not self._api_ok():
                     return
-                return self._json({"settings": hub.settings.public(),
+                return self._json({"settings": hub.extensions.mask(hub.settings.public()),
                                    "extensions": hub.extensions.public(with_settings=True)})
             if path == "/editor":
                 path = "/editor.html"
@@ -287,7 +287,7 @@ def make_handler(hub: Hub, host: str, port: int):
                     saved, changed = hub.settings.update(body, hub.extensions.validate_settings)
                     for ext_id in changed:
                         hub.extensions.settings_changed(ext_id)
-                    return self._json({"ok": True, "settings": saved})
+                    return self._json({"ok": True, "settings": hub.extensions.mask(saved)})
                 elif self.path == "/api/deck/test":
                     b = validate([{"label": "test", "action": body.get("action")}], hub.apps)[0]
                     hub.deck.run(b["action"])

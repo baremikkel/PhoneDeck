@@ -1,0 +1,13 @@
+{
+  "id": "weather",
+  "name": "Vejr",
+  "category": "Hjem",
+  "description": "Vejret nu, de næste 24 timer og 7 dage fra Open-Meteo (gratis, ingen konto eller nøgle).",
+  "page": {"title": "Vejr"},
+  "settings": [
+    {"key": "place", "label": "By eller sted", "type": "text", "default": "", "placeholder": "fx Aarhus"},
+    {"type": "status", "key": "status"},
+    {"key": "units", "label": "Enheder", "type": "select", "default": "metric", "options": [["metric", "°C og m/s"], ["imperial", "°F og mph"]]},
+    {"type": "info", "html": "Stedet slås op hos <a href=\"https://open-meteo.com\" target=\"_blank\" rel=\"noopener\">Open-Meteo</a>, og vejret hentes derfra hvert 15. minut. Kun stedets navn og koordinater sendes – intet andet."}
+  ]
+}

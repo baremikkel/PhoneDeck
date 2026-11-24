@@ -32,10 +32,11 @@ chosen under *Indstillinger → Sider* (Settings → Pages).
 |---|---|
 | **Forside** (home) | Build it yourself on a fixed grid (4×2 to 8×4) with CPU, GPU, RAM, network, disk, music, Claude, donut, clock, GitHub heatmap and **shortcut buttons** from your Stream Deck. Default: CPU, GPU, music, Claude, a system bar and a **Menu button** in the bottom-right corner. The Menu opens settings and the editor on the PC, and has a button for every page so you can jump straight to it. The Menu button is an ordinary element (under *System* in the editor), so it can be moved, resized, removed or put on your own pages |
 | **System** | CPU with per-core load, GPU (hotspot/edge, power, clock, fan, VRAM), RAM, network and disk. The CPU/GPU charts show both load and temperature. The button in the corner of the CPU card places CPU and GPU side by side or on top of each other |
-| **Musik** (music) | Large cover art, title/artist/album, playback controls, a volume slider that only changes the player, a **visualizer** that can be toggled, and **next song** at the bottom. Tap it to see the whole queue (requires the Spotify connection, see below) |
+| **Musik** (music) | Large cover art, title/artist/album, playback controls, a volume slider that only changes the player, a **visualizer** that can be toggled and takes the colour of the program playing (Spotify green, Firefox orange …), a heart to **like** the song, and **next song** at the bottom. Tap it for the queue, **search** (add songs to the queue) and your **playlists** (requires the Spotify connection, see below) |
 | **Claude** | A **donut** showing what's left of your plan limits (5 hours + week). It shows less detail the smaller it is, and a countdown to the reset once a limit is used up. Also tokens in the 5-hour window (input/output/cache), time to reset, today, 7 days, split per model, a 24-hour chart and a heatmap |
 | **GitHub** | A GitHub-style contribution calendar for the last year. Tap a day to see its count |
 | **Knapper** (buttons) | A **Stream Deck**: default buttons (volume, microphone, playback, full screen, lock screen, screenshot) plus your own, with optional colours and folders. Programs with an open window are marked **Aktiv** (active), and tapping them only shows a short message that the program is already open (see *Active marking* below). Edited in the browser on the PC |
+| **Lyd** (audio) | A **mixer**: volume and mute per program, choose the output (speakers/headset) and input device and their volume, a **microphone level meter** and a **push-to-talk** button (the microphone is on only while you hold it, and the PC mutes it again if the phone lets go or disconnects) |
 | **Your own pages** | Up to 10 extra grid pages, built in the editor from the same elements as the home page |
 
 Media uses MPRIS (Spotify, browsers, VLC …), so no API keys are needed. The music page can
@@ -214,7 +215,8 @@ Everything beyond the core (system, Stream Deck, home page, settings) is an
 ```
 extensions/
   music/         Musik      – player, own volume, visualizer
-  spotify/       Musik      – next song + queue (Spotify Web API)
+  spotify/       Musik      – next song, queue, like, search, playlists (Spotify Web API)
+  mixer/         Musik      – volume per program, devices, mic meter, push-to-talk
   claude-code/   AI         – usage, plan donut, heatmap
   github/        Udvikling  – contribution heatmap
 ```
@@ -303,9 +305,9 @@ Extensions that would make sense on a desk deck (each one a folder in `extension
 - [ ] Today's calendar (Google / CalDAV) with a countdown to the next meeting
 
 **Musik og lyd (music and audio)**
-- [ ] Audio mixer: volume per app (PipeWire) and switching output/input device
-- [ ] Spotify: like the current song, playlists, search and add to queue
-- [ ] Microphone level meter and push-to-talk button
+- [x] Audio mixer: volume per app (PipeWire) and switching output/input device
+- [x] Spotify: like the current song, playlists, search and add to queue
+- [x] Microphone level meter and push-to-talk button
 
 **System**
 - [ ] Network: ping/latency, public IP, VPN on/off (Tailscale, WireGuard)

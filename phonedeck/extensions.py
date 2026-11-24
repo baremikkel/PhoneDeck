@@ -27,7 +27,8 @@ extension.json::
         {"type": "info", "html": "Text with {placeholders} from info()"},
         {"type": "button", "label": "Forbind", "href": "/ext/spotify/login"},
         {"type": "button", "label": "Afbryd", "action": "disconnect"},
-        {"type": "status", "key": "status"}
+        {"type": "status", "key": "status"},
+        {"key": "token", "label": "Token", "type": "secret"}   // stored, never sent back to a browser
       ]
     }
 
@@ -57,7 +58,7 @@ from pathlib import Path
 REPO_DIR = Path(__file__).resolve().parent.parent / "extensions"
 USER_DIR = Path(os.path.expanduser("~/.config/phonedeck/extensions"))
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
-CATEGORY_ORDER = ["AI", "Musik", "Udvikling", "System"]
+CATEGORY_ORDER = ["AI", "Musik", "Udvikling", "Hjem", "System"]
 STATIC_TYPES = {".html", ".js", ".css", ".png", ".svg", ".jpg", ".jpeg", ".webp", ".json", ".woff2"}
 _load_counter = 0
 
@@ -292,7 +293,7 @@ class ExtensionManager:
         clean = {}
         for key, value in (values or {}).items():
             f = fields.get(key)
-            if not f or f.get("type") not in ("text", "number", "bool", "select"):
+            if not f or f.get("type") not in ("text", "number", "bool", "select", "secret"):
                 continue
             label = f.get("label", key)
             t = f["type"]
@@ -309,6 +310,10 @@ class ExtensionManager:
                         raise ValueError(f"{label}: skal være et tal") from None
                     if "min" in f and value < f["min"] or "max" in f and value > f["max"]:
                         raise ValueError(f"{label}: skal være mellem {f.get('min')} og {f.get('max')}")
+            elif t == "secret":
+                value = str(value or "").strip()[:2000]
+                if not value:
+                    continue  # empty = keep the saved one
             elif t == "select":
                 if value not in [o[0] for o in f.get("options", [])]:
                     raise ValueError(f"{label}: ugyldigt valg")
@@ -330,10 +335,24 @@ class ExtensionManager:
             item["error"] = ext.error
             if with_settings:
                 item["settings"] = m.get("settings", [])
-                item["values"] = self.settings_for(ext.id)
+                values = self.settings_for(ext.id)
+                secrets = self.secret_keys(ext.id)
+                item["secrets_set"] = {k: bool(values.get(k)) for k in secrets}
+                item["values"] = {k: ("" if k in secrets else v) for k, v in values.items()}
                 item["info"] = self.info(ext.id)
             out.append(item)
         return out
+
+    def secret_keys(self, ext_id: str) -> set[str]:
+        ext = self.loaded.get(ext_id)
+        return {f["key"] for f in (ext.manifest.get("settings", []) if ext else []) if f.get("type") == "secret" and "key" in f}
+
+    def mask(self, settings: dict) -> dict:
+        """Settings as sent to a browser: secret values (tokens) blanked out."""
+        for ext_id, values in (settings.get("ext") or {}).items():
+            for k in self.secret_keys(ext_id) & set(values):
+                values[k] = ""
+        return settings
 
     def static_file(self, ext_id: str, rel: str) -> Path | None:
         ext = self.loaded.get(ext_id)

@@ -181,12 +181,21 @@ Open **<http://localhost:8765/settings>** on the PC (or tap *Menu* on the phone)
     access to the player. The login token is stored in
     `~/.config/phonedeck/spotify_token.json` (readable only by you).
   - **Claude limits:** the donut shows how much is left of the 5-hour window and the
-    week. Two options:
-    - **Use my Claude Code login (exact):** fetches your plan's real usage, the same
-      percentages as `/usage` in Claude Code. The token is read locally from
-      `~/.claude/.credentials.json`, is only sent to `api.anthropic.com`, and is never
-      stored, refreshed or shown by PhoneDeck. The endpoint isn't officially documented
-      and may stop working. Results are cached, and PhoneDeck backs off when rate limited.
+    week. Options (the newest numbers win when more than one is set up):
+    - **Claude Code status line (recommended, Windows and Linux, no login):** run
+      `py scripts/install-claude-statusline.py` (Linux: `python3 …`). It adds a status line
+      to `~/.claude/settings.json` (other settings are kept; `--remove` takes it out again).
+      Claude Code then hands over the plan limits itself after each reply, the same
+      percentages as `/usage`. They only update while you use Claude Code, and need a
+      Pro, Max or Ultra plan. It is not documented whether the Claude desktop app's Code
+      tab runs status lines; the Claude Code CLI does.
+    - **Also use my Claude Code login:** fetches your plan's real usage from Anthropic, so
+      the numbers stay current when Claude Code isn't running. The token is read locally
+      from `~/.claude/.credentials.json`, which only the Claude Code CLI writes (not the
+      Claude desktop app), is only sent to `api.anthropic.com`, and is never stored,
+      refreshed or shown by PhoneDeck. When it expires, open Claude Code to renew it. The
+      endpoint isn't officially documented and may stop working. Results are cached, and
+      PhoneDeck backs off when rate limited.
     - **Own estimate:** set a limit in tokens per 5-hour window and optionally per week.
       The page shows your largest block in the last 30 days as a guide.
 
@@ -341,8 +350,8 @@ control the buttons.
   "ordinary" processes. Running PhoneDeck from a normal terminal or as a systemd service
   works. Started from inside another sandbox, the call is rejected.
 - **Claude token numbers** come from Claude Code's local logs, i.e. usage from *this* PC.
-  The plan donut is only exact with the Claude Code login option; otherwise the 5-hour
-  window is an estimate.
+  The plan donut is only exact with the status line or the login option; otherwise the
+  5-hour window is an estimate.
 
 ## Ideas / roadmap
 

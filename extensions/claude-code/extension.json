@@ -11,8 +11,9 @@
   "settings": [
     {"key": "donut_mode", "label": "Donutten viser", "type": "select", "default": "left",
      "options": [["left", "Hvad der er tilbage (fylder mindre, jo mere du bruger)"], ["used", "Hvad der er brugt (fylder mere, jo mere du bruger)"]]},
-    {"key": "use_login", "label": "Brug mit Claude Code-login (præcist)", "type": "bool", "default": false,
-     "help": "Henter din plans rigtige forbrug fra Anthropic – de samme tal som /usage i Claude Code. Tokenet læses lokalt fra ~/.claude/.credentials.json, sendes kun til api.anthropic.com og bliver aldrig gemt, fornyet eller vist af PhoneDeck. Bruger et ikke-officielt endpoint, der kan ændre sig."},
+    {"type": "info", "html": "<b>Plan-grænser via Claude Codes statusline</b> (anbefalet, Windows og Linux, intet login): kør <code>py scripts/install-claude-statusline.py</code> (Linux: <code>python3 …</code>) i PhoneDeck-mappen. Claude Code giver så selv 5-timers- og uge-tallene videre efter hvert svar. Tallene opdateres kun, mens du bruger Claude Code."},
+    {"key": "use_login", "label": "Brug også mit Claude Code-login", "type": "bool", "default": false,
+     "help": "Henter også tallene fra Anthropic med Claude Codes login, så de holdes opdateret, når du ikke bruger Claude Code. De nyeste tal fra statusline og login vinder. Virker kun hvor Claude Code CLI gemmer ~/.claude/.credentials.json (typisk Linux; ikke Claude desktop-appen). Tokenet sendes kun til api.anthropic.com og bliver aldrig gemt, fornyet eller vist af PhoneDeck. Bruger et ikke-officielt endpoint, der kan ændre sig."},
     {"type": "status", "key": "plan_status"},
     {"type": "info", "html": "Uden login bruges dit eget estimat herunder (input + output + cache skrevet fra Claude Code på denne computer). {block_hint}"},
     {"key": "budget_5h", "label": "Grænse pr. 5-timers vindue (tokens)", "type": "number", "min": 1000, "max": 10000000000},

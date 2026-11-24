@@ -1,6 +1,7 @@
 """Claude Code usage (local logs) + plan limits (optional, via the Claude Code login)."""
 
 import threading
+import time
 
 from .plan import ClaudePlan
 from .usage import ClaudeUsage
@@ -40,13 +41,18 @@ class Extension:
     def info(self):
         p = self.plan.state()
         if p is None:
-            plan_status = ""
+            plan_status = ("Ingen plan-tal endnu. Sæt Claude Codes statusline op (se herunder) "
+                           "eller slå login til.")
         elif p.get("error"):
             plan_status = "⚠ " + p["error"]
         elif p.get("five_hour"):
-            plan_status = (f"✓ {str(p.get('plan') or '').capitalize()}-plan: "
+            via = ("via statusline" if p.get("source") == "statusline" else "via login")
+            at = time.strftime("%H:%M", time.localtime(p["updated"])) if p.get("updated") else "?"
+            plan_name = str(p.get("plan") or "").capitalize()
+            plan_status = (f"✓ {plan_name + '-plan: ' if plan_name else ''}"
                            f"{round(p['five_hour']['used_pct'])} % brugt i 5-timers vinduet"
-                           + (f", {round(p['seven_day']['used_pct'])} % af ugen" if p.get("seven_day") else ""))
+                           + (f", {round(p['seven_day']['used_pct'])} % af ugen" if p.get("seven_day") else "")
+                           + f" ({via}, kl. {at})")
         else:
             plan_status = "Henter …"
         s = self._summary

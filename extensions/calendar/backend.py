@@ -12,7 +12,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timedelta
 
-from .ical import events_between
+from .ical import events_between, local_zone
 
 POLL = 10 * 60
 COLOURS = ["var(--cpu)", "var(--claude)", "var(--net)"]
@@ -71,7 +71,7 @@ class Extension:
         out = []
         for i, text in sorted(self.texts.items()):
             try:
-                evs = events_between(text, start, end, now.tzinfo)
+                evs = events_between(text, start, end, local_zone())
             except Exception as e:  # a broken file must not stop the dashboard
                 self.errors[i] = f"kunne ikke læse kalenderen ({e.__class__.__name__})"
                 continue

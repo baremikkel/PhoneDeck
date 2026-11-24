@@ -1,0 +1,17 @@
+{
+  "id": "home-assistant",
+  "name": "Home Assistant",
+  "category": "Hjem",
+  "description": "Lys, kontakter, scener og sensorer fra din Home Assistant – tryk for at tænde og slukke.",
+  "page": {"title": "Hjem"},
+  "settings": [
+    {"key": "url", "label": "Adresse", "type": "text", "default": "", "placeholder": "http://homeassistant.local:8123",
+     "pattern": "https?://[^\\s/]+(:\\d+)?/?", "pattern_help": "fx http://homeassistant.local:8123"},
+    {"key": "token", "label": "Long-lived access token", "type": "secret"},
+    {"type": "info", "html": "Lav et token i Home Assistant: din profil → <b>Sikkerhed</b> → <i>Long-lived access tokens</i> → Opret. Tokenet gemmes kun på denne computer, sendes kun til adressen ovenfor og vises ikke igen."},
+    {"key": "entities", "label": "Enheder (valgfrit)", "type": "text", "default": "", "placeholder": "light.stue, switch.kaffe, scene.film, sensor.temperatur",
+     "help": "Kommasepareret liste. Tom = alle lys, kontakter, scener og scripts."},
+    {"type": "status", "key": "status"},
+    {"type": "button", "label": "Glem token", "action": "forget", "danger": true}
+  ]
+}

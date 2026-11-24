@@ -1,0 +1,11 @@
+{
+  "id": "desktop",
+  "name": "Skrivebord (GNOME)",
+  "category": "System",
+  "description": "Kontakter til nattelys (og hvor varmt det er), forstyr ikke og mørkt/lyst tema i GNOME.",
+  "page": {"title": "Skrivebord"},
+  "platforms": ["linux"],
+  "settings": [
+    {"type": "info", "html": "Bruger GNOMEs egne indstillinger (<code>gsettings</code>) – det samme som Indstillinger-programmet. Virker i GNOME og Ubuntu."}
+  ]
+}

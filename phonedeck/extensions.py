@@ -83,6 +83,21 @@ class Context:
         # pass the manifest along: while the backend is being created it isn't registered yet
         return self._manager.settings_for(self.id, self.manifest)
 
+    def number(self, key: str, default: float | None = None) -> float:
+        """A number setting, kept within the field's min/max from extension.json, falling back
+        to the field's default (or `default`) when it's empty or not a number."""
+        field = next((f for f in self.manifest.get("settings", []) if f.get("key") == key), {})
+        fallback = field.get("default", default)
+        try:
+            v = float(self.settings().get(key))
+        except (TypeError, ValueError):
+            v = float(fallback if fallback is not None else 0)
+        if field.get("min") is not None:
+            v = max(float(field["min"]), v)
+        if field.get("max") is not None:
+            v = min(float(field["max"]), v)
+        return v
+
     def clear_settings(self, keys: list[str]) -> None:
         """Forget saved values, e.g. secret tokens – a "Glem"-button calls this."""
         self.hub.settings.clear_ext(self.id, keys)

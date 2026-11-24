@@ -91,14 +91,14 @@ class Extension:
 
     # ---------- clipboard ----------
     def _loop(self):
-        while not self.ctx.stopped.wait(1.5):
+        while not self.ctx.stopped.wait(self.ctx.number("check_s", 1.5)):
             s = self.ctx.settings()
             if not s.get("history", True) or not self.clip.ok:
                 continue
             text = self.clip.get()
             if not text or not text.strip():
                 continue
-            text = text[:MAX_TEXT]
+            text = text[:int(self.ctx.number("max_text", MAX_TEXT))]
             digest = hashlib.sha1(text.encode()).hexdigest()[:12]
             if digest == self._last:
                 continue
@@ -128,7 +128,7 @@ class Extension:
                 files.append((os.path.getmtime(os.path.join(folder, n)), n))
             except OSError:
                 pass
-        return [{"name": n, "at": t} for t, n in sorted(files, reverse=True)[:24]]
+        return [{"name": n, "at": t} for t, n in sorted(files, reverse=True)[:int(self.ctx.number("shots", 24))]]
 
     def _shot_path(self, name: str) -> str | None:
         """Only a file that is in the current list – never a path from the phone."""

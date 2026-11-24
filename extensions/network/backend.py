@@ -55,7 +55,7 @@ def local_ip() -> tuple[str | None, str | None]:
 class Extension:
     def __init__(self, ctx):
         self.ctx = ctx
-        self.hist: deque = deque(maxlen=60)
+        self.hist: deque = deque(maxlen=600)  # the graph shows the last "history" of these
         self.public: str | None = None
         self._public_at = 0.0
         self.vpns: list[dict] = []
@@ -89,7 +89,7 @@ class Extension:
         while not self.ctx.stopped.is_set():
             s = self.ctx.settings()
             self.hist.append(ping(s.get("host") or "1.1.1.1"))
-            if s.get("public_ip", True) and time.time() - self._public_at > 900:
+            if s.get("public_ip", True) and time.time() - self._public_at > self.ctx.number("public_min", 15) * 60:
                 self._public_at = time.time()
                 try:
                     with urllib.request.urlopen("https://api.ipify.org?format=json", timeout=6) as r:
@@ -99,11 +99,11 @@ class Extension:
             elif not s.get("public_ip", True):
                 self.public = None
             self.vpns = self._vpns()
-            self._wake.wait(5)
+            self._wake.wait(self.ctx.number("ping_s", 5))
             self._wake.clear()
 
     def state(self):
-        hist = list(self.hist)
+        hist = list(self.hist)[-int(self.ctx.number("history", 60)):]
         ok = [h for h in hist if h is not None]
         iface, ip = local_ip()
         return {"ping": hist[-1] if hist else None, "history": hist,

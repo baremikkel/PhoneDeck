@@ -135,7 +135,7 @@ class Extension:
             if time.time() - self._at > 600:  # SMART changes slowly
                 self._at = time.time()
                 self.drives = drives()
-            self.ctx.stopped.wait(30)
+            self.ctx.stopped.wait(self.ctx.number("poll_s", 30))
 
     def state(self):
         return {"drives": self.drives, "parts": self.parts, "warn": int(self.ctx.settings().get("warn") or 90)}

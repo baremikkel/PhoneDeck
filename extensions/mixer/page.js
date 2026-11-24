@@ -19,7 +19,7 @@ function volumeRow(n, sub) {
   row.dataset.id = n.id;
   const bar = el("div", { className: "mix-bar" + ((n.volume ?? 0) > 100 ? " over" : "") }, el("i"));
   bar.dataset.mxBar = "";
-  bar.firstChild.style.width = Math.min(100, ((n.volume ?? 0) / 150) * 100) + "%";
+  bar.firstChild.style.width = Math.min(100, ((n.volume ?? 0) / (mx?.max || 150)) * 100) + "%";
   const mute = el("button", { ariaLabel: "Lyd fra/til" }, icon(n.muted ? "volOff" : "volUp"));
   mute.dataset.mxMute = "";
   const down = el("button", { ariaLabel: "Lavere" }, icon("minus"));
@@ -76,8 +76,9 @@ document.addEventListener("click", (e) => {
   else if (mute) act("mute", { id });
   else if (bar) {
     const r = bar.getBoundingClientRect();
-    const v = Math.round(((e.clientX - r.left) / r.width) * 150 / 5) * 5;  // the bar goes to 150 %
-    act("volume", { id, value: Math.max(0, Math.min(150, v)) });
+    const max = mx?.max || 150;  // the bar goes to the max volume set under Indstillinger
+    const v = Math.round(((e.clientX - r.left) / r.width) * max / 5) * 5;
+    act("volume", { id, value: Math.max(0, Math.min(max, v)) });
   }
 });
 

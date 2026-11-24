@@ -51,8 +51,9 @@ def _track(t: dict | None) -> dict | None:
 
 
 class Spotify:
-    def __init__(self, client_id, port: int, stopped):
+    def __init__(self, client_id, port: int, stopped, poll=lambda: POLL):
         self.client_id = client_id  # callable -> str (extension setting)
+        self.poll = poll  # callable -> seconds between queue refreshes
         self.stopped = stopped
         # the old address is kept so Spotify apps set up before extensions keep working
         self.redirect_uri = f"http://127.0.0.1:{port}/spotify/callback"
@@ -262,7 +263,7 @@ class Spotify:
                     data = dict(self.data, error=str(e))
                 with self._lock:
                     self.data = data
-            self._wake.wait(POLL)
+            self._wake.wait(self.poll())
             self._wake.clear()
 
     def state(self) -> dict:

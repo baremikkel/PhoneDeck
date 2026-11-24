@@ -8,7 +8,8 @@ from .spotify import Spotify
 class Extension:
     def __init__(self, ctx):
         self.ctx = ctx
-        self.spotify = Spotify(lambda: ctx.settings().get("client_id") or "", ctx.port, ctx.stopped)
+        self.spotify = Spotify(lambda: ctx.settings().get("client_id") or "", ctx.port, ctx.stopped,
+                               poll=lambda: ctx.number("poll_s", 10))
         self._last_title = None
 
     def state(self):

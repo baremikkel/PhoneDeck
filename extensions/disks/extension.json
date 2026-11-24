@@ -6,6 +6,7 @@
   "page": {"title": "Diske"},
   "settings": [
     {"key": "warn", "label": "Advar når et drev er fyldt over (%)", "type": "number", "default": 90, "min": 50, "max": 99},
+    {"key": "poll_s", "label": "Opdatér hvert (sekunder)", "type": "number", "default": 30, "min": 10, "max": 600},
     {"type": "info", "html": "SMART læses gennem UDisks2 (samme som programmet Diske) – uden root. På Windows vises kun plads."}
   ]
 }

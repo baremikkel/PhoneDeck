@@ -8,6 +8,8 @@
   "settings": [
     {"type": "info", "html": "Mixeren bruger PipeWire (<code>pw-dump</code> og <code>wpctl</code>). Mikrofon-måleren lytter kun, mens den er på skærmen, og sender kun et tal – aldrig selve lyden."},
     {"key": "step", "label": "Lydstyrke-trin (%)", "type": "number", "default": 5, "min": 1, "max": 25},
+    {"key": "max_volume", "label": "Højeste lydstyrke (%)", "type": "number", "default": 150, "min": 100, "max": 150,
+     "help": "Over 100 % forstærkes lyden (som GNOME's 'Overforstærkning') og kan forvrænge."},
     {"type": "info", "html": "<b>Push-to-talk:</b> hold knappen nede for at tale. Mikrofonen slås fra igen, når du slipper – også hvis telefonen mister forbindelsen. Slå mikrofonen fra først (fx med Mikrofon-knappen), så den kun er tændt, mens du holder."}
   ]
 }

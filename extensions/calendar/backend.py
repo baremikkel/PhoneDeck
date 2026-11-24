@@ -57,7 +57,7 @@ class Extension:
                     # never show the (secret) link itself in an error
                     self.errors[i] = str(getattr(e, "reason", None) or getattr(e, "code", None) or e).split("http")[0][:80]
             self.fetched = time.time()
-            self._wake.wait(POLL)
+            self._wake.wait(self.ctx.number("poll_min", POLL / 60) * 60)
             self._wake.clear()
 
     def state(self):

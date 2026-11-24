@@ -19,7 +19,8 @@ class Extension:
     def __init__(self, ctx):
         self.ctx = ctx
         self.usage = ClaudeUsage()
-        self.plan = ClaudePlan(lambda: bool(ctx.settings().get("use_login")), ctx.stopped)
+        self.plan = ClaudePlan(lambda: bool(ctx.settings().get("use_login")), ctx.stopped,
+                               poll=lambda: ctx.number("login_poll_min", 2) * 60)
         self._summary = {}
         threading.Thread(target=self._loop, daemon=True).start()
 
@@ -30,7 +31,7 @@ class Extension:
                 self._summary = self.usage.summary()
             except Exception as e:  # keep running even if a log line is odd
                 self._summary = {"error": str(e)}
-            self.ctx.stopped.wait(SCAN_EVERY)
+            self.ctx.stopped.wait(self.ctx.number("scan_s", SCAN_EVERY))
 
     def state(self):
         return {"usage": self._summary, "plan": self.plan.state(), "settings": self.ctx.settings()}

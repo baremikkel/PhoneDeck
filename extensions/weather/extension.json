@@ -8,6 +8,9 @@
     {"key": "place", "label": "By eller sted", "type": "text", "default": "", "placeholder": "fx Aarhus"},
     {"type": "status", "key": "status"},
     {"key": "units", "label": "Enheder", "type": "select", "default": "metric", "options": [["metric", "°C og m/s"], ["imperial", "°F og mph"]]},
-    {"type": "info", "html": "Stedet slås op hos <a href=\"https://open-meteo.com\" target=\"_blank\" rel=\"noopener\">Open-Meteo</a>, og vejret hentes derfra hvert 15. minut. Kun stedets navn og koordinater sendes – intet andet."}
+    {"key": "hours", "label": "Timer i grafen", "type": "number", "default": 24, "min": 6, "max": 48},
+    {"key": "days", "label": "Dage i prognosen", "type": "number", "default": 7, "min": 3, "max": 16},
+    {"key": "poll_min", "label": "Opdatér hvert (minutter)", "type": "number", "default": 15, "min": 10, "max": 180},
+    {"type": "info", "html": "Stedet slås op hos <a href=\"https://open-meteo.com\" target=\"_blank\" rel=\"noopener\">Open-Meteo</a>, og vejret hentes derfra. Kun stedets navn og koordinater sendes – intet andet."}
   ]
 }

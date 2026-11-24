@@ -73,8 +73,9 @@ def read_statusline() -> dict | None:
 
 
 class ClaudePlan:
-    def __init__(self, use_login, stopped):
+    def __init__(self, use_login, stopped, poll=lambda: POLL):
         self.use_login = use_login  # callable -> bool (extension setting)
+        self.poll = lambda: max(60.0, float(poll()))  # never ask Anthropic more than once a minute
         self.stopped = stopped
         self._lock = threading.Lock()
         self.data: dict = {}
@@ -154,7 +155,7 @@ class ClaudePlan:
                     self._save(data)
                 with self._lock:
                     self.data = data
-            wait, self._backoff = max(POLL, self._backoff), 0
+            wait, self._backoff = max(self.poll(), self._backoff), 0
             self._wake.wait(wait)
             self._wake.clear()
 

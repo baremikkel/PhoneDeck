@@ -50,7 +50,8 @@ class Extension:
     def __init__(self, ctx):
         self.ctx = ctx
         self.media = Media()
-        self.viz = Visualizer()
+        self.viz = Visualizer(lambda: (ctx.number("viz_bands", 36), ctx.number("viz_range", 36),
+                                       ctx.number("viz_fps", 30)))
         self._media_state = None
         self._sp_art: tuple[str, bytes, str] | None = None  # (url, bytes, type) of the Spotify cover
         self._sp_art_lock = threading.Lock()

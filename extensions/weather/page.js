@@ -84,7 +84,7 @@ function drawHours() {
   $$("canvas[data-wx-hours]").forEach((cv) => {
     const [ctx, w, h] = prep(cv);
     if (!ctx || !d?.hours?.length) return;
-    const hours = d.hours.slice(0, 25);
+    const hours = d.hours;  // as many as set under Indstillinger → Vejr
     const temps = hours.map((x) => x.temp);
     const lo = Math.min(...temps) - 1, hi = Math.max(...temps) + 1;
     const top = 16, bottom = h - 16, rainH = Math.min(30, (bottom - top) * 0.3);

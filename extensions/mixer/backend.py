@@ -93,7 +93,11 @@ class Extension:
         d = dict(self._scan())
         d["ptt"] = self._ptt_on
         d["step"] = int(self.ctx.settings().get("step") or 5)
+        d["max"] = round(self._max_volume() * 100)
         return d
+
+    def _max_volume(self) -> float:
+        return self.ctx.number("max_volume", MAX_VOLUME * 100) / 100
 
     # ---------- actions ----------
     def _node(self, body, kinds=("apps", "outputs", "inputs")) -> int:
@@ -117,10 +121,10 @@ class Extension:
         if not self.ok:
             raise ValueError("kræver PipeWire (pw-dump og wpctl)")
         body = body or {}
-        if name == "volume":   # {id, value: 0-150}
+        if name == "volume":   # {id, value: 0-max}
             nid = self._node(body)
             try:
-                v = max(0.0, min(MAX_VOLUME, float(body.get("value")) / 100))
+                v = max(0.0, min(self._max_volume(), float(body.get("value")) / 100))
             except (TypeError, ValueError):
                 raise ValueError("ugyldig lydstyrke") from None
             _run("wpctl", "set-volume", str(nid), f"{v:.2f}")
@@ -131,7 +135,7 @@ class Extension:
                 d = max(-25, min(25, int(body.get("delta"))))
             except (TypeError, ValueError):
                 raise ValueError("ugyldigt trin") from None
-            _run("wpctl", "set-volume", "-l", str(MAX_VOLUME), str(nid), f"{abs(d)}%{'+' if d > 0 else '-'}")
+            _run("wpctl", "set-volume", "-l", f"{self._max_volume():.2f}", str(nid), f"{abs(d)}%{'+' if d > 0 else '-'}")
             return self._after()
         if name == "mute":     # {id}
             _run("wpctl", "set-mute", str(self._node(body)), "toggle")

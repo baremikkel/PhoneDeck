@@ -1,0 +1,23 @@
+/* Diske */
+#p-disks { grid-template-columns: 1fr 1.2fr; grid-template-rows: 1fr; }
+.dk-parts, .dk-drives { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 0; flex: 1; }
+.dk-line { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.dk-line b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dk-line span { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.dk-part small, .dk-drive small { margin: 0; display: block; }
+.dk-bar { height: 10px; border-radius: 5px; background: var(--line); overflow: hidden; position: relative; margin: 4px 0 2px; }
+.dk-bar i { position: absolute; inset: 0 auto 0 0; background: var(--disk); }
+.dk-part.full .dk-bar i { background: var(--hot); }
+.dk-drive { padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
+.dk-badge { padding: 1px 8px; border-radius: 999px; font-size: 12px !important; color: #001 !important; background: var(--net); }
+.dk-drive.warn { border-color: var(--warn); }
+.dk-drive.warn .dk-badge { background: var(--warn); }
+.dk-drive.bad { border-color: var(--hot); }
+.dk-drive.bad .dk-badge { background: var(--hot); color: #fff !important; }
+.dk-drive.unknown .dk-badge { background: var(--line); color: var(--muted) !important; }
+.dk-note { margin-top: 4px; font-size: 13px; color: var(--warn); }
+.dk-drive.bad .dk-note { color: var(--hot); }
+.dk-empty { color: var(--muted); margin: auto; text-align: center; }
+
+@container (max-height: 130px) { .dk-space > header, .dk-health > header { display: none; } .dk-part small, .dk-drive small { display: none; } }
+@container (max-width: 240px) { .dk-line span:not(.dk-badge) { display: none; } }

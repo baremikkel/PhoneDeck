@@ -1,0 +1,11 @@
+{
+  "id": "disks",
+  "name": "Diske",
+  "category": "System",
+  "description": "Plads på hvert drev og SMART-helbred (slitage, reserve, fejl, temperatur, driftstimer) for NVMe- og SATA-diske.",
+  "page": {"title": "Diske"},
+  "settings": [
+    {"key": "warn", "label": "Advar når et drev er fyldt over (%)", "type": "number", "default": 90, "min": 50, "max": 99},
+    {"type": "info", "html": "SMART læses gennem UDisks2 (samme som programmet Diske) – uden root. På Windows vises kun plads."}
+  ]
+}

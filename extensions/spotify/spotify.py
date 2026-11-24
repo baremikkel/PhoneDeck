@@ -1,8 +1,9 @@
-"""Spotify Web API – used only for the play queue ("next song").
+"""Spotify Web API – the play queue ("next song"), liking the current song, your
+playlists, search and "add to queue".
 
 MPRIS has no queue for Spotify, so we ask Spotify itself. Uses your own Spotify
 developer app (Client ID) with the PKCE login flow – no client secret needed.
-Only the read-only scopes for the player state are requested.
+Adding to the queue and starting a playlist need Spotify Premium.
 """
 
 from __future__ import annotations
@@ -19,7 +20,12 @@ import urllib.parse
 import urllib.request
 
 TOKEN_PATH = os.path.expanduser("~/.config/phonedeck/spotify_token.json")
-SCOPES = "user-read-playback-state user-read-currently-playing"
+import re
+
+SCOPES = ("user-read-playback-state user-read-currently-playing user-modify-playback-state "
+          "user-library-read user-library-modify playlist-read-private playlist-read-collaborative")
+URI_RE = re.compile(r"^spotify:(track|episode|playlist|album):[A-Za-z0-9]{22}$")
+API = "https://api.spotify.com/v1"
 POLL = 10  # seconds between queue refreshes
 
 
@@ -36,7 +42,7 @@ def _track(t: dict | None) -> dict | None:
     images = (t.get("album") or {}).get("images") or (t.get("show") or {}).get("images") or []
     small = min(images, key=lambda i: i.get("width") or 9999)["url"] if images else None
     artists = ", ".join(a["name"] for a in t.get("artists", [])) or (t.get("show") or {}).get("name", "")
-    return {"title": t.get("name"), "artist": artists, "art": small,
+    return {"title": t.get("name"), "artist": artists, "art": small, "uri": t.get("uri"), "id": t.get("id"),
             "duration": (t.get("duration_ms") or 0) / 1000}
 
 
@@ -118,6 +124,84 @@ class Spotify:
             self._save_token(new)
         return self.token["access_token"]
 
+    def missing_scopes(self) -> bool:
+        """True when the saved login is from before like/search/queue existed."""
+        granted = set((self.token or {}).get("scope", "").split())
+        return bool(self.token) and not set(SCOPES.split()) <= granted
+
+    # ---------- Web API ----------
+    def _api(self, method: str, path: str, params: dict | None = None, body: dict | None = None):
+        access = self._access_token()
+        if not access:
+            raise ValueError("Spotify er ikke forbundet")
+        url = API + path + ("?" + urllib.parse.urlencode(params) if params else "")
+        data = json.dumps(body).encode() if body is not None else (b"" if method in ("PUT", "POST") else None)
+        req = urllib.request.Request(url, data=data, method=method,
+                                     headers={"Authorization": f"Bearer {access}", "Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                raw = r.read()
+        except urllib.error.HTTPError as e:
+            msg = {401: "Spotify-login udløbet – forbind igen",
+                   403: "Spotify tillod det ikke (kræver Premium, eller forbind Spotify igen)",
+                   404: "Ingen aktiv Spotify-afspiller – start afspilning først",
+                   429: "Spotify: for mange forespørgsler – vent lidt"}.get(e.code, f"Spotify svarede {e.code}")
+            raise ValueError(msg) from None
+        return json.loads(raw) if raw else {}
+
+    def _need_scopes(self):
+        if self.missing_scopes():
+            raise ValueError("Forbind Spotify igen under Indstillinger for at bruge det her")
+
+    def like_toggle(self) -> dict:
+        self._need_scopes()
+        cur = (self.data.get("current") or {})
+        tid = cur.get("id")
+        if not tid or not (cur.get("uri") or "").startswith("spotify:track:"):
+            raise ValueError("Ingen sang at like")
+        liked = self._api("GET", "/me/tracks/contains", {"ids": tid})[0]
+        self._api("DELETE" if liked else "PUT", "/me/tracks", {"ids": tid})
+        with self._lock:
+            self.data = dict(self.data, liked=not liked)
+        return {"liked": not liked}
+
+    def search(self, q: str) -> dict:
+        q = (q or "").strip()[:100]
+        if not q:
+            return {"tracks": []}
+        r = self._api("GET", "/search", {"q": q, "type": "track", "limit": 10})
+        return {"tracks": [t for t in (_track(x) for x in (r.get("tracks") or {}).get("items") or []) if t]}
+
+    def playlists(self) -> dict:
+        self._need_scopes()
+        r = self._api("GET", "/me/playlists", {"limit": 50})
+        out = []
+        for p in r.get("items") or []:
+            if not p:
+                continue
+            imgs = p.get("images") or []
+            out.append({"name": p.get("name"), "uri": p.get("uri"),
+                        "owner": (p.get("owner") or {}).get("display_name", ""),
+                        "count": ((p.get("tracks") or p.get("items") or {}) or {}).get("total"),
+                        "art": min(imgs, key=lambda i: i.get("width") or 9999)["url"] if imgs else None})
+        return {"playlists": out}
+
+    def add_to_queue(self, uri: str) -> dict:
+        self._need_scopes()
+        if not URI_RE.match(uri or "") or not uri.startswith(("spotify:track:", "spotify:episode:")):
+            raise ValueError("ugyldig sang")
+        self._api("POST", "/me/player/queue", {"uri": uri})
+        self.refresh_soon()
+        return {}
+
+    def play_context(self, uri: str) -> dict:
+        self._need_scopes()
+        if not URI_RE.match(uri or "") or not uri.startswith(("spotify:playlist:", "spotify:album:")):
+            raise ValueError("ugyldig playliste")
+        self._api("PUT", "/me/player/play", body={"context_uri": uri})
+        self.refresh_soon()
+        return {}
+
     # ---------- queue ----------
     def refresh_soon(self) -> None:
         self._wake.set()
@@ -134,8 +218,20 @@ class Spotify:
                     q = json.loads(raw) if raw else {}
                     queue = [_track(t) for t in (q.get("queue") or [])[:20]]
                     queue = [t for t in queue if t]
-                    data = {"connected": True, "current": _track(q.get("currently_playing")),
-                            "next": queue[0] if queue else None, "queue": queue}
+                    current = _track(q.get("currently_playing"))
+                    data = {"connected": True, "current": current,
+                            "next": queue[0] if queue else None, "queue": queue,
+                            "reconnect": self.missing_scopes()}
+                    # is the current song in "Liked Songs"? (only asked when the song changes)
+                    old = self.data.get("current") or {}
+                    if current and current.get("id") and not data["reconnect"]:
+                        if old.get("id") == current["id"] and "liked" in self.data:
+                            data["liked"] = self.data["liked"]
+                        elif (current.get("uri") or "").startswith("spotify:track:"):
+                            try:
+                                data["liked"] = bool(self._api("GET", "/me/tracks/contains", {"ids": current["id"]})[0])
+                            except (ValueError, IndexError, TypeError):
+                                pass
                 except urllib.error.HTTPError as e:
                     if e.code in (400, 401):
                         self.disconnect()

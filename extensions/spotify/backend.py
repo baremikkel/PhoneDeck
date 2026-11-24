@@ -1,4 +1,4 @@
-"""Spotify queue ("next song") via the Spotify Web API (PKCE, read-only)."""
+"""Spotify via the Web API (PKCE): next song + queue, like, playlists, search, add to queue."""
 
 import urllib.parse
 
@@ -22,14 +22,27 @@ class Extension:
 
     def info(self):
         st = self.spotify.state()
-        status = ("✓ Forbundet" if st.get("connected") else
+        status = ("⚠ Forbind igen for at kunne like, se playlister og tilføje til kø" if st.get("connected") and st.get("reconnect") else
+                  "✓ Forbundet" if st.get("connected") else
                   f"⚠ {st['error']}" if st.get("error") else
                   "Ikke forbundet" if st.get("configured") else "Ikke sat op endnu")
         return {"redirect_uri": self.spotify.redirect_uri, "status": status}
 
     def action(self, name, body):
+        body = body or {}
+        sp = self.spotify
         if name == "disconnect":
-            self.spotify.disconnect()
+            sp.disconnect()
+        elif name == "like":
+            return sp.like_toggle()
+        elif name == "search":
+            return sp.search(str(body.get("q", "")))
+        elif name == "playlists":
+            return sp.playlists()
+        elif name == "queue_add":
+            return sp.add_to_queue(str(body.get("uri", "")))
+        elif name == "play":
+            return sp.play_context(str(body.get("uri", "")))
         else:
             raise ValueError(f"ukendt handling: {name}")
 

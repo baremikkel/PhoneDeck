@@ -3,7 +3,7 @@
 import threading
 import time
 
-from .plan import ClaudePlan
+from .plan import ClaudePlan, statusline_seen
 from .usage import ClaudeUsage
 
 SCAN_EVERY = 15  # seconds
@@ -40,7 +40,12 @@ class Extension:
 
     def info(self):
         p = self.plan.state()
-        if p is None:
+        seen = statusline_seen()
+        if (p is None or (p.get("error") and not p.get("five_hour"))) and seen:
+            plan_status = (f"Statusline kører (sidst kl. {time.strftime('%H:%M', time.localtime(seen))}), "
+                           "men Claude Code har ikke sendt plan-grænser endnu. De kommer efter et svar "
+                           "og kun med Pro, Max eller Ultra.")
+        elif p is None:
             plan_status = ("Ingen plan-tal endnu. Sæt Claude Codes statusline op (se herunder) "
                            "eller slå login til.")
         elif p.get("error"):

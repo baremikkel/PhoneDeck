@@ -39,12 +39,25 @@ def _window(d) -> dict | None:
     return {"used_pct": float(d["utilization"]), "resets_at": d.get("resets_at")}
 
 
-def read_statusline() -> dict | None:
-    """Limits saved by the Claude Code status line, in the same shape as _fetch()."""
+def _statusline_file() -> dict:
     try:
         with open(STATUSLINE, encoding="utf-8") as f:
             d = json.load(f)
+        return d if isinstance(d, dict) else {}
     except (OSError, ValueError):
+        return {}
+
+
+def statusline_seen() -> float | None:
+    """When Claude Code last ran our status line (with or without limits), if ever."""
+    d = _statusline_file()
+    return d.get("seen") or d.get("updated") or None
+
+
+def read_statusline() -> dict | None:
+    """Limits saved by the Claude Code status line, in the same shape as _fetch()."""
+    d = _statusline_file()
+    if not d:
         return None
 
     def win(w):

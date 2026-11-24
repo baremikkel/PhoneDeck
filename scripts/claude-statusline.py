@@ -38,15 +38,24 @@ def main() -> None:
         data = {}
     rl = data.get("rate_limits") or {}
     five, week = _window(rl.get("five_hour")), _window(rl.get("seven_day"))
-    if five or week:
+    try:
+        os.makedirs(os.path.dirname(OUT), exist_ok=True)
         try:
-            os.makedirs(os.path.dirname(OUT), exist_ok=True)
-            tmp = OUT + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump({"five_hour": five, "seven_day": week, "updated": time.time()}, f)
-            os.replace(tmp, OUT)
-        except OSError:
-            pass  # never break Claude Code's status line
+            with open(OUT, encoding="utf-8") as f:
+                saved = json.load(f)
+        except (OSError, ValueError):
+            saved = {}
+        # "seen" tells PhoneDeck the status line runs, even before Claude Code has limits
+        # to report (they come after the first reply, and only on Pro/Max/Ultra)
+        saved["seen"] = time.time()
+        if five or week:
+            saved.update(five_hour=five, seven_day=week, updated=time.time())
+        tmp = OUT + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(saved, f)
+        os.replace(tmp, OUT)
+    except OSError:
+        pass  # never break Claude Code's status line
 
     parts = [(data.get("model") or {}).get("display_name") or ""]
     if five:

@@ -21,8 +21,8 @@ For Linux, see [install-linux.md](install-linux.md).
 2. In the installer, keep **Use admin privileges when installing py.exe** ticked (it
    installs the `py` launcher used below). Ticking **Add python.exe to PATH** is optional.
 
-Or from a terminal: `winget install Python.Python.3.13` (this does not add `python` to
-PATH, but `py` works, and that is all this guide uses).
+Or from a terminal: `winget install Python.Python.3.13`. This guide only uses `py`, so it
+works whether or not `python` ends up in PATH.
 
 Check it in a new PowerShell window:
 

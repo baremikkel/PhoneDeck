@@ -1,0 +1,17 @@
+/* Netværk */
+#p-network { grid-template-columns: 1.4fr 1fr; grid-template-rows: 1fr 1fr; }
+#p-network .nw-ping { grid-row: 1 / span 2; }
+.nw-addr .kv { font-size: 20px; }
+.nw-addr .kv span { font-variant-numeric: tabular-nums; }
+.nw-vpns { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; min-height: 0; flex: 1; }
+.nw-vpn-row { display: grid; grid-template-columns: 14px 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center;
+  text-align: left; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--text); font: inherit; }
+.nw-vpn-row small { grid-column: 2; margin: 0; }
+.nw-dot { grid-row: 1 / span 2; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--muted); }
+.nw-vpn-row.on { border-color: var(--net); }
+.nw-vpn-row.on .nw-dot { background: var(--net); border-color: var(--net); }
+.nw-vpn-row.busy { opacity: .5; }
+.nw-empty { color: var(--muted); font-size: 13px; margin: auto; text-align: center; }
+
+@container (max-height: 100px) { .nw-ping .spark, .nw-ping .facts { display: none; } .nw-addr > header, .nw-vpn > header { display: none; } }
+@container (max-width: 130px) { .nw-ping header .sub { display: none; } .nw-addr .kv { font-size: 14px; } }

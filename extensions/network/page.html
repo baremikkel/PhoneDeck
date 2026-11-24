@@ -1,0 +1,17 @@
+      <div class="card nw-ping" style="--accent: var(--net)" data-widget="ping" data-widget-name="Ping">
+        <header><span class="label">Ping</span><span class="sub grow right" data-b="nw.host" data-opt="host" data-opt-name="Vært"></span></header>
+        <div class="row"><div class="big"><span data-b="nw.ping">–</span><small>ms</small></div>
+          <div class="facts" data-opt="facts" data-opt-name="Gennemsnit og tab"><div><span data-b="nw.avg">–</span><small>ms snit</small></div><div><span data-b="nw.loss">–</span><small>% tab</small></div></div></div>
+        <canvas class="spark" data-nw-chart data-opt="graph" data-opt-name="Graf"></canvas>
+      </div>
+      <div class="card nw-addr" style="--accent: var(--net)" data-widget="addresses" data-widget-name="IP-adresser">
+        <header><span class="label">Adresser</span></header>
+        <div class="kv col">
+          <div><small data-b="nw.iface">Lokal</small><span data-b="nw.ip">–</span></div>
+          <div data-opt="public" data-opt-name="Offentlig IP"><small>Offentlig</small><span data-b="nw.public">–</span></div>
+        </div>
+      </div>
+      <div class="card nw-vpn" style="--accent: var(--net)" data-widget="vpn" data-widget-name="VPN til/fra">
+        <header><span class="label">VPN</span></header>
+        <div class="nw-vpns" data-nw-vpns><div class="nw-empty">Ingen VPN fundet (Tailscale, WireGuard eller VPN i NetworkManager)</div></div>
+      </div>

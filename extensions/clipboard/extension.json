@@ -1,0 +1,15 @@
+{
+  "id": "clipboard",
+  "name": "Udklip og skærmbilleder",
+  "category": "System",
+  "description": "Historik over det du kopierer (tryk for at kopiere det igen) og dine seneste skærmbilleder.",
+  "page": {"title": "Udklip"},
+  "settings": [
+    {"key": "history", "label": "Gem udklipshistorik", "type": "bool", "default": true},
+    {"key": "size", "label": "Antal i historikken", "type": "number", "default": 15, "min": 3, "max": 50},
+    {"type": "info", "html": "Historikken findes kun i hukommelsen på PC'en (den gemmes aldrig på disk og forsvinder ved genstart) og vises på telefonen. Kopier fra password managers, der markerer dem som hemmelige, springes over. Slå historikken fra, hvis du ofte kopierer adgangskoder."},
+    {"type": "button", "label": "Ryd historikken", "action": "clear", "danger": true},
+    {"key": "folder", "label": "Mappe med skærmbilleder", "type": "text", "default": "", "placeholder": "tom = Billeder/Screenshots"},
+    {"type": "status", "key": "status"}
+  ]
+}

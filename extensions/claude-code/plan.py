@@ -72,7 +72,7 @@ class ClaudePlan:
         if not token:
             return {"error": "Ikke logget ind i Claude Code"}
         if (oauth.get("expiresAt") or 0) / 1000 < time.time():
-            return {"error": "Login udløbet – kør claude i en terminal for at forny"}
+            return {"error": "Login udløbet – åbn Claude Code (VS Code eller terminal) for at forny"}
         req = urllib.request.Request(URL, headers={
             "Authorization": f"Bearer {token}",
             "anthropic-beta": "oauth-2025-04-20",

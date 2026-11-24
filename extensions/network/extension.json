@@ -1,0 +1,13 @@
+{
+  "id": "network",
+  "name": "Netværk",
+  "category": "System",
+  "description": "Ping og forbindelse, lokal og offentlig IP, og VPN (Tailscale, WireGuard, NetworkManager-VPN) til og fra.",
+  "page": {"title": "Netværk"},
+  "settings": [
+    {"key": "host", "label": "Ping til", "type": "text", "default": "1.1.1.1", "placeholder": "fx 1.1.1.1 eller din router",
+     "pattern": "[A-Za-z0-9.:-]{1,100}", "pattern_help": "et værtsnavn eller en IP-adresse"},
+    {"key": "public_ip", "label": "Vis offentlig IP", "type": "bool", "default": true},
+    {"type": "info", "html": "Den offentlige IP hentes fra <code>api.ipify.org</code> hvert 15. minut (den ser kun din IP-adresse, som enhver hjemmeside gør). VPN tændes og slukkes med <code>nmcli</code> og <code>tailscale</code>."}
+  ]
+}

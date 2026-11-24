@@ -147,7 +147,10 @@ class Spotify:
                    404: "Ingen aktiv Spotify-afspiller – start afspilning først",
                    429: "Spotify: for mange forespørgsler – vent lidt"}.get(e.code, f"Spotify svarede {e.code}")
             raise ValueError(msg) from None
-        return json.loads(raw) if raw else {}
+        try:
+            return json.loads(raw) if raw else {}
+        except ValueError:  # some player endpoints answer 200 with a plain-text body
+            return {}
 
     def _need_scopes(self):
         if self.missing_scopes():
@@ -159,8 +162,9 @@ class Spotify:
         tid = cur.get("id")
         if not tid or not (cur.get("uri") or "").startswith("spotify:track:"):
             raise ValueError("Ingen sang at like")
-        liked = self._api("GET", "/me/tracks/contains", {"ids": tid})[0]
-        self._api("DELETE" if liked else "PUT", "/me/tracks", {"ids": tid})
+        uri = f"spotify:track:{tid}"  # Spotify moved "Liked Songs" to /me/library in 2026
+        liked = self._api("GET", "/me/library/contains", {"uris": uri})[0]
+        self._api("DELETE" if liked else "PUT", "/me/library", {"uris": uri})
         with self._lock:
             self.data = dict(self.data, liked=not liked)
         return {"liked": not liked}
@@ -229,7 +233,7 @@ class Spotify:
                             data["liked"] = self.data["liked"]
                         elif (current.get("uri") or "").startswith("spotify:track:"):
                             try:
-                                data["liked"] = bool(self._api("GET", "/me/tracks/contains", {"ids": current["id"]})[0])
+                                data["liked"] = bool(self._api("GET", "/me/library/contains", {"uris": current["uri"]})[0])
                             except (ValueError, IndexError, TypeError):
                                 pass
                 except urllib.error.HTTPError as e:

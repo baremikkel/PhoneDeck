@@ -61,6 +61,11 @@ This installs everything, including the optional packages:
 
 If one of the optional packages fails to install, PhoneDeck still works without it.
 
+> With **Smart App Control** turned on (*Windows Security → App & browser control*),
+> Windows may refuse to load the `winrt` packages even though they installed fine. The music
+> card then says *"Windows blokerede winrt"* and shows no title or cover. Play/pause and
+> next/previous still work through the media keys.
+
 ## 4. Start it and check it on the PC
 
 ```powershell

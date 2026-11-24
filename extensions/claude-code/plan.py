@@ -42,7 +42,7 @@ class ClaudePlan:
         self._backoff = 0
         # Remember the last answer across restarts so a restart doesn't ask Anthropic again
         try:
-            with open(CACHE) as f:
+            with open(CACHE, encoding="utf-8") as f:
                 cached = json.load(f)
             self.data = cached
             age = time.time() - cached.get("updated", 0)
@@ -55,7 +55,7 @@ class ClaudePlan:
     def _save(self, data: dict) -> None:
         try:
             os.makedirs(os.path.dirname(CACHE), exist_ok=True)
-            with open(CACHE, "w") as f:
+            with open(CACHE, "w", encoding="utf-8") as f:
                 json.dump(data, f)
         except OSError:
             pass
@@ -65,7 +65,7 @@ class ClaudePlan:
 
     def _fetch(self) -> dict:
         try:
-            with open(CREDENTIALS) as f:
+            with open(CREDENTIALS, encoding="utf-8") as f:
                 oauth = json.load(f).get("claudeAiOauth") or {}
         except (OSError, ValueError):
             return {"error": "Fandt ikke Claude Code-login"}

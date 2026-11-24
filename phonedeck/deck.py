@@ -177,7 +177,7 @@ class Deck:
     def reload(self) -> None:
         with self._lock:
             try:
-                with open(DECK_PATH) as f:
+                with open(DECK_PATH, encoding="utf-8") as f:
                     data = json.load(f)
                 self.buttons = validate(data.get("buttons", []), self.apps)
                 self._mtime = os.path.getmtime(DECK_PATH)
@@ -198,7 +198,7 @@ class Deck:
     def _write(self) -> None:
         os.makedirs(os.path.dirname(DECK_PATH), exist_ok=True)
         tmp = DECK_PATH + ".tmp"
-        with open(tmp, "w") as f:
+        with open(tmp, "w", encoding="utf-8") as f:
             json.dump({"buttons": self.buttons}, f, ensure_ascii=False, indent=2)
         os.replace(tmp, DECK_PATH)
         self._mtime = os.path.getmtime(DECK_PATH)

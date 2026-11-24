@@ -59,7 +59,7 @@ class Spotify:
         self.data: dict = {"connected": False}
         self._wake = threading.Event()
         try:
-            with open(TOKEN_PATH) as f:
+            with open(TOKEN_PATH, encoding="utf-8") as f:
                 self.token = json.load(f)
         except (OSError, ValueError):
             self.token = None
@@ -110,7 +110,7 @@ class Spotify:
             self.token = tok
         os.makedirs(os.path.dirname(TOKEN_PATH), exist_ok=True)
         fd = os.open(TOKEN_PATH, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, "w") as f:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(tok, f)
 
     def _access_token(self) -> str | None:

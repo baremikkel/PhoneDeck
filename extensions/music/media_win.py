@@ -13,11 +13,16 @@ from __future__ import annotations
 import asyncio
 import threading
 
+_IMPORT_ERROR = "installer winrt-Windows.Media.Control for at se hvad der spiller"
 try:  # newer split packages first, then the older all-in-one
     from winrt.windows.media.control import \
         GlobalSystemMediaTransportControlsSessionManager as Manager  # type: ignore
     from winrt.windows.storage.streams import Buffer, InputStreamOptions  # type: ignore
-except ImportError:
+except ImportError as e:
+    if "DLL load failed" in str(e):  # installed, but Windows refused to load it
+        # e.g. Smart App Control / an application control policy blocking the unsigned .pyd
+        _IMPORT_ERROR = f"Windows blokerede winrt ({str(e).split(':', 1)[-1].strip()})"
+        print(f"[phonedeck] music: winrt kunne ikke indlæses: {e}")
     try:
         from winsdk.windows.media.control import \
             GlobalSystemMediaTransportControlsSessionManager as Manager  # type: ignore
@@ -35,7 +40,7 @@ class Media:
     source = "spotify"
 
     def __init__(self):
-        self.error = None if Manager else "installer winrt-Windows.Media.Control for at se hvad der spiller"
+        self.error = None if Manager else _IMPORT_ERROR
         self.current_player = None
         self._session = None
         self._art: tuple[str, bytes, str] | None = None

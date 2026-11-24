@@ -146,7 +146,7 @@ class ExtRequest:
                 data = ev if isinstance(ev, bytes) else str(ev).encode()
                 h.wfile.write(b"data: " + data + b"\n\n")
                 h.wfile.flush()
-        except (BrokenPipeError, ConnectionResetError):
+        except ConnectionError:  # client went away (Windows raises ConnectionAbortedError)
             pass
         h.close_connection = True
 
@@ -332,7 +332,7 @@ def make_handler(hub: Hub, host: str, port: int):
                     version, state = hub.wait(version)
                     self.wfile.write(b"data: " + json.dumps(state).encode() + b"\n\n")
                     self.wfile.flush()
-            except (BrokenPipeError, ConnectionResetError):
+            except ConnectionError:  # client went away (Windows raises ConnectionAbortedError)
                 pass
 
     return Handler

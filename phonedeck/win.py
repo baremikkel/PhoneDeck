@@ -110,6 +110,8 @@ def _endpoint(capture: bool):
     dev = AudioUtilities.GetMicrophone() if capture else AudioUtilities.GetSpeakers()
     if dev is None:
         return None
+    if hasattr(dev, "EndpointVolume"):  # pycaw 20240210+ wraps the device in AudioDevice
+        return dev.EndpointVolume
     iface = dev.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
     return ctypes.cast(iface, ctypes.POINTER(IAudioEndpointVolume))
 
@@ -120,7 +122,7 @@ def audio_level(capture: bool = False) -> dict:
         if ep is None:
             return {"volume": None, "muted": False}
         return {"volume": round(ep.GetMasterVolumeLevelScalar() * 100), "muted": bool(ep.GetMute())}
-    except OSError:
+    except Exception:  # optional feature: never let it break the whole sample
         return {"volume": None, "muted": False}
 
 

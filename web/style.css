@@ -555,3 +555,8 @@ body.stack .grid-page { grid-template-areas: none !important; }
 .grid-page > .hide-header > header, .grid-page > .hide-header > .noheader-hide { display: none; }
 .grid-page > .hide-frame { background: transparent; border-color: transparent; }
 [data-opt].opt-hidden { display: none !important; }
+
+/* Claude donut: numbers that could not be refreshed are shown faded */
+.donut.stale canvas { opacity: .45; }
+.donut.stale .donut-center { color: var(--muted); }
+.c-main .donut-info .sub { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }

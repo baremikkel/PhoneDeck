@@ -12,14 +12,24 @@ function renderDonut(c, budget, plan) {
   const used5 = c.block_used || 0;
   const usedW = c.last7d ? c.last7d.input + c.last7d.output + c.last7d.cache_write : 0;
   let rem5 = null, remW = null;
-  const p5 = plan?.five_hour, pW = plan?.seven_day;
+  // a window whose reset time has passed starts again from 0 – never show yesterday's numbers
+  const fresh = (w) => w && w.resets_at && new Date(w.resets_at) <= Date.now() ? { ...w, used_pct: 0, was_reset: true } : w;
+  const p5 = fresh(plan?.five_hour), pW = fresh(plan?.seven_day);
+  // the numbers can't be refreshed (e.g. the Claude Code login expired): say so on the donut
+  const stale = !!(plan?.error && p5);
+  $$("[data-donut-wrap]").forEach((el) => el.classList.toggle("stale", stale));
   if (p5) {
     // real numbers from the Claude plan (opt-in, via the Claude Code login)
     rem5 = Math.max(0, 1 - p5.used_pct / 100);
     remW = pW ? Math.max(0, 1 - pW.used_pct / 100) : null;
-    setText("c.left", `${Math.round(rem5 * 100)} %`);
-    setText("c.leftlbl", "tilbage");
-    setText("c.fivetxt", `5 timer · ↻ ${clock(p5.resets_at)}`);
+    setText("c.left", p5.was_reset && stale ? "↻" : `${Math.round(rem5 * 100)} %`);
+    setText("c.leftlbl", p5.was_reset ? (stale ? "nulstillet" : "tilbage") : stale ? "tilbage (gammelt)" : "tilbage");
+    setText("c.fivetxt", stale ? `⚠ ${plan.error}`
+      : `5 timer · ↻ ${clock(p5.resets_at)}`);
+    if (stale) {
+      const at = plan.updated ? new Date(plan.updated * 1000).toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" }) : "?";
+      setText("c.resetlong", `⚠ Tallene er fra kl. ${at} · ${plan.error}`);
+    }
     // rough token estimate: what this computer used so far ÷ share of the limit used
     const est = p5.used_pct >= 3 ? used5 / (p5.used_pct / 100) : null;
     setText("c.blockof", est ? `≈ ${fmtTok(est - used5)} tilbage` : "tokens");

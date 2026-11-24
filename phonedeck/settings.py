@@ -216,9 +216,21 @@ class Settings:
             changed_ext.append(ext_id)
         with self._lock:
             self.data = new
-            os.makedirs(os.path.dirname(SETTINGS_PATH), exist_ok=True)
-            tmp = SETTINGS_PATH + ".tmp"
-            with open(tmp, "w") as f:
-                json.dump(new, f, indent=2)
-            os.replace(tmp, SETTINGS_PATH)
+            self._write(new)
         return self.public(), changed_ext
+
+    def _write(self, data: dict) -> None:
+        os.makedirs(os.path.dirname(SETTINGS_PATH), exist_ok=True)
+        tmp = SETTINGS_PATH + ".tmp"
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)  # may hold tokens
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f, indent=2)
+        os.replace(tmp, SETTINGS_PATH)
+
+    def clear_ext(self, ext_id: str, keys: list[str]) -> None:
+        """Remove saved values (e.g. secret links/tokens, which the form can't empty)."""
+        with self._lock:
+            values = self.data["ext"].get(ext_id, {})
+            for k in keys:
+                values.pop(k, None)
+            self._write(self.data)

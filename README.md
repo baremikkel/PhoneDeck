@@ -42,6 +42,11 @@ chosen under *Indstillinger → Sider* (Settings → Pages).
 | **Vejr** (weather) | The weather now, the next 24 hours (temperature and chance of rain) and 7 days from [Open-Meteo](https://open-meteo.com) – free, no account or key. Set your town in the settings |
 | **Kalender** (calendar) | The next event with a countdown, and the agenda for the coming days from up to three calendars (the secret ICS link from Google, Outlook, iCloud …). Repeating events, exceptions and moved meetings are handled |
 | **Hjem** (Home Assistant) | Your lights, switches, scenes, scripts, covers and sensors as tiles: tap to switch or run, tap the bar to dim a light. Uses a long-lived access token |
+| **Netværk** (network) | Ping with a graph, average and packet loss, local and public IP, and **VPN on/off** for Tailscale and NetworkManager WireGuard/VPN connections |
+| **Batterier** (batteries) | Battery level of your headset, mouse, keyboard and controllers (UPower) and of the phone itself, with a warning when one runs low |
+| **Udklip** (clipboard) | **Clipboard history** – tap an entry to copy it again on the PC – and a **gallery of your latest screenshots**: view them large, copy the image or open it on the PC. The history only lives in memory and skips copies a password manager marks as secret |
+| **Diske** (disks) | Free space per drive and **SMART health** of NVMe and SATA drives (wear, spare, media errors, temperature, power-on hours) via UDisks2 – no root needed |
+| **Skrivebord** (desktop) | Big switches for GNOME's **night light** (with warmth), **do not disturb** and **dark/light theme** |
 | **Your own pages** | Up to 10 extra grid pages, built in the editor from the same elements as the home page |
 
 Media uses MPRIS on Linux and the system media controls on Windows (Spotify, browsers,
@@ -132,6 +137,8 @@ What differs on Windows:
 | Keyboard shortcuts | built in – no ydotool needed |
 | Commands | run with `cmd /c` |
 | Lyd page (mixer) | Linux only (PipeWire) – hidden on Windows |
+| Batterier, Skrivebord | Linux only (UPower, GNOME) – hidden on Windows |
+| Diske | space only, no SMART |
 | Settings | `%APPDATA%\PhoneDeck` instead of `~/.config/phonedeck` |
 
 ## The phone
@@ -273,6 +280,11 @@ extensions/
   weather/       Hjem       – weather now, 24 hours, 7 days (Open-Meteo)
   calendar/      Hjem       – next event + agenda from ICS links
   home-assistant/ Hjem      – lights, switches, scenes, sensors
+  network/       System     – ping, IP addresses, VPN on/off
+  battery/       System     – batteries of headsets, mice, controllers, the phone
+  clipboard/     System     – clipboard history, screenshot gallery
+  disks/         System     – space per drive, SMART health
+  desktop/       System     – night light, do not disturb, dark/light theme (GNOME)
 ```
 
 - **Add** an extension by putting a folder in `extensions/` or in
@@ -364,11 +376,11 @@ Extensions that would make sense on a desk deck (each one a folder in `extension
 - [x] Microphone level meter and push-to-talk button
 
 **System**
-- [ ] Network: ping/latency, public IP, VPN on/off (Tailscale, WireGuard)
-- [ ] Battery of connected devices (headset, mouse, controller via UPower)
-- [ ] Clipboard history and screenshot gallery
-- [ ] Disk space per drive and SMART health
-- [ ] Night light, do-not-disturb and dark/light theme toggles for GNOME
+- [x] Network: ping/latency, public IP, VPN on/off (Tailscale, WireGuard)
+- [x] Battery of connected devices (headset, mouse, controller via UPower)
+- [x] Clipboard history and screenshot gallery
+- [x] Disk space per drive and SMART health
+- [x] Night light, do-not-disturb and dark/light theme toggles for GNOME
 
 **Hjem og andet (home and other)**
 - [x] Home Assistant: lights, scenes, sensors and buttons

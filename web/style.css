@@ -394,7 +394,7 @@ body.stack .grid-page { grid-template-areas: none !important; }
 .donut-card .donut { height: auto; width: 100%; max-height: 100%; max-width: 100%; flex: 1; min-height: 0; }
 .center { text-align: center; }
 .grid-page .small .big { font-size: 26px; }
-.grid-page .small canvas.spark, .grid-page .small .facts.grid2 { display: none; }
+.grid-page .small .facts.grid2 { display: none; }  /* sparks: hidden by the container rules only when the box is short */
 .grid-page .w-media .art { width: 34%; }
 @media (orientation: portrait) {
   .grid-page { display: grid; overflow-y: auto; grid-auto-rows: 120px; }
@@ -459,3 +459,88 @@ body.stack .grid-page { grid-template-areas: none !important; }
 .menu-pages .tile span { white-space: normal; overflow: visible; text-overflow: clip; text-align: left; line-height: 1.15; }
 .menu-pages .tile .ic { font-size: 20px; flex: none; }
 .menu-pages .tile.here { border-color: var(--text); }
+
+/* ---------- every element on a grid page adapts to its own box (container queries) ---------- */
+/* Each grid cell is a size container; the rules below show less the smaller the box is. */
+.grid-page > * { container-type: size; }
+.grid-page .card .spark, .grid-page .card .bars { min-height: 0; }
+.grid-page > .card.small { padding: 7px 9px; gap: 4px; }
+.grid-page .card > header { min-width: 0; }
+.grid-page .card > header .label { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/* CPU / GPU / RAM / net / disk / Claude: short boxes */
+@container (max-height: 100px) {
+  .card .facts.grid2, .w-claude .bars, .card .spark { display: none; }
+  .c-chart .axis { display: none; }
+  .card .big { font-size: 24px; }
+  .card .kv { font-size: 15px; }
+  .card > .bar { flex: none; }
+}
+@container (max-height: 100px) {
+  .w-disk .kv small:first-child, .w-net .kv small:first-child { display: none; }
+  .w-cpu .big, .w-gpu .big { font-size: 22px; }
+}
+@container (max-width: 120px) {
+  .w-disk .kv > div { white-space: normal; font-size: 13px; line-height: 1.15; }
+  .w-cpu .facts > div + div, .w-gpu .facts > div + div { display: none; }
+  .card .kv { font-size: 14px; gap: 2px 10px; }
+  .card .kv > div + div { display: none; }
+  .card > header .sub { display: none; }
+  .card .facts { font-size: 12px; }
+}
+
+/* system bar: drop items from the right as it gets narrower, stack them when it is tall */
+.grid-page .strip { flex-wrap: wrap; align-content: center; column-gap: 14px; row-gap: 6px; }
+@container (max-width: 580px) { .strip .hide-narrow { display: none; } }
+@container (max-width: 500px) { .strip > div:nth-child(3) { display: none; } }
+@container (max-width: 380px) { .strip > .clock { display: none; } }
+@container (max-width: 260px) { .strip > div:nth-child(2) { display: none; } .strip > div { font-size: 14px; } }
+@container (max-width: 260px) and (min-height: 150px) {
+  .strip { flex-direction: column; justify-content: center; align-items: flex-start; }
+  .strip > div:nth-child(2) { display: flex; }
+}
+@container (max-width: 130px) { .strip > div { font-size: 13px; } }
+
+/* heat maps: fewer numbers in the header, no legend in short boxes */
+@container (max-width: 600px) { .heat header .label .sub, .heat header .stats > span:nth-child(3) { display: none; } }
+@container (max-width: 440px) { .heat header .stats > span:nth-child(2) { display: none; } }
+@container (max-width: 320px) { .heat header .stats { display: none; } }
+@container (max-height: 160px) { .heat .heat-legend { display: none; } }
+@container (max-width: 420px) { .heat-legend .grow, .heat-legend .grow + span { display: none; } }
+@container (max-width: 130px) { .heat > header { display: none; } }
+
+/* Claude "I dag": fewer rows in small boxes, side by side when wide and short */
+@container (max-height: 240px) { .c-stats .models { display: none; } }
+@container (max-height: 180px) { .c-stats .kv.col > div:nth-child(n+3) { display: none; } }
+@container (max-height: 120px) { .c-stats .kv.col > div:nth-child(n+2) { display: none; } .c-stats > header .sub { display: none; } }
+@container (max-height: 180px) and (min-width: 300px) {
+  .c-stats .kv.col { flex-direction: row; gap: 4px 18px; }
+  .c-stats .kv.col > div:nth-child(-n+3) { display: block; }
+}
+@container (max-width: 130px) { .c-chart > header .sub, .c-chart .axis { display: none; } }
+
+/* small player widget: the cover never grows taller than the box */
+.grid-page .media:not(.big-media) .art { height: 100%; width: auto; max-width: 40%; max-height: 100%; }
+
+/* big player: cover, volume and details go first */
+@container (max-width: 440px) { .big-media > .art { display: none; } }
+@container (max-height: 300px) {
+  .big-media .album, .big-media .times, .big-media .volume { display: none; }
+  .big-media .title { font-size: 20px; }
+  .big-media .artist { font-size: 14px; }
+  .big-media .controls button { min-height: 40px; }
+  .big-media .info { gap: 3px; }
+}
+@container (max-height: 300px) and (min-width: 441px) { .big-media .volume { display: flex; } }
+@container (max-height: 200px) { .big-media .info > .sub, .big-media .artist, .big-media .volume { display: none; } }
+@container (max-height: 130px) {
+  .big-media { padding: 6px 8px; }
+  .big-media .title, .big-media .progress { display: none; }
+  .big-media .info { height: 100%; justify-content: center; }
+  .big-media .controls { margin: 0; flex: 1; gap: 6px; }
+  .big-media .controls button { min-height: 0; height: 100%; }
+}
+@container (max-width: 200px) { .big-media .controls button:not(.primary):not(.sp-like) { display: none; } .big-media .sp-like { display: none; } }
+@container (max-width: 200px) and (min-height: 131px) { .big-media .title { font-size: 15px; } }
+@container (max-width: 130px) { .w-media .controls button:not(.primary) { display: none; } }
+@container (max-width: 130px) { .c-main .donut { min-height: 0; max-width: 100%; height: auto; width: 100%; } }

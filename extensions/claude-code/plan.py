@@ -18,11 +18,12 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from phonedeck import paths
 
 CREDENTIALS = os.path.join(os.path.expanduser(os.environ.get("CLAUDE_CONFIG_DIR", "~/.claude")), ".credentials.json")
 URL = "https://api.anthropic.com/api/oauth/usage"
 POLL = 120  # seconds
-CACHE = os.path.expanduser("~/.cache/phonedeck/claude_plan.json")  # percentages only, never the token
+CACHE = paths.cache("claude_plan.json")  # percentages only, never the token
 
 
 def _window(d) -> dict | None:

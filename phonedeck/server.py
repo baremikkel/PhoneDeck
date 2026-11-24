@@ -22,6 +22,20 @@ WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 MAX_BODY = 64 * 1024
 
 
+
+# fixed types for our own files: on Windows mimetypes reads the registry, which can say
+# text/plain for .js – and then the browser refuses to run the page
+TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
+         ".css": "text/css; charset=utf-8", ".json": "application/json", ".svg": "image/svg+xml",
+         ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp",
+         ".woff2": "font/woff2", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json"}
+
+
+def content_type(name: str) -> str:
+    ext = name[name.rfind("."):].lower() if "." in name else ""
+    return TYPES.get(ext) or mimetypes.guess_type(name)[0] or "application/octet-stream"
+
+
 class Hub:
     """Samples everything in a background thread and fans out to clients."""
 
@@ -238,7 +252,7 @@ def make_handler(hub: Hub, host: str, port: int):
             target = hub.extensions.static_file(ext_id, rest)
             if not target:
                 return self._send(404, b"Not found", "text/plain")
-            ctype = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
+            ctype = content_type(target.name)
             self._send(200, target.read_bytes(), ctype, {"Cache-Control": "no-cache"})
 
         def _app_icon(self, app_id: str):
@@ -304,7 +318,7 @@ def make_handler(hub: Hub, host: str, port: int):
             target = (WEB_DIR / rel).resolve()
             if WEB_DIR not in target.parents or not target.is_file():
                 return self._send(404, b"Not found", "text/plain")
-            ctype = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
+            ctype = content_type(target.name)
             self._send(200, target.read_bytes(), ctype, {"Cache-Control": "no-cache"})
 
         def _stream(self):

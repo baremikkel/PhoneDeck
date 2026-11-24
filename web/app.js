@@ -360,6 +360,7 @@ function makeIcon(icon) {
     const img = document.createElement("img");
     img.className = "appicon"; img.alt = ""; img.loading = "lazy";
     img.src = "/api/appicon?id=" + encodeURIComponent(icon.value);
+    img.onerror = () => img.replaceWith(Object.assign(document.createElement("b"), { textContent: "📦" }));  // no icon (e.g. Windows)
     return img;
   }
   if (icon?.kind === "builtin") {

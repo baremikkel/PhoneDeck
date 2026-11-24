@@ -24,8 +24,13 @@ import threading
 import uuid
 
 from .actions import BUILTINS, load_config
+from . import paths
+from .paths import IS_WINDOWS
 
-DECK_PATH = os.path.expanduser(os.environ.get("PHONEDECK_BUTTONS", "~/.config/phonedeck/buttons.json"))
+if IS_WINDOWS:
+    from . import win
+
+DECK_PATH = os.path.expanduser(os.environ.get("PHONEDECK_BUTTONS", paths.config("buttons.json")))
 PAGE_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")  # same as settings.PAGE_RE
 BUTTON_HIDE = ("label", "icon", "frame")  # parts of a button that can be hidden
 MAX_BUTTONS = 150   # in total, including the ones inside folders
@@ -42,7 +47,8 @@ def _default_buttons() -> list[dict]:
                 "action": {"type": "builtin", "name": n}} for n in order]
     buttons += [
         {"label": "Lås skærm", "icon": {"kind": "emoji", "value": "🔒"},
-         "action": {"type": "command", "argv": ["loginctl", "lock-session"]}},
+         "action": {"type": "command", "argv": ["rundll32.exe", "user32.dll,LockWorkStation"] if IS_WINDOWS
+                    else ["loginctl", "lock-session"]}},
         {"label": "Skærmbillede", "icon": {"kind": "emoji", "value": "📷"},
          "action": {"type": "hotkey", "keys": [99]}},  # Print Screen
     ]
@@ -51,7 +57,7 @@ def _default_buttons() -> list[dict]:
         cmd = b.get("command")
         if not b.get("label") or not cmd:
             continue
-        argv = ["sh", "-c", cmd] if isinstance(cmd, str) else list(cmd)
+        argv = shell_argv(cmd) if isinstance(cmd, str) else list(cmd)
         if len(argv) == 2 and argv[0] == "xdg-open" and argv[1].startswith(("http://", "https://")):
             action = {"type": "url", "url": argv[1]}
         else:
@@ -122,7 +128,7 @@ def validate(raw: list, apps, _depth: int = 0, _seen: set | None = None, _count:
         elif t == "command":
             argv = a.get("argv")
             if isinstance(argv, str):
-                argv = ["sh", "-c", argv]
+                argv = shell_argv(argv)
             if (not isinstance(argv, list) or not argv or len(argv) > 64
                     or not all(isinstance(x, str) and x for x in argv)):
                 raise ValueError(f"{label}: ugyldig kommando")
@@ -251,26 +257,47 @@ class Deck:
         if t == "builtin":
             self.actions.run(a["name"])
         elif t == "url":
-            _spawn(["xdg-open", a["url"]])
+            if IS_WINDOWS:
+                win.open_target(a["url"])
+            else:
+                _spawn(["xdg-open", a["url"]])
         elif t == "app":
             self.apps.launch(a["app"])
         elif t == "hotkey":
             send_hotkey(a["keys"])
         elif t == "command":
-            _spawn(a["argv"])
+            argv = a["argv"]
+            # the editor stores typed commands as ["sh", "-c", …] – run them with cmd on Windows
+            if IS_WINDOWS and len(argv) == 3 and argv[:2] == ["sh", "-c"]:
+                argv = shell_argv(argv[2])
+            _spawn(argv)
+
+
+def shell_argv(cmd: str) -> list[str]:
+    """A command typed in the editor, run by the system's shell."""
+    return ["cmd", "/c", cmd] if IS_WINDOWS else ["sh", "-c", cmd]
 
 
 def _spawn(argv: list[str]) -> None:
+    if IS_WINDOWS:
+        # detached, no console window popping up
+        flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+        subprocess.Popen(argv, creationflags=flags, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         cwd=os.path.expanduser("~"))
+        return
     subprocess.Popen(argv, start_new_session=True, stdout=subprocess.DEVNULL,
                      stderr=subprocess.DEVNULL, cwd=os.path.expanduser("~"))
 
 
 def hotkeys_available() -> bool:
-    return shutil.which("ydotool") is not None
+    return IS_WINDOWS or shutil.which("ydotool") is not None
 
 
 def send_hotkey(keys: list[int]) -> None:
     """Press keys in order, release in reverse – e.g. [29, 46] = Ctrl+C."""
+    if IS_WINDOWS:
+        win.send_keys(keys)
+        return
     if not hotkeys_available():
         raise ValueError("ydotool er ikke installeret")
     env = dict(os.environ)

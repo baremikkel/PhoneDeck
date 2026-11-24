@@ -8,8 +8,14 @@ import shutil
 import subprocess
 import tomllib
 
+from . import paths
+from .paths import IS_WINDOWS
+
+if IS_WINDOWS:
+    from . import win
+
 CONFIG_PATH = os.path.expanduser(
-    os.environ.get("PHONEDECK_CONFIG", "~/.config/phonedeck/config.toml"))
+    os.environ.get("PHONEDECK_CONFIG", paths.config("config.toml")))
 
 SINK = "@DEFAULT_AUDIO_SINK@"
 SOURCE = "@DEFAULT_AUDIO_SOURCE@"
@@ -45,6 +51,8 @@ def _wpctl(*args: str) -> str:
 
 
 def audio_state() -> dict:
+    if IS_WINDOWS:
+        return {"output": win.audio_level(), "mic": win.audio_level(capture=True)}
     def parse(dev):
         out = _wpctl("get-volume", dev)
         m = re.search(r"Volume:\s*([\d.]+)", out)
@@ -57,6 +65,14 @@ class Actions:
         self.extensions = extensions  # media.* are handled by the "music" extension
 
     def run(self, action: str) -> None:
+        if IS_WINDOWS and action.startswith(("volume.", "mic.")):
+            # the volume keys show Windows' own volume pop-up and work without extra packages
+            if action == "mic.mute":
+                win.toggle_mic_mute()
+            else:
+                win.tap({"volume.up": win.VK_VOLUME_UP, "volume.down": win.VK_VOLUME_DOWN,
+                         "volume.mute": win.VK_VOLUME_MUTE}[action])
+            return
         if action.startswith("media."):
             self.extensions.action("music", action.removeprefix("media."), {})
         elif action == "volume.up":

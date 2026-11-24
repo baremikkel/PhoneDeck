@@ -2,6 +2,7 @@
   "id": "mixer",
   "name": "Lyd",
   "category": "Musik",
+  "platforms": ["linux"],
   "description": "Lydstyrke pr. program, skift af højttaler/headset og mikrofon, mikrofon-måler og push-to-talk (PipeWire).",
   "page": {"title": "Lyd"},
   "settings": [

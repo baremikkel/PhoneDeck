@@ -253,3 +253,10 @@ class Apps:
                         break
         self._icons[name] = found
         return found
+
+
+# Windows: the Start menu instead of .desktop files
+from .paths import IS_WINDOWS  # noqa: E402
+
+if IS_WINDOWS:
+    from .apps_win import WinApps as Apps  # noqa: F811,E402

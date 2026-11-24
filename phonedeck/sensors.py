@@ -1,8 +1,8 @@
-"""PC hardware sensors (Linux).
+"""PC hardware sensors.
 
-Reads CPU/RAM/network/disk via psutil and temperatures, GPU load, VRAM and
-power straight from sysfs (hwmon + amdgpu). NVIDIA GPUs are read through
-``nvidia-smi`` when it is available.
+Reads CPU/RAM/network/disk via psutil. Linux: temperatures, GPU load, VRAM and power
+straight from sysfs (hwmon + amdgpu). Windows: from LibreHardwareMonitor's local web
+server (see lhm.py). NVIDIA GPUs are read through ``nvidia-smi`` when it is available.
 """
 
 from __future__ import annotations
@@ -15,6 +15,9 @@ import time
 from collections import deque
 
 import psutil
+
+from .lhm import LhmGpu, LibreHardwareMonitor
+from .paths import IS_WINDOWS
 
 HISTORY = 90  # samples kept for sparklines
 
@@ -127,6 +130,16 @@ class _NvidiaGpu:
 
 
 def _cpu_name() -> str:
+    if IS_WINDOWS:
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"HARDWARE\DESCRIPTION\System\CentralProcessor\0") as k:
+                name = winreg.QueryValueEx(k, "ProcessorNameString")[0]
+        except OSError:
+            return "CPU"
+        for junk in ("(R)", "(TM)", " Processor", " CPU"):
+            name = name.replace(junk, "")
+        return " ".join(name.split()).split(" with ")[0]
     for line in (_read("/proc/cpuinfo") or "").splitlines():
         if line.startswith("model name"):
             name = line.split(":", 1)[1].strip()
@@ -137,14 +150,18 @@ def _cpu_name() -> str:
 
 
 class Sensors:
-    def __init__(self):
-        hw = _hwmon_by_name()
+    def __init__(self, lhm_port: int = 8085):
+        self.lhm = LibreHardwareMonitor(lhm_port) if IS_WINDOWS else None
+        hw = {} if IS_WINDOWS else _hwmon_by_name()
         self.cpu_name = _cpu_name()
         self.cpu_hwmon = (hw.get("k10temp") or hw.get("coretemp") or hw.get("zenpower") or [None])[0]
         self.nvme_hwmons = hw.get("nvme", [])
 
         self.gpu = None
-        for card in sorted(glob.glob("/sys/class/drm/card[0-9]")):
+        if self.lhm:
+            # Windows: LibreHardwareMonitor knows every GPU vendor; nvidia-smi as a fallback
+            self.gpu = LhmGpu(self.lhm) if self.lhm.gpu() or not shutil.which("nvidia-smi") else _NvidiaGpu()
+        for card in ([] if IS_WINDOWS else sorted(glob.glob("/sys/class/drm/card[0-9]"))):
             dev = f"{card}/device"
             if os.path.exists(f"{dev}/gpu_busy_percent"):
                 mons = glob.glob(f"{dev}/hwmon/hwmon*")
@@ -160,6 +177,8 @@ class Sensors:
         psutil.cpu_percent(percpu=True)  # prime the counters
 
     def _cpu_temp(self) -> float | None:
+        if self.lhm:
+            return self.lhm.cpu_temp()
         if not self.cpu_hwmon:
             return None
         return (_hwmon_temp(self.cpu_hwmon, "Tctl") or _hwmon_temp(self.cpu_hwmon, "Package id 0")
@@ -186,7 +205,7 @@ class Sensors:
             d_read = (disk.read_bytes - self._disk_prev.read_bytes) / dt
             d_write = (disk.write_bytes - self._disk_prev.write_bytes) / dt
         self._disk_prev = disk
-        root = psutil.disk_usage("/")
+        root = psutil.disk_usage((os.environ.get("SystemDrive", "C:") + "\\") if IS_WINDOWS else "/")
 
         gpu = self.gpu.read() if self.gpu else None
 
@@ -214,7 +233,8 @@ class Sensors:
             "disk": {
                 "read": d_read, "write": d_write,
                 "used": root.used, "total": root.total,
-                "temps": [t for t in (_hwmon_temp(h) for h in self.nvme_hwmons) if t is not None],
+                "temps": self.lhm.nvme_temps() if self.lhm else
+                         [t for t in (_hwmon_temp(h) for h in self.nvme_hwmons) if t is not None],
             },
             "uptime": time.time() - psutil.boot_time(),
             "history": {k: list(v) for k, v in self.hist.items()},

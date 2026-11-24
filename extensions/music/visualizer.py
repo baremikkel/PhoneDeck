@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import sys
 import threading
 import time
 
@@ -16,6 +17,12 @@ try:
     import numpy as np
 except ImportError:  # pragma: no cover
     np = None
+
+WINDOWS = sys.platform == "win32"
+try:  # Windows: listen to the speakers through WASAPI loopback (optional package)
+    import soundcard as sc  # type: ignore
+except Exception:  # noqa: BLE001 – ImportError, or no audio backend
+    sc = None
 
 RATE = 22050
 WINDOW = 1024     # FFT size (~46 ms)
@@ -27,8 +34,12 @@ RANGE_DB = 36.0  # dynamic range shown, below the recent peak
 
 class Visualizer:
     def __init__(self):
-        self.available = np is not None and shutil.which("pw-record") is not None
-        self.error = None if self.available else "kræver numpy og pw-record (PipeWire)"
+        if WINDOWS:
+            self.available = np is not None and sc is not None
+            self.error = None if self.available else "kræver numpy og soundcard på Windows: pip install numpy soundcard"
+        else:
+            self.available = np is not None and shutil.which("pw-record") is not None
+            self.error = None if self.available else "kræver numpy og pw-record (PipeWire)"
         self.cond = threading.Condition()
         self.bands: list[int] = [0] * BANDS
         self.frame = 0
@@ -69,12 +80,32 @@ class Visualizer:
             self.cond.wait_for(lambda: self.frame != frame, timeout)
             return self.frame, self.bands
 
-    def _run(self) -> None:
+    def _open(self):
+        """Start listening. -> (read() giving HOP float32 samples, or None at the end; close())"""
+        if WINDOWS:
+            mic = sc.get_microphone(id=str(sc.default_speaker().name), include_loopback=True)
+            rec = mic.recorder(samplerate=RATE, channels=1, blocksize=HOP)
+            rec.__enter__()
+            return (lambda: rec.record(numframes=HOP)[:, 0].astype(np.float32)), (lambda: rec.__exit__(None, None, None))
         cmd = ["pw-record", "-P", "{ stream.capture.sink = true node.name = phonedeck-visualizer }",
                "--rate", str(RATE), "--channels", "1", "--format", "s16", "-"]
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+
+        def read():
+            raw = proc.stdout.read(HOP * 2)
+            if not raw or len(raw) < HOP * 2:
+                return None
+            return np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
+
+        def close():
+            proc.kill()
+            proc.wait()
+        return read, close
+
+    def _run(self) -> None:
         try:
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        except OSError as e:
+            read, close = self._open()
+        except Exception as e:  # noqa: BLE001 – no PipeWire / no loopback device
             self.error = str(e)
             with self._lock:
                 self._running = False
@@ -84,12 +115,11 @@ class Visualizer:
         peak = -40.0
         try:
             while True:
-                raw = proc.stdout.read(HOP * 2)
-                if not raw or len(raw) < HOP * 2:
+                samples = read()
+                if samples is None:
                     break
                 if not self.alive():
                     break  # nobody is watching any more – stop listening
-                samples = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
                 buf = np.concatenate([buf[HOP:], samples])
                 spec = np.abs(np.fft.rfft(buf * self._hann)) / (WINDOW / 4)  # full-scale sine ≈ 0 dB
                 power = np.array([spec[b].max() for b in self._bins], dtype=np.float32)
@@ -107,8 +137,7 @@ class Visualizer:
                     self.frame += 1
                     self.cond.notify_all()
         finally:
-            proc.kill()
-            proc.wait()
+            close()
             with self._lock:
                 self._running = False
             with self.cond:

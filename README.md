@@ -17,7 +17,9 @@ PC: python3 -m phonedeck ──(SSE over USB / adb reverse)──► Phone: http
 ```
 
 Built for and tested on a OnePlus 8 Pro + Ubuntu (also tested on a Galaxy S23). Any
-Android phone and Linux PC should work.
+Android phone and Linux PC should work. **Windows** is supported too (see
+[Windows](#windows)) – it has been tested in a simulated Windows environment, not yet on
+a real Windows PC.
 
 > The user interface is in Danish. Names of pages, buttons and settings below are given
 > as they appear on screen, with an English explanation.
@@ -37,9 +39,13 @@ chosen under *Indstillinger → Sider* (Settings → Pages).
 | **GitHub** | A GitHub-style contribution calendar for the last year. Tap a day to see its count |
 | **Knapper** (buttons) | A **Stream Deck**: default buttons (volume, microphone, playback, full screen, lock screen, screenshot) plus your own, with optional colours and folders. Programs with an open window are marked **Aktiv** (active), and tapping them only shows a short message that the program is already open (see *Active marking* below). Edited in the browser on the PC |
 | **Lyd** (audio) | A **mixer**: volume and mute per program, choose the output (speakers/headset) and input device and their volume, a **microphone level meter** and a **push-to-talk** button (the microphone is on only while you hold it, and the PC mutes it again if the phone lets go or disconnects) |
+| **Vejr** (weather) | The weather now, the next 24 hours (temperature and chance of rain) and 7 days from [Open-Meteo](https://open-meteo.com) – free, no account or key. Set your town in the settings |
+| **Kalender** (calendar) | The next event with a countdown, and the agenda for the coming days from up to three calendars (the secret ICS link from Google, Outlook, iCloud …). Repeating events, exceptions and moved meetings are handled |
+| **Hjem** (Home Assistant) | Your lights, switches, scenes, scripts, covers and sensors as tiles: tap to switch or run, tap the bar to dim a light. Uses a long-lived access token |
 | **Your own pages** | Up to 10 extra grid pages, built in the editor from the same elements as the home page |
 
-Media uses MPRIS (Spotify, browsers, VLC …), so no API keys are needed. The music page can
+Media uses MPRIS on Linux and the system media controls on Windows (Spotify, browsers,
+VLC …), so no API keys are needed. The music page can
 be limited to Spotify only, or to everything except browsers.
 The screen is kept on while the dashboard is open (Wake Lock API). If the phone isn't in
 full screen after 10 seconds, PhoneDeck switches to full screen (or asks you to tap the
@@ -91,6 +97,42 @@ systemctl --user daemon-reload && systemctl --user enable --now phonedeck
 ```
 
 The service starts with your graphical session.
+
+### Windows
+
+1. Install **Python 3.11+** from [python.org](https://www.python.org/downloads/) (tick *Add
+   to PATH*), then in the project folder:
+
+   ```powershell
+   py -m pip install -r requirements-windows.txt
+   py -m phonedeck
+   ```
+
+2. **Temperatures and GPU:** install
+   [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor),
+   run it as administrator and turn on *Options → Remote Web Server → Run* (port 8085).
+   PhoneDeck reads `http://localhost:8085/data.json`; without it you still get CPU load,
+   RAM, network and disk (NVIDIA GPUs also work through `nvidia-smi`).
+3. **Phone:** install adb (`winget install Google.PlatformTools`) and run
+   `powershell -ExecutionPolicy Bypass -File scripts\phone-connect.ps1`.
+4. **Autostart:** `powershell -ExecutionPolicy Bypass -File scripts\install-autostart-windows.ps1`
+   (adds a shortcut to your Startup folder that runs PhoneDeck without a console window;
+   `-Remove` takes it away again).
+
+What differs on Windows:
+
+| Feature | Windows |
+|---|---|
+| Volume buttons | the Windows volume keys (with the usual pop-up) |
+| Microphone mute, volume level | needs the optional `pycaw` package |
+| Now playing (title, cover) | needs the optional `winrt-Windows.Media.Control` packages; without them the play/next buttons still work as media keys |
+| Player's own volume | not available – use the Windows volume mixer |
+| Visualizer | needs `numpy` and `soundcard` (listens to the speakers) |
+| Programs | the shortcuts in your Start menu; *Aktiv* = the program has a visible window. No program icons (an emoji is shown) |
+| Keyboard shortcuts | built in – no ydotool needed |
+| Commands | run with `cmd /c` |
+| Lyd page (mixer) | Linux only (PipeWire) – hidden on Windows |
+| Settings | `%APPDATA%\PhoneDeck` instead of `~/.config/phonedeck` |
 
 ## The phone
 
@@ -228,6 +270,9 @@ extensions/
   mixer/         Musik      – volume per program, devices, mic meter, push-to-talk
   claude-code/   AI         – usage, plan donut, heatmap
   github/        Udvikling  – contribution heatmap
+  weather/       Hjem       – weather now, 24 hours, 7 days (Open-Meteo)
+  calendar/      Hjem       – next event + agenda from ICS links
+  home-assistant/ Hjem      – lights, switches, scenes, sensors
 ```
 
 - **Add** an extension by putting a folder in `extensions/` or in
@@ -243,7 +288,7 @@ An extension consists of:
 
 | File | Contents |
 |---|---|
-| `extension.json` | name, category, description, page title, elements and settings (text, number, on/off, choice, info, status, buttons) |
+| `extension.json` | name, category, description, page title, `platforms` (e.g. `["linux"]`), elements and settings (text, number, on/off, choice, **secret** – stored but never sent back to a browser –, info, status, buttons) |
 | `backend.py` | optional: `class Extension` with `state()`, `action()`, `http_get()`, `info()`, `settings_changed()`, `stop()` |
 | `page.html` | optional: a page on the phone |
 | `page.js` | optional: `PhoneDeck.register("<id>", {render, tick, page, rebuilt, widgets})` |
@@ -289,8 +334,8 @@ control the buttons.
 - [ ] Automatic `adb reverse` when the phone is plugged in (udev rule)
 - [ ] Turn off/dim the screen when the PC is locked or asleep
 - [ ] Battery protection (stop charging at ~60 % with ACC/Magisk)
-- [ ] More pages (calendar, weather, Home Assistant …)
-- [ ] Windows support (LibreHardwareMonitor)
+- [x] More pages (calendar, weather, Home Assistant)
+- [x] Windows support (LibreHardwareMonitor) – not yet tested on a real Windows PC
 - [ ] Minimal Android ROM (LineageOS without Google) in kiosk mode
 
 ### Extension ideas
@@ -311,7 +356,7 @@ Extensions that would make sense on a desk deck (each one a folder in `extension
 **Kommunikation (communication)**
 - [ ] Discord: mute/deafen, current voice channel, who is talking
 - [ ] Unread counts for mail, Slack, Messenger etc.
-- [ ] Today's calendar (Google / CalDAV) with a countdown to the next meeting
+- [x] Today's calendar (ICS link) with a countdown to the next meeting
 
 **Musik og lyd (music and audio)**
 - [x] Audio mixer: volume per app (PipeWire) and switching output/input device
@@ -326,8 +371,8 @@ Extensions that would make sense on a desk deck (each one a folder in `extension
 - [ ] Night light, do-not-disturb and dark/light theme toggles for GNOME
 
 **Hjem og andet (home and other)**
-- [ ] Home Assistant: lights, scenes, sensors and buttons
-- [ ] Weather and rain radar
+- [x] Home Assistant: lights, scenes, sensors and buttons
+- [x] Weather (rain radar still open)
 - [ ] OBS Studio: scenes, start/stop recording and streaming, live indicator
 - [ ] Steam: friends online, current game, recently played
 - [ ] Twitch: followed channels that are live

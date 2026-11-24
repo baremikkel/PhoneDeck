@@ -92,8 +92,26 @@ class Extension:
             return {}
         raise ValueError(f"ukendt handling: {name}")
 
+    def _summary(self, text: str) -> str:
+        """'42 begivenheder, næste 3. dec.' – so an empty-looking calendar can be told apart
+        from one that didn't download (e.g. a link that gives an empty or HTML page)."""
+        if "BEGIN:VCALENDAR" not in text[:2000].upper():
+            return "linket gav ikke en kalender (ICS) – tjek at det er den hemmelige iCal-adresse"
+        count = text.upper().count("BEGIN:VEVENT")
+        now = datetime.now().astimezone()
+        try:
+            nxt = next(iter(events_between(text, now, now + timedelta(days=366), local_zone())), None)
+        except Exception:  # noqa: BLE001
+            nxt = None
+        when = f"næste {nxt['start'].day}/{nxt['start'].month}" if nxt else "ingen det næste år"
+        return f"{count} begivenhed{'er' if count != 1 else ''}, {when}"
+
     def info(self):
         n = len(self.texts)
         if self.errors:
             return {"status": "⚠ " + "; ".join(self.errors.values())}
-        return {"status": f"✓ {n} kalender{'e' if n != 1 else ''} hentet" if n else "Ingen kalender sat op endnu"}
+        if not n:
+            return {"status": "Ingen kalender sat op endnu"}
+        s = self.ctx.settings()
+        parts = [f"{s.get(f'name{i}') or f'Kalender {i}'}: {self._summary(t)}" for i, t in sorted(self.texts.items())]
+        return {"status": "✓ " + " · ".join(parts)}

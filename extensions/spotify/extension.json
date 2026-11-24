@@ -1,10 +1,10 @@
 {
   "id": "spotify",
-  "name": "Spotify-kø",
+  "name": "Spotify",
   "category": "Musik",
-  "description": "Viser næste sang nederst på musiksiden og hele køen ved tryk. Hentes fra Spotifys Web API med din egen (gratis) Spotify-app.",
+  "description": "Næste sang og køen på musiksiden, ❤ like den aktuelle sang, dine playlister, søgning og tilføj til kø. Hentes fra Spotifys Web API med din egen (gratis) Spotify-app. Kø og playlister kræver Spotify Premium.",
   "settings": [
-    {"type": "info", "html": "<ol><li>Gå til <a href=\"https://developer.spotify.com/dashboard\" target=\"_blank\" rel=\"noopener\">developer.spotify.com/dashboard</a> og tryk <b>Create app</b>.</li><li>Vælg <b>Web API</b> og indsæt Redirect URI: <code>{redirect_uri}</code></li><li>Kopiér appens <b>Client ID</b> herunder, gem, og tryk <b>Forbind Spotify</b>. PhoneDeck får kun lov til at læse hvad der spiller og køen.</li></ol>"},
+    {"type": "info", "html": "<ol><li>Gå til <a href=\"https://developer.spotify.com/dashboard\" target=\"_blank\" rel=\"noopener\">developer.spotify.com/dashboard</a> og tryk <b>Create app</b>.</li><li>Vælg <b>Web API</b> og indsæt Redirect URI: <code>{redirect_uri}</code></li><li>Kopiér appens <b>Client ID</b> herunder, gem, og tryk <b>Forbind Spotify</b>. PhoneDeck får lov til at læse hvad der spiller og køen, like sange, læse dine playlister og tilføje til køen. Har du forbundet før, så tryk <b>Forbind Spotify</b> igen for de nye rettigheder.</li></ol>"},
     {"key": "client_id", "label": "Client ID", "type": "text", "default": "", "pattern": "[0-9a-fA-F]{32}", "pattern_help": "skal være 32 tegn (0-9, a-f)"},
     {"type": "status", "key": "status"},
     {"type": "button", "label": "Forbind Spotify", "href": "/ext/spotify/login"},

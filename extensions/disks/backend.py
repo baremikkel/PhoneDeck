@@ -121,6 +121,42 @@ def drives() -> list[dict]:
     return out
 
 
+def drives_lhm(lhm) -> list[dict]:
+    """Windows: SMART from LibreHardwareMonitor (it reads the drives as administrator)."""
+    out = []
+    for hw_id, sensors in sorted(lhm.drives().items()):
+        def val(stype, *names):
+            for n in names:
+                for s in sensors:
+                    if s["type"].lower() == stype and s["name"].lower() == n.lower() and s["value"] is not None:
+                        return s["value"]
+            return None
+        temps = [s for s in sensors if s["type"].lower() == "temperature" and s["value"] is not None
+                 and not any(w in s["name"].lower() for w in ("warning", "critical", "limit"))]
+        temp = next((s["value"] for s in temps if "composite" in s["name"].lower()), temps[0]["value"] if temps else None)
+        size, written = val("data", "Total Space"), val("data", "Data Written", "Total Bytes Written")
+        wear, spare = val("level", "Percentage Used"), val("level", "Available Spare")
+        thresh = val("level", "Available Spare Threshold") or 10
+        life = val("level", "Life", "Remaining Life")
+        item = {"id": hw_id.replace("/", "-"), "model": sensors[0]["hw"] or "Drev",
+                "kind": "NVMe" if hw_id.startswith("nvme") else "Disk",
+                "size": (size or 0) * 1e9, "removable": False, "rotational": False, "devices": [],
+                "temp": round(temp) if temp is not None else None,
+                "hours": int(val("factor", "Power On Hours")) if val("factor", "Power On Hours") is not None else None,
+                "wear": int(wear) if wear is not None else (100 - int(life) if life is not None else None),
+                "spare": int(spare) if spare is not None else None,
+                "written": (written or 0) * 1e9 or None, "health": "ok"}
+        why = []
+        if item["spare"] is not None and item["spare"] <= thresh * 2:
+            why.append(f"kun {item['spare']} % reserve tilbage")
+        if (item["wear"] or 0) >= 90:
+            why.append(f"{item['wear']} % slidt")
+        if why:
+            item["health"], item["note"] = "warn", " · ".join(why) + " – tag backup"
+        out.append(item)
+    return out
+
+
 class Extension:
     def __init__(self, ctx):
         self.ctx = ctx
@@ -132,7 +168,10 @@ class Extension:
     def _loop(self):
         while not self.ctx.stopped.is_set():
             self.parts = partitions()
-            if time.time() - self._at > 600:  # SMART changes slowly
+            lhm = getattr(getattr(self.ctx.hub, "sensors", None), "lhm", None)  # Windows only
+            if lhm is not None:
+                self.drives = drives_lhm(lhm)  # LibreHardwareMonitor's data is cached anyway
+            elif time.time() - self._at > 600:  # SMART changes slowly
                 self._at = time.time()
                 self.drives = drives()
             self.ctx.stopped.wait(self.ctx.number("poll_s", 30))

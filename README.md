@@ -141,7 +141,7 @@ What differs on Windows:
 | Commands | run with `cmd /c` |
 | Lyd page (mixer) | Linux only (PipeWire) – hidden on Windows |
 | Batterier, Skrivebord | Linux only (UPower, GNOME) – hidden on Windows |
-| Diske | space only, no SMART |
+| Diske | space per drive; SMART health (wear, spare, hours, data written, temperature) via LibreHardwareMonitor |
 | Settings | `%APPDATA%\PhoneDeck` instead of `~/.config/phonedeck` |
 
 ## The phone

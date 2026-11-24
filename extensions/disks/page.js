@@ -36,7 +36,7 @@ function render() {
       d.note ? el("div", { className: "dk-note", textContent: d.note }) : "");
   });
   $$("[data-dk-drives]").forEach((b) => b.replaceChildren(...(drives.length ? drives.map((x) => x.cloneNode(true))
-    : [el("div", { className: "dk-empty", textContent: "SMART er ikke tilgængelig (kræver UDisks2 på Linux)" })])));
+    : [el("div", { className: "dk-empty", textContent: "SMART er ikke tilgængelig (kræver UDisks2 på Linux eller LibreHardwareMonitor på Windows)" })])));
 }
 PhoneDeck.register("disks", {
   render(ext) { dk = ext || null; render(); },

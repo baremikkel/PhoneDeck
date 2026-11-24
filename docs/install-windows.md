@@ -91,8 +91,13 @@ Windows doesn't expose temperatures to normal programs. PhoneDeck reads them fro
 3. To have it start with Windows: tick *Options → Run On Windows Startup* and
    *Start Minimized*.
 
-Without it you still get CPU load, RAM, network and disk. NVIDIA graphics cards also work
-through `nvidia-smi`, which comes with the NVIDIA driver.
+It gives PhoneDeck CPU and GPU temperatures, GPU load, power, fan and VRAM, and the SMART
+health of your drives (on the *Diske* page). Without it you still get CPU load, RAM,
+network and disk space. NVIDIA graphics cards also work through `nvidia-smi`, which comes
+with the NVIDIA driver.
+
+Or install it from a terminal: `winget install LibreHardwareMonitor.LibreHardwareMonitor`
+(then start it as administrator once and turn on the web server as above).
 
 ## 6. Connect the phone
 
@@ -188,7 +193,8 @@ The Stream Deck buttons and your home screen are edited at
 
 - The **Lyd** (mixer), **Batterier** and **Skrivebord** pages are Linux-only and hidden.
 - The player's own volume isn't available; use the Windows volume mixer.
-- *Diske* shows space per drive, but no SMART health.
+- *Diske* shows space per drive; SMART health (wear, spare, hours, temperature) needs
+  LibreHardwareMonitor from step 5.
 - Programs come from your Start menu. *Aktiv* means the program has a visible window.
 
 See the [README](../README.md#windows) for the full list.

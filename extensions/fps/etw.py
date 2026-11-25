@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import ctypes
 import threading
-import time
 from collections import defaultdict, deque
 from ctypes import wintypes
 
@@ -217,18 +216,32 @@ class PresentCounter:
         if ids and h.EventDescriptor.Id in ids:
             self.events += 1
             with self.lock:
-                self.frames[h.ProcessId].append(time.monotonic())
+                # the event's own time: ETW hands events over in bursts (about once a
+                # second), so the time we receive them says nothing about the frame rate.
+                # ProcessTrace gives it as system time (FILETIME, 100 ns units).
+                self.frames[h.ProcessId].append(h.TimeStamp)
 
-    def fps(self, window: float = 1.0) -> dict[int, float]:
-        """Frames per second per process over the last `window` seconds."""
-        cut = time.monotonic() - window
+    @staticmethod
+    def _now() -> int:
+        ft = ctypes.c_int64()
+        ctypes.windll.kernel32.GetSystemTimePreciseAsFileTime(ctypes.byref(ft))
+        return ft.value
+
+    def fps(self, window: float = 2.0, stale: float = 6.0) -> dict[int, float]:
+        """Frames per second per process over a `window` of seconds. Events arrive 1–3 s
+        late, so the window ends at the newest event we have, not at "now"; programs
+        with no frame in the last `stale` seconds are dropped."""
+        freq = 10_000_000  # FILETIME ticks per second
+        old = self._now() - int(stale * freq)
         out = {}
         with self.lock:
+            newest = max((s[-1] for s in self.frames.values() if s), default=0)
+            cut = max(newest - int(window * freq), old)
             for pid, stamps in list(self.frames.items()):
                 while stamps and stamps[0] < cut:
                     stamps.popleft()
-                if stamps:
-                    out[pid] = len(stamps) / window
-                else:
+                if len(stamps) >= 2 and stamps[-1] > stamps[0]:
+                    out[pid] = round((len(stamps) - 1) * freq / (stamps[-1] - stamps[0]), 1)
+                elif not stamps:
                     del self.frames[pid]
         return out

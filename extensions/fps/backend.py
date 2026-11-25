@@ -83,8 +83,9 @@ if sys.platform == "win32":
             per_pid = self.etw.fps()
             fg_pid, title = self._foreground()
             # the program in focus; if it draws nothing itself (a browser draws in a helper
-            # process), the busiest program
-            if per_pid.get(fg_pid):
+            # process, and its window may only redraw now and then), the busiest program
+            busiest = max(per_pid.values(), default=0.0)
+            if per_pid.get(fg_pid) and per_pid[fg_pid] >= busiest / 2:
                 fps, pid = per_pid[fg_pid], fg_pid
             elif per_pid:
                 pid = max(per_pid, key=per_pid.get)

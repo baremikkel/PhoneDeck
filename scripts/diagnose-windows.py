@@ -72,24 +72,31 @@ else:
     print("CPU-temperatur:", hw.cpu_temp())
     print("GPU:", hw.gpu.read() if hw.gpu else None)
 
-line("FPS (DWM) – flyt et vindue rundt i 5 sekunder nu")
-spec = importlib.util.spec_from_file_location("fps_backend", os.path.join(ROOT, "extensions", "fps", "backend.py"))
-fb = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(fb)
+line("FPS (ETW) – start et spil eller en video, og flyt et vindue rundt i 5 sekunder")
+spec = importlib.util.spec_from_file_location("fps_etw", os.path.join(ROOT, "extensions", "fps", "etw.py"))
+etw = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(etw)
+print(f"sizeof LOGFILE={ctypes.sizeof(etw.EVENT_TRACE_LOGFILEW)} (448) RECORD={ctypes.sizeof(etw.EVENT_RECORD)} (112) "
+      f"PROPS={ctypes.sizeof(etw.EVENT_TRACE_PROPERTIES)} (120)")
+c = etw.PresentCounter()
 try:
-    d = fb._Dwm()
-    print(f"struct={d.struct.__name__} størrelse={ctypes.sizeof(d.struct)}")
-    prev = None
-    for _ in range(6):
-        t = d.struct()
-        t.cbSize = ctypes.sizeof(t)
-        rc = d.dwm.DwmGetCompositionTimingInfo(None, ctypes.byref(t))
-        cur = {k: getattr(t, k) for k in ("cRefresh", "cFrame", "cDXPresent", "cFramesDisplayed", "cRefreshesDisplayed", "cFrameDisplayed")}
-        rate = t.rateRefresh
-        if prev:
-            print(f"rc=0x{rc & 0xFFFFFFFF:08x} hz={rate.uiNumerator}/{rate.uiDenominator} "
-                  + " ".join(f"{k}+{cur[k] - prev[k]}" for k in cur))
-        prev = cur
+    c.start()
+    for _ in range(5):
         time.sleep(1)
+        per = c.fps()
+        top = sorted(per.items(), key=lambda kv: -kv[1])[:4]
+        names = []
+        for pid, f in top:
+            try:
+                import psutil
+                n = psutil.Process(pid).name()
+            except Exception:
+                n = "?"
+            names.append(f"{n}({pid})={f:.0f}")
+        print(f"hændelser i alt={c.events}  FPS pr. program: {', '.join(names) or 'ingen'}")
+except etw.NoPermission:
+    print("Ingen adgang: kør scripts\\allow-fps-windows.ps1 og log ud og ind (eller kør dette som administrator)")
 except Exception as e:
-    print("DWM fejl:", e)
+    print("ETW fejl:", e)
+finally:
+    c.stop()

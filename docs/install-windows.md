@@ -197,9 +197,16 @@ The Stream Deck buttons and your home screen are edited at
 - The player's own volume isn't available; use the Windows volume mixer.
 - *Diske* shows space per drive; SMART health (wear, spare, hours, temperature) needs
   the optional LibreHardwareMonitor from step 5.
-- The **FPS** speedometer counts the frames of the desktop compositor (DWM). Games in a
-  window or borderless window are measured exactly; a game in *exclusive* full screen can
-  bypass DWM and then shows too low.
+- The **FPS** speedometer counts the frames DirectX programs send to the screen, through
+  Windows' own event log (ETW). It works in a window and in full screen, on AMD, Intel and
+  NVIDIA. Windows only allows that for members of *Performance Log Users*, so run this once
+  and log out and in:
+
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File scripts\allow-fps-windows.ps1
+  ```
+
+  Games that use Vulkan or OpenGL instead of DirectX are not measured on Windows.
 - Programs come from your Start menu. *Aktiv* means the program has a visible window.
 
 See the [README](../README.md#windows) for the full list.

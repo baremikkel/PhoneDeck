@@ -1,8 +1,9 @@
 """FPS: how many frames per second the PC shows on screen.
 
 Linux (GNOME): the PhoneDeck GNOME helper counts the frames GNOME presents per monitor
-(phonedeck/gnome.py). Windows: the desktop compositor's own frame counter
-(DwmGetCompositionTimingInfo in dwmapi.dll) – no extra programs on either.
+(phonedeck/gnome.py). Windows: DirectX logs every Present() call through Event Tracing
+for Windows; etw.py counts them per program (needs "Performance Log Users" once). No
+extra programs on either.
 
 Measuring only runs while the phone shows a speedometer: the page sends "watch" every
 couple of seconds, and we stop 6 seconds after the last one.
@@ -56,38 +57,59 @@ if sys.platform == "win32":
                     break
             if self.struct is None:
                 raise OSError("DwmGetCompositionTimingInfo")
-            self.prev: tuple[int, float] | None = None
+            from .etw import PresentCounter
+            self.etw = PresentCounter()
+            self.user.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+            self.user.GetForegroundWindow.restype = wintypes.HWND
 
-        def sample(self) -> dict | None:
+        def refresh(self) -> float | None:
+            """The monitor's refresh rate. (DWM's frame counters no longer move on Windows 11,
+            but the refresh rate it reports is right.)"""
             t = self.struct()
             t.cbSize = ctypes.sizeof(t)
             if self.dwm.DwmGetCompositionTimingInfo(None, ctypes.byref(t)) != 0:
                 return None
-            now = time.monotonic()
-            frames = t.cFrame
-            fps = None
-            if self.prev and now > self.prev[1]:
-                fps = max(0.0, (frames - self.prev[0]) / (now - self.prev[1]))
-            self.prev = (frames, now)
             r = t.rateRefresh
-            hz = r.uiNumerator / r.uiDenominator if r.uiDenominator else None
-            return {"fps": fps, "refresh": hz, "app": self._foreground()}
+            return round(r.uiNumerator / r.uiDenominator, 1) if r.uiDenominator else None
 
-        def _foreground(self) -> str:
-            hwnd = self.user.GetForegroundWindow()
-            if not hwnd:
-                return ""
-            buf = ctypes.create_unicode_buffer(256)
-            self.user.GetWindowTextW(hwnd, buf, 256)
-            title = buf.value.strip()
-            pid = wintypes.DWORD()
-            self.user.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        def start(self):
+            self.etw.start()
+
+        def stop(self):
+            self.etw.stop()
+
+        def sample(self) -> dict | None:
+            self.etw.start()  # no-op while running
+            per_pid = self.etw.fps()
+            fg_pid, title = self._foreground()
+            # the program in focus; if it draws nothing itself (a browser draws in a helper
+            # process), the busiest program
+            if per_pid.get(fg_pid):
+                fps, pid = per_pid[fg_pid], fg_pid
+            elif per_pid:
+                pid = max(per_pid, key=per_pid.get)
+                fps, title = per_pid[pid], ""
+            else:
+                fps, pid = 0.0, fg_pid
+            return {"fps": fps, "refresh": self.refresh(), "app": title or self._name(pid)}
+
+        @staticmethod
+        def _name(pid: int) -> str:
             try:
                 import psutil
-                name = psutil.Process(pid.value).name().rsplit(".", 1)[0]
+                return psutil.Process(pid).name().rsplit(".", 1)[0]
             except Exception:
-                name = ""
-            return title[:60] or name
+                return ""
+
+        def _foreground(self) -> tuple[int, str]:
+            hwnd = self.user.GetForegroundWindow()
+            if not hwnd:
+                return 0, ""
+            buf = ctypes.create_unicode_buffer(256)
+            self.user.GetWindowTextW(hwnd, buf, 256)
+            pid = wintypes.DWORD()
+            self.user.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+            return pid.value, buf.value.strip()[:60]
 
 
 class Extension:
@@ -109,7 +131,15 @@ class Extension:
     # ---------- measuring ----------
     def _sample(self) -> dict | None:
         if self.source is not None:
-            return self.source.sample()
+            from .etw import NoPermission
+            try:
+                s = self.source.sample()
+            except NoPermission:
+                self.problem = ("Windows kræver adgang til ydelseslogfiler: kør scripts\\allow-fps-windows.ps1 "
+                                "én gang og log ud og ind")
+                return None
+            self.problem = ""
+            return s
         from phonedeck import gnome
         if gnome.version() < 2:
             self.problem = ("Opdatér PhoneDeck-hjælperen til GNOME og log ind igen"
@@ -121,10 +151,10 @@ class Extension:
     def _loop(self):
         while not self.ctx.stopped.is_set():
             if time.monotonic() - self._watch > WATCH_S:
-                if self.cur:
+                if self.cur or self.source is not None:
                     self.cur, self.hist = {}, deque(maxlen=HISTORY)
                     if self.source is not None:
-                        self.source.prev = None
+                        self.source.stop()  # end the trace session while nobody looks
                 self._wake.wait(30)
                 self._wake.clear()
                 continue
@@ -168,7 +198,7 @@ class Extension:
         if self.problem:
             return {"status": "⚠ " + self.problem}
         if self.source is not None:
-            return {"status": "✓ Måler med Windows' compositor (DWM)"}
+            return {"status": "✓ Måler med Windows' hændelseslog for DirectX (ETW)"}
         from phonedeck import gnome
         v = gnome.version()
         if v >= 2:
@@ -178,3 +208,5 @@ class Extension:
 
     def stop(self):
         self._wake.set()
+        if self.source is not None:
+            self.source.stop()

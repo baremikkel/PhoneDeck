@@ -145,7 +145,7 @@ What differs on Windows:
 | Batterier, Skrivebord | Linux only (UPower, GNOME) – hidden on Windows |
 | Diske | space per drive; SMART health (wear, spare, hours, data written, temperature) via the optional LibreHardwareMonitor |
 | CPU temperature | the motherboard's thermal zone (approximate); exact with the optional LibreHardwareMonitor |
-| FPS | the desktop compositor's (DWM) frame count: exact for games in a window or borderless window, too low for exclusive full screen |
+| FPS | counts DirectX frames through Windows' event log (ETW), in a window and in full screen, on any GPU brand. Run `scripts\allow-fps-windows.ps1` once (adds you to *Performance Log Users*). Vulkan/OpenGL games are not measured |
 | Settings | `%APPDATA%\PhoneDeck` instead of `~/.config/phonedeck` |
 
 ## The phone

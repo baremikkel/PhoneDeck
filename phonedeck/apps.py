@@ -13,6 +13,8 @@ from shlex import split as _shlex
 
 import psutil
 
+from . import gnome
+
 APP_DIRS = [
     os.path.expanduser("~/.local/share/applications"),
     "/var/lib/snapd/desktop/applications",
@@ -117,16 +119,7 @@ class Apps:
     def _helper_windows() -> set[str] | None:
         """Desktop ids of apps with an open window, from the optional PhoneDeck GNOME
         extension (gnome-extension/). None when the extension isn't installed."""
-        try:
-            r = subprocess.run(["gdbus", "call", "--session", "--dest", "org.phonedeck.Helper",
-                                "--object-path", "/org/phonedeck/Helper",
-                                "--method", "org.phonedeck.Helper.WindowApps"],
-                               capture_output=True, text=True, timeout=2)
-        except (OSError, subprocess.TimeoutExpired):
-            return None
-        if r.returncode != 0:
-            return None
-        return {x.lower() for x in re.findall(r"'([^']*)'", r.stdout)}
+        return gnome.window_apps()
 
     @staticmethod
     def _x_env() -> dict:

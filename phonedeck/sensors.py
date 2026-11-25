@@ -1,8 +1,9 @@
 """PC hardware sensors.
 
 Reads CPU/RAM/network/disk via psutil. Linux: temperatures, GPU load, VRAM and power
-straight from sysfs (hwmon + amdgpu). Windows: from LibreHardwareMonitor's local web
-server (see lhm.py). NVIDIA GPUs are read through ``nvidia-smi`` when it is available.
+straight from sysfs (hwmon + amdgpu). Windows: from Windows itself (winhw.py: display
+driver + performance counters), with LibreHardwareMonitor used on top when it happens to
+run (lhm.py). NVIDIA GPUs also use ``nvidia-smi`` (comes with the driver) for power.
 """
 
 from __future__ import annotations
@@ -16,7 +17,8 @@ from collections import deque
 
 import psutil
 
-from .lhm import LhmGpu, LibreHardwareMonitor
+from . import winhw
+from .lhm import LibreHardwareMonitor
 from .paths import IS_WINDOWS
 
 HISTORY = 90  # samples kept for sparklines
@@ -129,6 +131,29 @@ class _NvidiaGpu:
             return {"name": self.name}
 
 
+class _WindowsGpu:
+    """Windows' own GPU readings, topped up by LibreHardwareMonitor (if it runs) or
+    nvidia-smi: whatever those know better (power, hotspot …) replaces the built-in value."""
+
+    def __init__(self, win, lhm, nvidia):
+        self.win, self.lhm, self.nvidia = win, lhm, nvidia
+        self.name = win.gpu.name if win and win.gpu else "GPU"
+
+    def read(self) -> dict:
+        out = self.win.gpu.read() if self.win and self.win.gpu else {"name": self.name}
+        own_name = bool(self.win and self.win.gpu)
+        lhm = self.lhm.gpu() if self.lhm else None
+        if lhm:  # LibreHardwareMonitor's sensors are the most exact: they win
+            for k, v in lhm.items():
+                if v is not None and not (k == "name" and own_name):
+                    out[k] = v
+        elif self.nvidia:  # nvidia-smi only fills gaps (power); its fan is in %, not RPM
+            for k, v in self.nvidia.read().items():
+                if v is not None and out.get(k) is None and k != "fan":
+                    out[k] = v
+        return out
+
+
 def _cpu_name() -> str:
     if IS_WINDOWS:
         try:
@@ -152,15 +177,17 @@ def _cpu_name() -> str:
 class Sensors:
     def __init__(self, lhm_port: int = 8085):
         self.lhm = LibreHardwareMonitor(lhm_port) if IS_WINDOWS else None
+        self.win = winhw.create() if IS_WINDOWS else None
         hw = {} if IS_WINDOWS else _hwmon_by_name()
         self.cpu_name = _cpu_name()
         self.cpu_hwmon = (hw.get("k10temp") or hw.get("coretemp") or hw.get("zenpower") or [None])[0]
         self.nvme_hwmons = hw.get("nvme", [])
 
         self.gpu = None
-        if self.lhm:
-            # Windows: LibreHardwareMonitor knows every GPU vendor; nvidia-smi as a fallback
-            self.gpu = LhmGpu(self.lhm) if self.lhm.gpu() or not shutil.which("nvidia-smi") else _NvidiaGpu()
+        if IS_WINDOWS:
+            nvidia = _NvidiaGpu() if shutil.which("nvidia-smi") else None
+            if (self.win and self.win.gpu) or nvidia or self.lhm.gpu():
+                self.gpu = _WindowsGpu(self.win, self.lhm, nvidia)
         for card in ([] if IS_WINDOWS else sorted(glob.glob("/sys/class/drm/card[0-9]"))):
             dev = f"{card}/device"
             if os.path.exists(f"{dev}/gpu_busy_percent"):
@@ -177,14 +204,17 @@ class Sensors:
         psutil.cpu_percent(percpu=True)  # prime the counters
 
     def _cpu_temp(self) -> float | None:
-        if self.lhm:
-            return self.lhm.cpu_temp()
+        if IS_WINDOWS:
+            exact = self.lhm.cpu_temp() if self.lhm else None
+            return exact if exact is not None else (self.win.cpu_temp() if self.win else None)
         if not self.cpu_hwmon:
             return None
         return (_hwmon_temp(self.cpu_hwmon, "Tctl") or _hwmon_temp(self.cpu_hwmon, "Package id 0")
                 or _hwmon_temp(self.cpu_hwmon))
 
     def sample(self) -> dict:
+        if self.win:
+            self.win.collect()  # one snapshot of Windows' counters per update
         now = time.monotonic()
         dt = max(now - self._t_prev, 1e-3)
         self._t_prev = now

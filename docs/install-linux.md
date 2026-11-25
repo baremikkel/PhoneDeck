@@ -45,8 +45,8 @@ can't do.
 |---|---|
 | `numpy` + PipeWire (`pw-record`) | the music **visualizer** (installed above) |
 | `wireplumber` (`wpctl`) | the **Lyd** (audio) page: mixer, devices, push-to-talk |
-| `xdotool` | *Aktiv* marking of XWayland programs (Discord, Spotify, Steam games …) |
-| [`ydotool`](https://github.com/ReimuNotMoe/ydotool) with `ydotoold` running | Stream Deck buttons that send **keyboard shortcuts** |
+| `xdotool` | *Aktiv* marking of XWayland programs, only without the GNOME helper (step 7) |
+| [`ydotool`](https://github.com/ReimuNotMoe/ydotool) with `ydotoold` running | **keyboard shortcuts** on desktops other than GNOME. On GNOME the helper from step 7 does it |
 | `wl-clipboard` (`wl-paste`/`wl-copy`) | the **clipboard history** on the Udklip page |
 | `upower` | the **Batterier** (batteries) page |
 | `udisks2` | SMART health on the **Diske** page (space works without it) |
@@ -56,7 +56,7 @@ can't do.
 On Ubuntu, for example:
 
 ```bash
-sudo apt install wireplumber xdotool ydotool wl-clipboard upower udisks2
+sudo apt install wireplumber wl-clipboard upower udisks2
 ```
 
 ## 2. Download PhoneDeck
@@ -164,18 +164,24 @@ systemctl --user restart phonedeck     # after updating
 systemctl --user disable --now phonedeck   # turn autostart off
 ```
 
-## 7. GNOME helper for "Aktiv" (optional)
+## 7. GNOME helper (recommended)
 
-Under Wayland, other programs can't see which windows are open. A tiny GNOME extension
-tells PhoneDeck, so Stream Deck buttons for e.g. Firefox are marked *Aktiv* only while
-the program has a window:
+Wayland hides other programs' windows, keyboard input and frame timing from ordinary
+programs. A tiny GNOME extension that comes with PhoneDeck answers for it, so you need no
+extra tools:
+
+- **Aktiv** marking: Stream Deck buttons for e.g. Firefox are marked *Aktiv* only while
+  the program has a window (replaces `xdotool`).
+- **Keyboard shortcuts** on Stream Deck buttons (replaces `ydotool` and its daemon).
+- The **FPS** speedometer: counts the frames GNOME shows on screen.
 
 ```bash
 ./scripts/install-gnome-helper.sh
 ```
 
 **Log out and back in** afterwards. GNOME on Wayland only loads new extensions at login.
-If the script says user extensions are disabled, turn on *Use extensions* in the
+Do the same after updating PhoneDeck if the helper changed (the FPS settings say so). If
+the script says user extensions are disabled, turn on *Use extensions* in the
 *Extensions* app.
 
 ## 8. Set it up

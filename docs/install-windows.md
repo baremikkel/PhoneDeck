@@ -79,25 +79,27 @@ later with `Ctrl+C`).
 > If Windows Firewall asks, you can click *Cancel*. PhoneDeck only listens on the PC
 > itself, and the phone reaches it through the USB cable.
 
-## 5. Temperatures and GPU (optional, recommended)
+## 5. Temperatures and GPU (nothing to install)
 
-Windows doesn't expose temperatures to normal programs. PhoneDeck reads them from
-**LibreHardwareMonitor**:
+PhoneDeck reads the hardware from Windows itself – the same sources Task Manager uses:
 
-1. Download it from
-   [github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases),
-   unpack it and run `LibreHardwareMonitor.exe` **as administrator**.
-2. Turn on *Options → Remote Web Server → Run* (port **8085**).
+- **GPU** (NVIDIA, AMD and Intel): name, load, VRAM, temperature, fan and clock. Needs
+  Windows 10 (version 1803 or newer) or Windows 11 and a reasonably new graphics driver.
+- **CPU temperature**: from the motherboard's thermal zone. It is an approximate reading
+  and some motherboards don't report one at all.
+- NVIDIA cards also get **power draw** through `nvidia-smi`, which comes with the driver.
+
+### More precise sensors (optional)
+
+If **LibreHardwareMonitor** is running, PhoneDeck uses it automatically on top. You get
+the exact CPU temperature, GPU power and hotspot for all brands, and the SMART health of
+your drives on the *Diske* page.
+
+1. `winget install LibreHardwareMonitor.LibreHardwareMonitor`, or download it from
+   [its releases page](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases).
+2. Run it **as administrator** and turn on *Options → Remote Web Server → Run* (port **8085**).
 3. To have it start with Windows: tick *Options → Run On Windows Startup* and
    *Start Minimized*.
-
-It gives PhoneDeck CPU and GPU temperatures, GPU load, power, fan and VRAM, and the SMART
-health of your drives (on the *Diske* page). Without it you still get CPU load, RAM,
-network and disk space. NVIDIA graphics cards also work through `nvidia-smi`, which comes
-with the NVIDIA driver.
-
-Or install it from a terminal: `winget install LibreHardwareMonitor.LibreHardwareMonitor`
-(then start it as administrator once and turn on the web server as above).
 
 ## 6. Connect the phone
 
@@ -194,7 +196,10 @@ The Stream Deck buttons and your home screen are edited at
 - The **Lyd** (mixer), **Batterier** and **Skrivebord** pages are Linux-only and hidden.
 - The player's own volume isn't available; use the Windows volume mixer.
 - *Diske* shows space per drive; SMART health (wear, spare, hours, temperature) needs
-  LibreHardwareMonitor from step 5.
+  the optional LibreHardwareMonitor from step 5.
+- The **FPS** speedometer counts the frames of the desktop compositor (DWM). Games in a
+  window or borderless window are measured exactly; a game in *exclusive* full screen can
+  bypass DWM and then shows too low.
 - Programs come from your Start menu. *Aktiv* means the program has a visible window.
 
 See the [README](../README.md#windows) for the full list.
@@ -220,6 +225,6 @@ powershell -ExecutionPolicy Bypass -File scripts\install-autostart-windows.ps1 -
 Remove-Item -Recurse "$env:APPDATA\PhoneDeck", "$env:LOCALAPPDATA\PhoneDeck"
 ```
 
-Then delete the PhoneDeck folder. Python, adb and LibreHardwareMonitor can be uninstalled
+Then delete the PhoneDeck folder. Python, adb and LibreHardwareMonitor (if you installed it) can be uninstalled
 under *Settings → Apps*. On the phone you can turn USB debugging off again under
 Developer options.

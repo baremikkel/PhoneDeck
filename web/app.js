@@ -301,7 +301,7 @@ function render(s) {
     setText("gpu.clock", round(gpu.clock));
     setText("gpu.fan", round(gpu.fan));
     setWidth("gpu.vram", gpu.vram_total ? (gpu.vram_used / gpu.vram_total) * 100 : 0);
-    setText("gpu.vramtxt", gpu.vram_total ? `VRAM ${fmtBytes(gpu.vram_used)} / ${fmtBytes(gpu.vram_total)}` : "");
+    setText("gpu.vramtxt", gpu.vram_total ? `${gpu.integrated ? "Delt hukommelse" : "VRAM"} ${fmtBytes(gpu.vram_used)} / ${fmtBytes(gpu.vram_total)}` : "");
   }
 
   if (hw.ram) {

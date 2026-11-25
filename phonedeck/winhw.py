@@ -147,7 +147,11 @@ class _Adapter:
         reg = _RegistryInfo()
         self.name = reg.AdapterString.strip() if self._query(KMTQAITYPE_ADAPTERREGISTRYINFO, reg) else ""
         seg = _SegmentSize()
-        self.vram_total = seg.DedicatedVideoMemorySize if self._query(KMTQAITYPE_GETSEGMENTSIZE, seg) else 0
+        ok = self._query(KMTQAITYPE_GETSEGMENTSIZE, seg)
+        self.vram_total = seg.DedicatedVideoMemorySize if ok else 0
+        self.shared_total = seg.SharedSystemMemorySize if ok else 0
+        # built into the CPU (Intel Iris/UHD, AMD Radeon in Ryzen …): borrows normal RAM
+        self.integrated = self.vram_total < 1 << 30
         kind = wintypes.UINT(0)
         self.software = bool(self._query(KMTQAITYPE_ADAPTERTYPE, kind) and kind.value & 0b100)
 
@@ -164,9 +168,16 @@ class _Adapter:
         if self._query(KMTQAITYPE_ADAPTERPERFDATA, p):
             out["temp"] = p.Temperature / 10 if 0 < p.Temperature < 2000 else None
             out["fan"] = p.FanRPM if p.FanRPM else None
-        n = _NodePerf(NodeOrdinal=0, PhysicalAdapterIndex=0)  # node 0 is the 3D engine
-        if self._query(KMTQAITYPE_NODEPERFDATA, n) and n.Frequency:
-            out["clock"] = round(n.Frequency / 1e6)
+        # the engines (3D, copy, video …) each report a clock; the 3D engine runs fastest
+        clocks = []
+        for node in range(12):
+            n = _NodePerf(NodeOrdinal=node, PhysicalAdapterIndex=0)
+            if not self._query(KMTQAITYPE_NODEPERFDATA, n):
+                break
+            if n.Frequency:
+                clocks.append(n.Frequency)
+        if clocks:
+            out["clock"] = round(max(clocks) / 1e6)
         return out
 
 
@@ -192,7 +203,7 @@ class WinGpu:
         adapters = [_Adapter(self.gdi, arr[i]) for i in range(n.NumAdapters)]
         real = [a for a in adapters if not a.software and a.name] or adapters
         # the card with the most dedicated memory is the one games run on
-        self.adapter = max(real, key=lambda a: a.vram_total)
+        self.adapter = max(real, key=lambda a: (a.vram_total, a.shared_total))
         self.name = _nice_gpu_name(self.adapter.name)
 
     def read(self) -> dict:
@@ -204,13 +215,16 @@ class WinGpu:
                 eng = re.sub(r"^pid_\d+_", "", inst.lower())
                 engines[eng] = engines.get(eng, 0.0) + v
         load = min(100.0, max(engines.values())) if engines else None
-        used = [v for inst, v in c.read("gpu_mem").items() if a.luid in inst.lower()]
+        # an integrated GPU uses shared memory (normal RAM) instead of its own VRAM
+        used = [v for inst, v in c.read("gpu_shared" if a.integrated else "gpu_mem").items() if a.luid in inst.lower()]
+        total = (a.shared_total if a.integrated else a.vram_total) or None
         perf = a.perf()
         return {
             "name": self.name, "load": round(load, 1) if load is not None else None,
             "temp": perf.get("temp"), "temp_hot": None, "power": None,
             "clock": perf.get("clock"), "fan": perf.get("fan"),
-            "vram_used": max(used) if used else None, "vram_total": a.vram_total or None,
+            "vram_used": max(used) if used else None, "vram_total": total,
+            "integrated": a.integrated,
         }
 
 
@@ -222,6 +236,7 @@ class WinHardware:
         self.counters = Counters({
             "gpu_engine": r"\GPU Engine(*)\Utilization Percentage",
             "gpu_mem": r"\GPU Adapter Memory(*)\Dedicated Usage",
+            "gpu_shared": r"\GPU Adapter Memory(*)\Shared Usage",
             "zone_hp": r"\Thermal Zone Information(*)\High Precision Temperature",
             "zone": r"\Thermal Zone Information(*)\Temperature",
         })

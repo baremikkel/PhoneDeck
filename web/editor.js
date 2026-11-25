@@ -71,6 +71,13 @@ function setDirty(v = true) {
   $("#save").textContent = v ? "Gem ændringer" : "Gemt ✓";
 }
 function iconEl(icon) {
+  if (icon?.kind === "site") {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.src = "/api/siteicon?site=" + encodeURIComponent(icon.value);
+    img.onerror = () => img.replaceWith(Object.assign(document.createElement("b"), { textContent: "🌐" }));
+    return img;
+  }
   if (icon?.kind === "app") {
     const img = document.createElement("img");
     img.alt = "";
@@ -248,6 +255,7 @@ function showType(type) {
   $$(".type-panel").forEach((p) => p.classList.toggle("on", p.dataset.panel === type));
   // which icon kinds make sense
   $('#icon-kinds [data-kind="app"]').hidden = type !== "app";
+  $('#icon-kinds [data-kind="site"]').hidden = type !== "url";
 }
 
 $("#types").addEventListener("click", (e) => {
@@ -273,6 +281,7 @@ $("#types").addEventListener("click", (e) => {
       b.action = { type: "builtin", name: n };
       b.icon = { kind: "builtin", value: builtins[n][1] };
     }
+    if (b.icon.kind === "site" && t !== "url") b.icon = { kind: "emoji", value: "⚡" };
     if (b.icon.kind === "app" && t !== "app") b.icon = { kind: "emoji", value: t === "url" ? "🌐" : t === "hotkey" ? "⌨️" : "⚡" };
     if (t !== "folder" && b.buttons?.length && !confirm(`Mappen indeholder ${b.buttons.length} knap(per), som slettes. Fortsæt?`)) {
       b.action = { type: "folder" };
@@ -285,7 +294,33 @@ $("#types").addEventListener("click", (e) => {
 });
 
 $("#label").addEventListener("input", (e) => update((b) => { b.label = e.target.value; }));
-$("#url").addEventListener("input", (e) => update((b) => { b.action = { type: "url", url: e.target.value.trim() }; }));
+$("#url").addEventListener("input", (e) => {
+  update((b) => { b.action = { type: "url", url: e.target.value.trim() }; });
+  clearTimeout(siteIcon.timer);
+  siteIcon.timer = setTimeout(() => siteIcon(false), 900);  // once you stop typing
+});
+
+// ---------- website icons (favicon): fetched once by the PC and cached ----------
+// automatic while the button still has a default icon; `forced` = "Sidens ikon" was clicked
+async function siteIcon(forced) {
+  const b = cur();
+  if (!b || b.action.type !== "url") return;
+  const url = b.action.url || "";
+  const auto = b.icon.kind === "site" || (b.icon.kind === "emoji" && ["🌐", "⭐", "⚡"].includes(b.icon.value));
+  if (!/^https?:\/\/[^/\s]+\.[^/\s]+/i.test(url) || (!forced && !auto)) {
+    if (forced) toast("Skriv adressen først", true);
+    return;
+  }
+  const r = await api("/api/siteicon", { url }).catch((e) => ({ error: e.message }));
+  if (cur() !== b || b.action.url !== url) return;  // something else was chosen meanwhile
+  if (r?.ok) {
+    update((bb) => { bb.icon = { kind: "site", value: r.site }; });
+  } else {
+    if (forced) toast("Kunne ikke hente sidens ikon" + (r?.error ? ": " + r.error : ""), true);
+    if (b.icon.kind === "site") update((bb) => { bb.icon = { kind: "emoji", value: "🌐" }; });
+  }
+  renderIcon();
+}
 $("#command").addEventListener("input", (e) => update((b) => { b.action = { type: "command", argv: ["sh", "-c", e.target.value] }; }));
 // pages a "Gå til side"-button can open: [id, name]
 let PAGE_TARGETS = [["overview", "Forside"], ["system", "System"], ["buttons", "Knapper"]];
@@ -413,6 +448,7 @@ $("#icon-kinds").addEventListener("click", (e) => {
     if (k === "builtin") b.icon = { kind: "builtin", value: b.action.type === "builtin" ? builtins[b.action.name][1] : "star" };
     if (k === "emoji") b.icon = { kind: "emoji", value: "⭐" };
   });
+  if (k === "site") return siteIcon(true);
   renderIcon();
 });
 $("#emoji").addEventListener("input", (e) => update((b) => { b.icon = { kind: "emoji", value: e.target.value || "⭐" }; }));

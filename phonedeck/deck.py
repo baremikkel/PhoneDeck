@@ -5,12 +5,13 @@ Each button has a label, an icon and an action:
     {"type": "builtin", "name": "volume.up"}        volume, mic, media, fullscreen
     {"type": "url",     "url": "https://…"}         open in the default browser
     {"type": "app",     "app": "firefox.desktop"}   start an installed program
-    {"type": "hotkey",  "keys": [29, 46]}           press a key combo (ydotool)
+    {"type": "hotkey",  "keys": [29, 46]}           press a key combo (GNOME helper, or ydotool)
     {"type": "command", "argv": ["prog", "arg"]}    run a program/script
     {"type": "page",    "page": "music"}            show a page on the phone (nothing runs on the PC)
 
 Icons: {"kind": "builtin", "value": "<icon name>"} | {"kind": "emoji", "value": "💬"}
-       | {"kind": "app", "value": "<desktop id>"}
+       | {"kind": "app", "value": "<desktop id>"} | {"kind": "site", "value": "https://github.com"}
+       (a website's own icon, fetched once and cached – see favicons.py)
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ import threading
 import uuid
 
 from .actions import BUILTINS, load_config
-from . import paths
+from . import favicons, gnome, paths
 from .paths import IS_WINDOWS
 
 if IS_WINDOWS:
@@ -71,6 +72,9 @@ def _clean_icon(icon) -> dict:
     if not isinstance(icon, dict):
         return {"kind": "emoji", "value": "⭐"}
     kind, value = icon.get("kind"), str(icon.get("value", ""))[:64]
+    if kind == "site":
+        site = favicons.origin(str(icon.get("value", "")))
+        return {"kind": "site", "value": site} if site else {"kind": "emoji", "value": "🌐"}
     if kind not in ("builtin", "emoji", "app"):
         kind, value = "emoji", "⭐"
     return {"kind": kind, "value": value}
@@ -208,6 +212,7 @@ class Deck:
         with self._lock:
             self.buttons = cleaned
             self._write()
+        favicons.ensure([b["icon"]["value"] for b in walk(cleaned) if b["icon"]["kind"] == "site"])
         return cleaned
 
     def reset(self) -> list[dict]:
@@ -295,7 +300,8 @@ def _spawn(argv: list[str]) -> None:
 
 
 def hotkeys_available() -> bool:
-    return IS_WINDOWS or shutil.which("ydotool") is not None
+    """Windows: built in. Linux: through the PhoneDeck GNOME extension, or ydotool."""
+    return IS_WINDOWS or gnome.version() >= 2 or shutil.which("ydotool") is not None
 
 
 def send_hotkey(keys: list[int]) -> None:
@@ -303,8 +309,10 @@ def send_hotkey(keys: list[int]) -> None:
     if IS_WINDOWS:
         win.send_keys(keys)
         return
-    if not hotkeys_available():
-        raise ValueError("ydotool er ikke installeret")
+    if gnome.send_keys(keys):
+        return
+    if not shutil.which("ydotool"):
+        raise ValueError("tastaturgenveje kræver PhoneDeck-hjælperen til GNOME (scripts/install-gnome-helper.sh)")
     env = dict(os.environ)
     sock = f"/run/user/{os.getuid()}/.ydotool_socket"
     if "YDOTOOL_SOCKET" not in env and os.path.exists(sock):

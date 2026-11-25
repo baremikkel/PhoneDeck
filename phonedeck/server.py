@@ -15,6 +15,7 @@ from pathlib import Path
 
 from .actions import BUILTINS, Actions, audio_state, load_config
 from .apps import Apps
+from . import favicons
 from .deck import Deck, hotkeys_available, validate
 from .extensions import ExtensionManager
 from .sensors import Sensors
@@ -220,6 +221,12 @@ def make_handler(hub: Hub, host: str, port: int):
                 return self._json(hub.extensions.public(with_settings=True))
             if path == "/api/appicon":
                 return self._app_icon((query.get("id") or [""])[0])
+            if path == "/api/siteicon":  # only icons already fetched – never fetches by itself
+                hit = favicons.cached((query.get("site") or [""])[0])
+                if not hit:
+                    return self._send(404, b"", "text/plain")
+                return self._send(200, hit[0], hit[1], {"Cache-Control": "max-age=3600",
+                                                        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'"})
             if path == "/api/deck":
                 if not self._api_ok():
                     return
@@ -304,6 +311,9 @@ def make_handler(hub: Hub, host: str, port: int):
                     for ext_id in changed:
                         hub.extensions.settings_changed(ext_id)
                     return self._json({"ok": True, "settings": hub.extensions.mask(saved)})
+                elif self.path == "/api/siteicon":
+                    # the editor asks for a website's icon; fetched once and cached
+                    return self._json({"ok": True, "site": favicons.fetch(str(body.get("url", "")))})
                 elif self.path == "/api/deck/test":
                     b = validate([{"label": "test", "action": body.get("action")}], hub.apps)[0]
                     hub.deck.run(b["action"])

@@ -1,0 +1,14 @@
+      <div class="card fps-card" style="--accent: var(--gpu)" data-widget="gauge" data-widget-name="FPS-speedometer">
+        <header><span class="label">FPS</span><span class="sub grow right" data-b="fps.app" data-opt="app" data-opt-name="Programnavn"></span></header>
+        <div class="fps-gauge"><canvas data-fps-gauge></canvas>
+          <div class="fps-read"><b data-b="fps.now">–</b><small data-b="fps.unit">FPS</small></div></div>
+        <div class="facts fps-facts" data-opt="facts" data-opt-name="Gennemsnit og laveste">
+          <div><span data-b="fps.avg">–</span><small>snit</small></div>
+          <div><span data-b="fps.min">–</span><small>laveste</small></div>
+          <div><span data-b="fps.hz">–</span><small>Hz</small></div>
+        </div>
+      </div>
+      <div class="card fps-hist" style="--accent: var(--gpu)" data-widget="graph" data-widget-name="FPS-graf">
+        <header><span class="label">Sidste minut</span><span class="sub grow right" data-b="fps.note"></span></header>
+        <canvas class="spark" data-fps-chart></canvas>
+      </div>

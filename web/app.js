@@ -356,6 +356,13 @@ const LIVE = {
 };
 
 function makeIcon(icon) {
+  if (icon?.kind === "site") {  // the website's own icon, cached on the PC
+    const img = document.createElement("img");
+    img.className = "appicon siteicon"; img.alt = ""; img.loading = "lazy";
+    img.src = "/api/siteicon?site=" + encodeURIComponent(icon.value);
+    img.onerror = () => img.replaceWith(Object.assign(document.createElement("b"), { textContent: "🌐" }));
+    return img;
+  }
   if (icon?.kind === "app") {
     const img = document.createElement("img");
     img.className = "appicon"; img.alt = ""; img.loading = "lazy";

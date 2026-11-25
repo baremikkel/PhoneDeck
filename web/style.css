@@ -275,6 +275,7 @@ button.vol { font-size: 15px; min-width: 64px; }
 .tile .ic { font-size: 36px; color: var(--text); }
 .tile.on .ic { color: #000; }
 .tile .appicon { width: 40px; height: 40px; object-fit: contain; }
+.tile .siteicon { border-radius: 9px; }
 .tile span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 6px; }
 .tile.add { border-style: dashed; background: transparent; }
 .tile.add .ic { color: var(--muted); }

@@ -46,6 +46,7 @@ chosen under *Indstillinger → Sider* (Settings → Pages).
 | **Batterier** (batteries) | Battery level of your headset, mouse, keyboard and controllers (UPower) and of the phone itself, with a warning when one runs low |
 | **Udklip** (clipboard) | **Clipboard history** – tap an entry to copy it again on the PC – and a **gallery of your latest screenshots**: view them large, copy the image or open it on the PC. The history only lives in memory and skips copies a password manager marks as secret |
 | **Diske** (disks) | Free space per drive and **SMART health** of NVMe and SATA drives (wear, spare, media errors, temperature, power-on hours) via UDisks2 – no root needed |
+| **FPS** | A **speedometer** of the PC's frame rate, with the program in focus, average, lowest value and a graph of the last minute. Red/green limits and the top of the scale (the monitor's refresh rate by default) are set in the settings. Measuring only runs while a speedometer is on the phone's screen |
 | **Skrivebord** (desktop) | Big switches for GNOME's **night light** (with warmth), **do not disturb** and **dark/light theme** |
 | **Your own pages** | Up to 10 extra grid pages, built in the editor from the same elements as the home page |
 
@@ -116,11 +117,12 @@ The service starts with your graphical session.
    py -m phonedeck
    ```
 
-2. **Temperatures and GPU:** install
-   [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor),
-   run it as administrator and turn on *Options → Remote Web Server → Run* (port 8085).
-   PhoneDeck reads `http://localhost:8085/data.json`; without it you still get CPU load,
-   RAM, network and disk (NVIDIA GPUs also work through `nvidia-smi`).
+2. **Temperatures and GPU** work without extra programs: PhoneDeck reads the GPU (load,
+   VRAM, temperature, fan, clock – any brand) from the display driver and an approximate
+   CPU temperature from the motherboard's thermal zone, like Task Manager does.
+   *Optional:* if [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)
+   runs with *Options → Remote Web Server → Run* (port 8085), PhoneDeck also uses it for
+   the exact CPU temperature, GPU power/hotspot and SMART.
 3. **Phone:** install adb (`winget install Google.PlatformTools`) and run
    `powershell -ExecutionPolicy Bypass -File scripts\phone-connect.ps1`.
 4. **Autostart:** `powershell -ExecutionPolicy Bypass -File scripts\install-autostart-windows.ps1`
@@ -141,7 +143,9 @@ What differs on Windows:
 | Commands | run with `cmd /c` |
 | Lyd page (mixer) | Linux only (PipeWire) – hidden on Windows |
 | Batterier, Skrivebord | Linux only (UPower, GNOME) – hidden on Windows |
-| Diske | space per drive; SMART health (wear, spare, hours, data written, temperature) via LibreHardwareMonitor |
+| Diske | space per drive; SMART health (wear, spare, hours, data written, temperature) via the optional LibreHardwareMonitor |
+| CPU temperature | the motherboard's thermal zone (approximate); exact with the optional LibreHardwareMonitor |
+| FPS | counts DirectX frames through Windows' event log (ETW), in a window and in full screen, on any GPU brand. Run `scripts\allow-fps-windows.ps1` once (adds you to *Performance Log Users*). Vulkan/OpenGL games are not measured |
 | Settings | `%APPDATA%\PhoneDeck` instead of `~/.config/phonedeck` |
 
 ## The phone
@@ -238,10 +242,13 @@ it on the computer. A button can:
 - **Open a program:** choose from your installed programs (including Steam games and
   snaps). The icon and name are filled in automatically. If the program is already
   running, the button doesn't start a second copy but shows a short message on the phone.
-- **Open a website** in the default browser, e.g. Messenger.
-- **Send a keyboard shortcut**, e.g. Ctrl+Shift+T. Requires
+- **Open a website** in the default browser, e.g. Messenger. The button gets the
+  website's own icon (favicon) as soon as you have typed the address. The PC fetches it
+  once and keeps it in `~/.cache/phonedeck/siteicons/`.
+- **Send a keyboard shortcut**, e.g. Ctrl+Shift+T. On GNOME this goes through the
+  PhoneDeck GNOME helper (see *Active marking* below); on other desktops it needs
   [`ydotool`](https://github.com/ReimuNotMoe/ydotool) with `ydotoold` running, because
-  Wayland allows no other way.
+  Wayland allows no other way. Built in on Windows.
 - **Run a command or script**, e.g. `~/shortcut_scripts/my-script.sh`.
 - **Built-in actions:** volume, mute, microphone, playback and full screen.
 - **Folder** (*Mappe*): on the phone the folder opens with a back button. In the editor,
@@ -254,7 +261,7 @@ it on the computer. A button can:
 Under *Visning* (display) each button can hide its name, icon or frame, or be an
 **invisible** button that still works when tapped.
 
-Drag buttons to reorder them, choose an emoji, built-in icon or program icon, and use
+Drag buttons to reorder them, choose an emoji, built-in icon, program icon or the website's icon, and use
 *Test på computeren* (test on the computer). When you press **Gem** (save), the phone
 updates immediately. Buttons are stored in `~/.config/phonedeck/buttons.json`.
 
@@ -263,19 +270,19 @@ updates immediately. Buttons are stored in `~/.config/phonedeck/buttons.json`.
 A program is **Aktiv** (active) when it has an open window, not merely when it runs in
 the background:
 
-- **XWayland programs** (Discord, Spotify, VS Code, Steam games …) are checked by
-  PhoneDeck itself with `xdotool`.
-- **Native Wayland programs** (e.g. Firefox) can't be seen by other programs under GNOME.
-  Install the small extension in `gnome-extension/`, and PhoneDeck gets the answer from
-  GNOME itself:
+- Under GNOME, Wayland hides other programs' windows. Install the small extension in
+  `gnome-extension/`, and PhoneDeck gets the answer from GNOME itself:
 
   ```bash
   ./scripts/install-gnome-helper.sh
   ```
 
-  Then log out and back in. The extension does only one thing: it answers over D-Bus
-  which programs have a window. Without it, Wayland programs count as active as long as
-  they run.
+  Then log out and back in. The same helper also presses the **keyboard shortcuts** of
+  your buttons and counts frames for the **FPS** speedometer, so neither `xdotool` nor
+  `ydotool` is needed. It only answers D-Bus calls from your own user.
+- Without the helper, XWayland programs (Discord, Spotify, Steam games …) are checked
+  with `xdotool` if it is installed, and native Wayland programs count as active as long
+  as they run.
 
 ## Extensions
 
@@ -296,6 +303,7 @@ extensions/
   battery/       System     – batteries of headsets, mice, controllers, the phone
   clipboard/     System     – clipboard history, screenshot gallery
   disks/         System     – space per drive, SMART health
+  fps/           System     – frame-rate speedometer
   desktop/       System     – night light, do not disturb, dark/light theme (GNOME)
 ```
 
@@ -359,7 +367,9 @@ control the buttons.
 - [ ] Turn off/dim the screen when the PC is locked or asleep
 - [ ] Battery protection (stop charging at ~60 % with ACC/Magisk)
 - [x] More pages (calendar, weather, Home Assistant)
-- [x] Windows support (LibreHardwareMonitor) – not yet tested on a real Windows PC
+- [x] Windows support (built-in sensors, LibreHardwareMonitor optional) – not yet tested on a real Windows PC
+- [x] FPS speedometer
+- [x] Website icons (favicons) on Stream Deck buttons
 - [ ] Minimal Android ROM (LineageOS without Google) in kiosk mode
 
 ### Extension ideas

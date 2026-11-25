@@ -1,6 +1,9 @@
-"""Temperatures, GPU load/power/VRAM and NVMe temps on Windows via LibreHardwareMonitor.
+"""Optional, extra-precise sensors on Windows via LibreHardwareMonitor.
 
-Windows has no sysfs, so PhoneDeck reads LibreHardwareMonitor's built-in web server
+PhoneDeck reads the GPU and an approximate CPU temperature from Windows itself (see
+winhw.py). If LibreHardwareMonitor happens to be running, PhoneDeck uses it on top: the
+exact CPU die temperature, GPU power and hotspot, and NVMe/SMART data. It reads its
+built-in web server
 (Options → Remote Web Server → Run, default port 8085) at http://localhost:8085/data.json.
 Only localhost is ever asked. Everything else (CPU load, RAM, network, disk) comes from
 psutil as on Linux.
@@ -16,6 +19,7 @@ import urllib.request
 
 URL = "http://127.0.0.1:{port}/data.json"
 CACHE_S = 1.5
+RETRY_S = 30  # when it isn't running, don't knock on the port every second
 HARDWARE_ICONS = {"cpu", "ati", "amd", "nvidia", "intel", "hdd", "nic", "ram", "mainboard", "chip", "gpu"}
 
 
@@ -52,7 +56,7 @@ class LibreHardwareMonitor:
 
     def refresh(self) -> list[dict]:
         with self._lock:
-            if time.monotonic() - self._at < CACHE_S:
+            if time.monotonic() - self._at < (CACHE_S if self.ok else RETRY_S):
                 return self._sensors
             self._at = time.monotonic()
             try:
@@ -121,13 +125,3 @@ class LibreHardwareMonitor:
                 temps.append(best["value"])
         return temps[:4]
 
-
-class LhmGpu:
-    """Drop-in for the Linux GPU readers in sensors.py."""
-
-    def __init__(self, lhm: LibreHardwareMonitor):
-        self.lhm = lhm
-        self.name = "GPU"
-
-    def read(self) -> dict:
-        return self.lhm.gpu() or {"name": self.name}

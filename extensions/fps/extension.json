@@ -1,0 +1,15 @@
+{
+  "id": "fps",
+  "name": "FPS",
+  "category": "System",
+  "description": "Et speedometer over billedhastigheden (FPS) på computeren – til spil og alt andet på skærmen – med gennemsnit og laveste værdi.",
+  "page": {"title": "FPS"},
+  "settings": [
+    {"key": "max", "label": "Speedometerets top", "type": "select", "default": "auto",
+     "options": [["auto", "Skærmens opdateringsfrekvens"], ["60", "60"], ["120", "120"], ["144", "144"], ["165", "165"], ["240", "240"], ["360", "360"]]},
+    {"key": "low", "label": "Rød under (FPS)", "type": "number", "default": 30, "min": 5, "max": 200},
+    {"key": "ok", "label": "Grøn fra (FPS)", "type": "number", "default": 60, "min": 10, "max": 400},
+    {"type": "status", "key": "status"},
+    {"type": "info", "html": "Målingen kører kun, mens et speedometer er synligt på telefonen. <b>Linux:</b> tæller billeder, som GNOME viser på skærmen (kræver PhoneDeck-hjælperen, <code>scripts/install-gnome-helper.sh</code>, og et nyt login). Med lodret synkronisering (V-Sync) kan tallet ikke komme over skærmens frekvens. <b>Windows:</b> tæller hvert billede, DirectX-spil og -programmer sender til skærmen (Windows' hændelseslog, ETW) – også i fuld skærm og på AMD, Intel og NVIDIA. Det kræver én gang, at din bruger kommer i gruppen <i>Performance Log Users</i>: kør <code>scripts\\allow-fps-windows.ps1</code> og log ud og ind. Spil, der bruger Vulkan eller OpenGL, måles ikke på Windows."}
+  ]
+}
